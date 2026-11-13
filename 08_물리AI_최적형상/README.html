@@ -54,7 +54,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <g font-size="13" text-anchor="middle">
       <rect x="300" y="10" width="300" height="52" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="450" y="32" font-weight="700" fill="#5b37b8">① 요청 이해 (원래 LLM)</text><text x="450" y="51" font-size="11" fill="#5b6475">시연: 07 고정 시나리오로 대체</text>
       <rect x="300" y="84" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="106" font-weight="700" fill="#b35a17">② 학습 계획 자동 수립</text><text x="450" y="125" font-size="11" fill="#5b6475">바뀌는 조건·범위·샘플 수</text>
-      <rect x="300" y="158" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="180" font-weight="700" fill="#b35a17">③ 데이터 자동 생성 (FEM)</text><text x="450" y="199" font-size="11" fill="#5b6475">조건 무작위 위상최적화 → 형상 + 정답</text>
+      <rect x="300" y="158" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="180" font-weight="700" fill="#b35a17">③ 데이터 자동 생성 (FEM)</text><text x="450" y="199" font-size="11" fill="#5b6475">설계 범위 안 무작위 형상 + 형상별 FEM 정답</text>
       <rect x="300" y="232" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="254" font-weight="700" fill="#b35a17">④ DeepSDF + PINO 학습</text><text x="450" y="273" font-size="11" fill="#5b6475">물리 모듈에 맞춰 헤드 자동 구성</text>
       <rect x="300" y="306" width="300" height="52" rx="10" fill="#fff8e6" stroke="#ba7517"/><text x="450" y="328" font-weight="700" fill="#854f0b">⑤ 품질 관문</text><text x="450" y="347" font-size="11" fill="#5b6475">검증 오차 ≤ 기준 (예: f₁ 약 5%)</text>
       <rect x="300" y="396" width="300" height="52" rx="10" fill="#e7f7f1" stroke="#12a37f"/><text x="450" y="418" font-weight="700" fill="#0d7a5f">⑥ 대리 모델 최적화 → FEM 검증</text><text x="450" y="437" font-size="11" fill="#5b6475">최종 판정은 항상 FEM</text>
@@ -77,7 +77,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <div class="grid g2" style="margin-top:10px">
     <div class="box"><h3>해커톤 시연 범위</h3><p>① 요청 이해는 원래 <b>LLM</b>. 사내 해커톤에서 LLM API를 못 써서 07이 <b>고정 시나리오 2개</b>(거치대 3D 진동+정적, TV 2D 정적)로 대신. <b>②~⑥은 실제로 동작</b>. LLM은 준비된 물리 모듈 선택·조건 설정까지만(코드 생성 안 함).</p></div>
     <div class="box"><h3>왜 "제품군마다 생성 + 재사용"인가</h3><p>요청 1개만 보면 경로 A(약 20분)가 더 빠름 — 대리 모델은 데이터(FEM 수백 회) + 학습이 먼저 필요. 같은 제품군에 조건만 바뀐 요청이 <b>반복될 때</b> 이김 → 발표 핵심 수치 = <b>손익분기 요청 수</b>(미측정, 시연에서 측정).</p></div>
-    <div class="box"><h3>③ 데이터: 조건 무작위 위상최적화</h3><p>처음 보는 제품군엔 형상 생성기가 없음 → 조건을 바꿔 opt3d.py / plate.py를 여러 번 실행하면 <b>형상(DeepSDF)과 FEM 정답(PINO)이 동시에</b> 나오고 좋은 설계 근처에 모임. 거치대 3×3×2 = 18조합 × 스냅샷 약 32 ≈ 580개(추정). 템플릿 변형은 보조.</p></div>
+    <div class="box"><h3>③ 데이터: 설계 범위 안 무작위 형상</h3><p>DeepSDF는 최적화 결과가 아니라 <b>설계 범위 안 다양한 무작위 형상</b>으로 학습. 라벨만 쓰므로 제품 무관, 형상 생성에 FEM 불필요. ① 곧은 부재 ② 무작위 경유점 트러스 ③ 매끈한 덩어리(두 고정부에 붙은 조각만). PINO 정답은 형상마다 FEM 1회(약 7.5 s 추정), 최적점 근처는 <b>능동 학습</b>으로 보강.</p></div>
     <div class="box"><h3>④~⑤ 제품 무관 코드 + 품질 관문</h3><p>2D/3D·물리 모듈·하중 수·출력 헤드를 spec.json에서 읽어 자동 구성 → 거치대·TV를 같은 코드로. 품질 관문 미달이면 <b>경로 A로 자동 전환</b>해 항상 답을 냄. 진동수 ① 레일리+보정 vs ② 직접 학습 비교 실험 포함.</p></div>
   </div>
 </section>
@@ -284,10 +284,10 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <div class="callout" style="margin-top:8px">모든 z의 형상이 PINO로 감(버리지 않음). 마스크는 <b>범위</b>만 보장하고 <b>연결성</b>은 보장하지 않음 → 끊긴 형상도 학습 데이터에 넣어 PINO가 "낮은 진동수"로 평가하게 하고, 최종안은 FEM으로 확인. 마스크를 빼면 링·받침이 칸 단위로 어긋나거나, 최적화가 링을 얇게 만드는 z로 빠져 대리 모델이 틀린 점수를 줄 위험.</div>
   <table style="margin-top:10px">
     <tr><th>학습 데이터</th><th>출처</th><th>비용</th></tr>
-    <tr><td>DeepSDF 형상 (수백 개)</td><td>07 템플릿 파라미터 무작위 변형 + <code>opt3d</code> 스냅샷 + 최적화 결과(39.8 g 등)</td><td>거의 0 / 기존 run 재사용</td></tr>
-    <tr><td>PINO 정답</td><td>형상마다 FEM 1회 (모드 S·A + 정적 충격)</td><td>약 7.5 s/개 추정 → 500개 ≈ 1시간 (미측정)</td></tr>
+    <tr><td>DeepSDF 형상 (약 1,000개)</td><td>설계 범위 안 무작위 형상: 곧은 부재 · 무작위 경유점 트러스 · 매끈한 덩어리 (고정부 연결·최소 두께 2칸 보장)</td><td>거의 0 (FEM 불필요)</td></tr>
+    <tr><td>PINO 정답</td><td>무작위 형상마다 FEM 1회 (모드 S·A + 정적 충격) + 능동 학습 후보</td><td>약 7.5 s/개 추정 → 1,000개 ≈ 2시간 (미측정)</td></tr>
   </table>
-  <p class="note">최적화 결과를 꼭 섞을 것: 템플릿 변형만 배우면 z 공간에 "템플릿처럼 생긴 형상"만 들어가 경로 A(39.8 g)보다 무거운 답이 나올 가능성이 큼. 받침 위치가 다른 템플릿은 한 모델에 섞지 않음(받침이 흐릿하게 두 군데 생김).</p>
+  <p class="note">위험: 무작위 샘플은 대부분 평범한 설계 → 좋은 설계(가는 트러스형)가 z 공간에 충분히 없으면 경로 A(39.8 g)보다 무거울 수 있음 → 트러스형 비중↑, 능동 학습, 선택적으로 최적화 결과 몇 개를 기준점으로 추가. 받침 위치가 다른 문제는 한 모델에 섞지 않음(받침이 흐릿하게 두 군데 생김).</p>
 </section>
 
 <section>
@@ -325,7 +325,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
       <li>DeepSDF 2D 검증: 학습 2분, 처음 보는 형상 IoU 0.991–0.996</li></ul></div>
     <div class="col todo"><h3>⏳ 예정</h3><ul>
       <li>② 학습 계획 규칙 (제품군 2종)</li>
-      <li>③ 조건 무작위 최적화 배치 + 정적 해석 저장</li>
+      <li>③ 무작위 형상 생성기 + FEM 정답 배치 + 능동 학습</li>
       <li>④ 제품 무관 DeepSDF·PINO 학습 코드</li>
       <li>⑤ 품질 관문·경로 A 전환, ⑥ z 최적화 + FEM 검증</li>
       <li>레일리 사전 확인, 진동수 ①/② 비교, 손익분기 측정</li></ul></div>
@@ -386,6 +386,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (7)</td><td>③ 데이터 생성 변경: DeepSDF는 설계 범위 안 무작위 형상(부재·트러스·덩어리)으로 학습, PINO 정답은 형상별 FEM, 능동 학습으로 최적점 근처 보강</td></tr>
     <tr><td>2026-11-13 (6)</td><td><b>최종 방향으로 재구성</b>: 제품군별 대리 모델 자동 생성(②~⑤) + 재사용 + 최적화·검증(⑥), 시연 범위(앞단 LLM → 고정 시나리오), 손익분기, 조건 무작위 위상최적화 데이터, 제품 무관 코드, 품질 관문, TV로 먼저 디버깅하는 일정, 요청 5·13 수정</td></tr>
     <tr><td>2026-11-13 (5)</td><td>TV 스탠드 계획(master plate_v2 기준): 2D DeepSDF + 정적 PINO, 확장성 시연. 요청 13·14</td></tr>
     <tr><td>2026-11-13 (4)</td><td>진동수 설계: 한 모델에 변위 헤드 + 진동수 헤드, 1차 = 레일리(u) × 보정, 2차 = 직접 회귀, 같이 학습 시 주의점. 폰 회전 관성 확인 제외(팀 판단)</td></tr>
