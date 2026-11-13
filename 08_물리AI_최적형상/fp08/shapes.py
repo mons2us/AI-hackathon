@@ -72,8 +72,11 @@ class Canvas:
         return self.Pd[rng.integers(len(self.Pd))]
 
 
+_TS = [1.0]     # 형상마다 두께 배율 (얇은 것~굵은 것 고르게 → 기준 근처 형상도 포함)
+
+
 def _radius(rng, h, lo=1.0, hi=3.0):
-    return h * rng.uniform(lo, hi)
+    return h * rng.uniform(lo, hi) * _TS[0]
 
 
 def gen_A(cv, rng):
@@ -121,7 +124,7 @@ def gen_C(cv, rng, kind):
     """판 + 부재: 고정부 사이를 삼각형/사각형 판으로 덮고, 남은 연결은 막대"""
     P, h = cv.P, cv.h
     m = np.zeros(len(P), bool)
-    t = h * rng.uniform(2.0, 4.0)
+    t = h * rng.uniform(2.0, 4.0) * _TS[0]
     nf = len(cv.anchor)
     for _ in range(rng.integers(1, 3)):
         pts = [cv.rand_anchor(rng, c) for c in range(nf)]
@@ -242,6 +245,7 @@ def make_shape(p, group, idx, cv=None, max_try=12):
     fams, w = zip(*MIX[cv.product])
     for attempt in range(max_try):
         fam = fams[rng.choice(len(fams), p=np.array(w) / sum(w))]
+        _TS[0] = float(rng.uniform(1.0, 2.2))
         if fam == 'A':
             m = gen_A(cv, rng)
         elif fam == 'B':
@@ -262,7 +266,7 @@ def make_shape(p, group, idx, cv=None, max_try=12):
         occ = fill_cavities(cv, occ | cv.fixed) & cv.design
         vf = occ.sum() / cv.design.sum()
         if 0.05 <= vf <= 0.50 and (ok or want_broken):
-            return occ, dict(group=group, idx=int(idx), family=fam, reinforced=bool(reinf), vf=float(vf),
+            return occ, dict(group=group, idx=int(idx), family=fam, reinforced=bool(reinf), vf=float(vf), tscale=_TS[0],
                              connected=bool(connected_groups(cv, occ | cv.fixed)[0]), attempt=attempt)
     return occ, dict(group=group, idx=int(idx), family=fam, reinforced=bool(reinf), vf=float(vf),
                      connected=bool(ok), attempt=max_try, failed=True)
