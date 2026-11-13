@@ -42,11 +42,45 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <div class="wrap">
 
 <header>
-  <div class="tag">FormProof · 08_물리AI_최적형상 · 담당: 물리 엔진·물리 AI</div>
-  <h1>1차 설계 → 요구사항을 만족하는 최적 형상</h1>
-  <p>07이 만든 설계 명세·해석 문제를 받아, FEM 위상최적화(검증 완료)를 PINO 대리 모델로 가속해 최소 무게 형상을 찾습니다.</p>
+  <div class="tag">FormProof · 08_물리AI · 담당: 물리 엔진·물리 AI (소소파파)</div>
+  <h1>요청 → 대리 모델 자동 생성 → 최적 설계</h1>
+  <p>처음 보는 제품군이면 학습 계획·FEM 데이터 생성·DeepSDF + PINO 학습·품질 검사까지 자동으로 해서 대리 모델을 만들고, 그 모델로 최적 설계를 찾아 FEM으로 검증합니다. 같은 제품군의 다음 요청은 저장된 모델로 즉시 답합니다.</p>
   <span class="ver">2026-11-13 (금) 기준 · 해커톤 11-16 (월) 시작 · ✅ 완료 🔄 진행 ⏳ 예정 ❓ 확인 ⛔ 보류</span>
 </header>
+
+<section>
+  <h2><span class="n">★</span>최종 파이프라인 — 제품군별 대리 모델 자동 생성 + 재사용</h2>
+  <svg viewBox="0 0 900 470" role="img" aria-label="요청에서 대리 모델 자동 생성과 최적 설계까지의 단계">
+    <g font-size="13" text-anchor="middle">
+      <rect x="300" y="10" width="300" height="52" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="450" y="32" font-weight="700" fill="#5b37b8">① 요청 이해 (원래 LLM)</text><text x="450" y="51" font-size="11" fill="#5b6475">시연: 07 고정 시나리오로 대체</text>
+      <rect x="300" y="84" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="106" font-weight="700" fill="#b35a17">② 학습 계획 자동 수립</text><text x="450" y="125" font-size="11" fill="#5b6475">바뀌는 조건·범위·샘플 수</text>
+      <rect x="300" y="158" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="180" font-weight="700" fill="#b35a17">③ 데이터 자동 생성 (FEM)</text><text x="450" y="199" font-size="11" fill="#5b6475">조건 무작위 위상최적화 → 형상 + 정답</text>
+      <rect x="300" y="232" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="254" font-weight="700" fill="#b35a17">④ DeepSDF + PINO 학습</text><text x="450" y="273" font-size="11" fill="#5b6475">물리 모듈에 맞춰 헤드 자동 구성</text>
+      <rect x="300" y="306" width="300" height="52" rx="10" fill="#fff8e6" stroke="#ba7517"/><text x="450" y="328" font-weight="700" fill="#854f0b">⑤ 품질 관문</text><text x="450" y="347" font-size="11" fill="#5b6475">검증 오차 ≤ 기준 (예: f₁ 약 5%)</text>
+      <rect x="300" y="396" width="300" height="52" rx="10" fill="#e7f7f1" stroke="#12a37f"/><text x="450" y="418" font-weight="700" fill="#0d7a5f">⑥ 대리 모델 최적화 → FEM 검증</text><text x="450" y="437" font-size="11" fill="#5b6475">최종 판정은 항상 FEM</text>
+      <rect x="660" y="306" width="200" height="52" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="760" y="328" font-weight="700">경로 A</text><text x="760" y="347" font-size="11" fill="#5b6475">FEM 직접 최적화 (약 20분)</text>
+      <rect x="40" y="158" width="200" height="52" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="140" y="180" font-weight="700">모델 저장소</text><text x="140" y="199" font-size="11" fill="#5b6475">제품군별 재사용</text>
+    </g>
+    <g stroke="#5b6475" stroke-width="2" fill="none" marker-end="url(#ar)">
+      <line x1="450" y1="62" x2="450" y2="81"/><line x1="450" y1="136" x2="450" y2="155"/><line x1="450" y1="210" x2="450" y2="229"/><line x1="450" y1="284" x2="450" y2="303"/><line x1="450" y1="358" x2="450" y2="393"/>
+      <line x1="600" y1="332" x2="657" y2="332"/>
+      <path d="M300 258 L140 258 L140 213"/>
+    </g>
+    <g stroke="#e8833a" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#ar)">
+      <path d="M300 36 L220 36 L220 155"/><path d="M140 210 L140 422 L297 422"/>
+    </g>
+    <g font-size="12">
+      <text x="460" y="380" fill="#0d7a5f" font-weight="700">통과</text><text x="610" y="322" fill="#d9455f" font-weight="700">미달</text><text x="150" y="252" fill="#5b6475">저장</text>
+      <text x="20" y="96" fill="#b35a17" font-weight="700">같은 제품군 다음 요청</text><text x="20" y="114" fill="#b35a17">②~⑤ 건너뜀 → 수 초</text>
+    </g>
+  </svg>
+  <div class="grid g2" style="margin-top:10px">
+    <div class="box"><h3>해커톤 시연 범위</h3><p>① 요청 이해는 원래 <b>LLM</b>. 사내 해커톤에서 LLM API를 못 써서 07이 <b>고정 시나리오 2개</b>(거치대 3D 진동+정적, TV 2D 정적)로 대신. <b>②~⑥은 실제로 동작</b>. LLM은 준비된 물리 모듈 선택·조건 설정까지만(코드 생성 안 함).</p></div>
+    <div class="box"><h3>왜 "제품군마다 생성 + 재사용"인가</h3><p>요청 1개만 보면 경로 A(약 20분)가 더 빠름 — 대리 모델은 데이터(FEM 수백 회) + 학습이 먼저 필요. 같은 제품군에 조건만 바뀐 요청이 <b>반복될 때</b> 이김 → 발표 핵심 수치 = <b>손익분기 요청 수</b>(미측정, 시연에서 측정).</p></div>
+    <div class="box"><h3>③ 데이터: 조건 무작위 위상최적화</h3><p>처음 보는 제품군엔 형상 생성기가 없음 → 조건을 바꿔 opt3d.py / plate.py를 여러 번 실행하면 <b>형상(DeepSDF)과 FEM 정답(PINO)이 동시에</b> 나오고 좋은 설계 근처에 모임. 거치대 3×3×2 = 18조합 × 스냅샷 약 32 ≈ 580개(추정). 템플릿 변형은 보조.</p></div>
+    <div class="box"><h3>④~⑤ 제품 무관 코드 + 품질 관문</h3><p>2D/3D·물리 모듈·하중 수·출력 헤드를 spec.json에서 읽어 자동 구성 → 거치대·TV를 같은 코드로. 품질 관문 미달이면 <b>경로 A로 자동 전환</b>해 항상 답을 냄. 진동수 ① 레일리+보정 vs ② 직접 학습 비교 실험 포함.</p></div>
+  </div>
+</section>
 
 <section>
   <h2><span class="n">0</span>설계 범위 — 받침·클램프는 고정, 팔만 최적화 (확정)</h2>
@@ -285,16 +319,16 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <div class="col done"><h3>✅ 완료</h3><ul>
       <li>거치대 FEM 위상최적화·강건 최적화·1 mm 재검증</li>
       <li>07 → opt3d 연결 어댑터 (07)</li>
-      <li>방법 결정: PINO(정적) + f 회귀 헤드</li>
-      <li>설계 범위: 받침·클램프 고정, 팔 최적화</li>
-      <li>형상 표현: DeepSDF(z) + 라벨 마스크</li>
+      <li>최종 방향: 제품군별 대리 모델 자동 생성 + 재사용</li>
+      <li>설계 범위·받침 위치 그룹·폰 각도 처리</li>
+      <li>모델 구조: DeepSDF + 마스크 + PINO(변위 + 진동수 2단)</li>
       <li>DeepSDF 2D 검증: 학습 2분, 처음 보는 형상 IoU 0.991–0.996</li></ul></div>
     <div class="col todo"><h3>⏳ 예정</h3><ul>
-      <li>학습 형상 생성기 + 연결성 검사</li>
-      <li>opt3d 저장 확장 (정적 해석 추가)</li>
-      <li>3D DeepSDF · 3D PINO 학습</li>
-      <li>z 최적화 + FEM 재검증, A/B 비교</li>
-      <li>TV 스탠드 정적 모델</li></ul></div>
+      <li>② 학습 계획 규칙 (제품군 2종)</li>
+      <li>③ 조건 무작위 최적화 배치 + 정적 해석 저장</li>
+      <li>④ 제품 무관 DeepSDF·PINO 학습 코드</li>
+      <li>⑤ 품질 관문·경로 A 전환, ⑥ z 최적화 + FEM 검증</li>
+      <li>레일리 사전 확인, 진동수 ①/② 비교, 손익분기 측정</li></ul></div>
     <div class="col hold"><h3>⛔ 보류·확장</h3><ul>
       <li>받침 위치 허용 범위·각도 변수 (07 수정 필요)</li>
       <li>공개 사전학습 가중치 (ShapeNet 약관, 형상 불일치)</li></ul></div>
@@ -309,7 +343,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>2</td><td>주말 <b>서버 사전 실행 허용 여부</b> (허용 시 데이터 미리 축적)</td><td>전원</td></tr>
     <tr><td>3</td><td><b>TV 스탠드용 problem.npz</b> 생성 가능 여부 (07 템플릿은 현재 거치대 10종)</td><td>07</td></tr>
     <tr><td>4</td><td>출력 파일 형식 합의 (result.json 예측 vs FEM)</td><td>07·화면</td></tr>
-    <tr><td>5</td><td>발표 표현: 07은 <b>LLM 없이 규칙·템플릿</b> — "LLM이 요구사항 추출" 표현 금지</td><td>발표</td></tr>
+    <tr><td>5</td><td>발표 문구 통일: <b>원래 앞단은 LLM, 시연은 API 제약으로 고정 시나리오</b></td><td>발표</td></tr>
     <tr><td>6</td><td>TV 처짐 기준·스탠드 3 kg 근거 확인 (가정값)</td><td>TV</td></tr>
     <tr><td>7</td><td>외부 데이터셋(ShapeNet 등) 미사용 원칙 · 사내 오픈소스 규정 확인</td><td>전원</td></tr>
     <tr><td>8</td><td><b>받침 위치를 넘기는 형태</b> 합의 (템플릿 ID / pad_x0·pad_z0 값 / 허용 범위), 각도 변수 여부</td><td>07</td></tr>
@@ -317,7 +351,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>07</td></tr>
     <tr><td>11</td><td><b>폰 각도별 질량 절점</b> 생성 옵션 (형상 불변, point_masses 위치만 이동)</td><td>07</td></tr>
     <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>07·거치대</td></tr>
-    <tr><td>13</td><td><b>TV 처짐 기준값 확정</b> (README 1·2 mm vs plate.py 0.10·1.0), 넘어짐이 형상과 무관한지</td><td>TV</td></tr>
+    <tr><td>13</td><td><b>TV 처짐 기준값 확정</b> (README 1·2 mm vs plate.py 0.10·1.0), 넘어짐이 형상과 무관한지, <b>TV에서 바뀌는 조건과 범위</b></td><td>TV</td></tr>
     <tr><td>14</td><td>sosopapa에 master(TV plate_v2) 병합 여부</td><td>소소파파</td></tr>
   </table>
   <p class="note">opt3d.py 확인: 제약은 진동수 4개뿐(응력 제약 없음 → 응력 PINO 데이터는 정적 해석 추가 필요), 5회마다 밀도 스냅샷·매회 진동수 기록을 이미 저장, 초기값은 전 칸 0.5.</p>
@@ -328,13 +362,13 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <svg viewBox="0 0 900 150" role="img" aria-label="2일 일정">
     <g font-size="12" fill="#5b6475"><text x="20" y="20">D1 오전</text><text x="245" y="20">D1 오후</text><text x="470" y="20">D2 오전</text><text x="695" y="20">D2 오후</text></g>
     <g font-size="12" fill="#fff">
-      <rect x="15" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="25" y="57">병렬 최적화 · 각도 0° vs 15°</text>
-      <rect x="240" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="250" y="57">PINO 학습 · ⛳ f₁ 오차 ≈5%</text>
-      <rect x="465" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="475" y="57">A vs B 비교표 · TV 정적</text>
+      <rect x="15" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="25" y="57">③ 배치 · 레일리·각도 확인</text>
+      <rect x="240" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="250" y="57">④ 학습 코드 · TV 2D로 디버깅</text>
+      <rect x="465" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="475" y="57">거치대 학습·⑤·⑥·손익분기</text>
       <rect x="690" y="30" width="200" height="44" rx="8" fill="#d9455f"/><text x="700" y="57">정리·STL · 15시 동결</text>
     </g>
-    <text x="350" y="100" font-size="12" fill="#d9455f" font-weight="700">◆ D1 저녁: 경로 B 처음~끝 1회 연결</text>
-    <text x="20" y="130" font-size="12" fill="#5b6475">안전장치: B 오차가 크면 대리 모델은 미리보기로만, 시연은 검증된 경로 A 결과로 진행 (⛳ 기준은 제안값)</text>
+    <text x="300" y="100" font-size="12" fill="#d9455f" font-weight="700">◆ D1 저녁: TV ②~⑥ 처음~끝 1회 연결 · 주말 허용 시 ③ 미리 실행</text>
+    <text x="20" y="130" font-size="12" fill="#5b6475">안전장치: ⑤ 품질 관문 미달이면 경로 A로 자동 전환 → 시연은 항상 결과가 나옴 (⛳ f₁ 오차 약 5%는 제안값)</text>
   </svg>
 </section>
 
@@ -345,12 +379,14 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <div class="box"><h3>FNO ≠ DeepSDF</h3><p>FNO: 격자 → 격자 (밀도 → 변위, 물리). DeepSDF: (z, 점 좌표) → 거리 숫자 1개 (형상). 우리 입력은 이미 격자라 FNO에 바로 들어감.</p></div>
     <div class="box"><h3>FEM이 최종 심판</h3><p>대리 모델 값은 예측. 판정은 항상 <code>verify5.py</code> 1 mm 재검증.</p></div>
     <div class="box"><h3>FEM 최적화도 미분 기반</h3><p>adjoint + MMA. 차이는 1회 비용(FEM 약 7.5 s vs 신경망 ms).</p></div>
+    <div class="box"><h3>대리 모델은 요청 1개엔 손해</h3><p>반복 요청에서 이득. 그래서 "요청마다 학습"이 아니라 "제품군마다 생성 + 재사용".</p></div>
   </div>
 </section>
 
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (6)</td><td><b>최종 방향으로 재구성</b>: 제품군별 대리 모델 자동 생성(②~⑤) + 재사용 + 최적화·검증(⑥), 시연 범위(앞단 LLM → 고정 시나리오), 손익분기, 조건 무작위 위상최적화 데이터, 제품 무관 코드, 품질 관문, TV로 먼저 디버깅하는 일정, 요청 5·13 수정</td></tr>
     <tr><td>2026-11-13 (5)</td><td>TV 스탠드 계획(master plate_v2 기준): 2D DeepSDF + 정적 PINO, 확장성 시연. 요청 13·14</td></tr>
     <tr><td>2026-11-13 (4)</td><td>진동수 설계: 한 모델에 변위 헤드 + 진동수 헤드, 1차 = 레일리(u) × 보정, 2차 = 직접 회귀, 같이 학습 시 주의점. 폰 회전 관성 확인 제외(팀 판단)</td></tr>
     <tr><td>2026-11-13 (3)</td><td>0-1 받침 위치 그룹(10종 → 7개 위치, MVP 50·80·120 mm), 0-2 폰 기둥·홀더 그림과 폰 각도 = 하중 조건, 격자 2 mm 유지 근거, 요청 11·12</td></tr>
