@@ -217,8 +217,8 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
     # notes on holes / arm
     sh.text(f"2×Ø{b['d']} 관통", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 6), 2.2)
     sh.text("(M4 볼트)", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 10), 2.2)
-    sh.text(f"Ø{mh['d']:.0f} 폰 클램프 체결 구멍", (tf("top", mh["x"], 0)[0], tf("top", 0, tb[3])[1] + 2), 2.2,
-            TextEntityAlignment.BOTTOM_CENTER)
+    sh.text("폰 홀더 일체형 (등판·양쪽 턱)" if g.get("holder") else f"Ø{mh['d']:.0f} 폰 클램프 체결 구멍",
+            (tf("top", mh["x"], 0)[0], tf("top", 0, tb[3])[1] + 2), 2.2, TextEntityAlignment.BOTTOM_CENTER)
     for v, label in (("front", "정면도"), ("top", "평면도"), ("right", "우측면도")):
         bx = {"front": fb, "top": tb, "right": rb}[v]
         sh.text(label, tf(v, (bx[0] + bx[2]) / 2, bx[3]) if v != "front" else tf(v, (bx[0] + bx[2]) / 2, bx[3]),

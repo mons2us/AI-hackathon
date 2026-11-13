@@ -10,7 +10,7 @@ def _xz(y):
     return cq.Workplane(cq.Plane(origin=(0, y, 0), xDir=(1, 0, 0), normal=(0, -1, 0)))
 
 
-def build_solid(spec, holes=True, clip=True):
+def build_solid(spec, holes=True, clip=True, with_holder=True):
     g = spec["geometry"]
     y0, w = g["y_sym"], g["width"]
     half = w / 2
@@ -51,10 +51,33 @@ def build_solid(spec, holes=True, clip=True):
         for yb in b["y"]:
             hole = cq.Workplane("YZ", origin=(xa, yb, b["z"])).circle(b["d"] / 2).extrude(xb - xa)
             body = body.cut(hole)
-        m = g["mount_hole"]
-        mh = cq.Workplane("XY", origin=(m["x"], m["y"], pz0 - 1)).circle(m["d"] / 2).extrude(pz1 - pz0 + 2)
-        body = body.cut(mh)
+        if not (with_holder and g.get("holder")):       # integral phone holder: no separate fixing hole
+            m = g["mount_hole"]
+            mh = cq.Workplane("XY", origin=(m["x"], m["y"], pz0 - 1)).circle(m["d"] / 2).extrude(pz1 - pz0 + 2)
+            body = body.cut(mh)
+    if with_holder and g.get("holder"):
+        body = body.union(build_holder(spec))
     return body
+
+
+def _box(x, y, z):
+    return cq.Workplane("XY").box(x[1] - x[0], y[1] - y[0], z[1] - z[0], centered=False).translate((x[0], y[0], z[0]))
+
+
+def build_holder(spec):
+    """Phone holder: stem on the pad, back plate, cross bar and two jaws with lips that grip the phone edges."""
+    g = spec["geometry"]
+    h, y0 = g["holder"], g["y_sym"]
+    st, pl, br, jw = h["stem"], h["plate"], h["bar"], h["jaw"]
+    out = _box(st["x"], [y0 - st["w"] / 2, y0 + st["w"] / 2], [st["z"][0] - 0.5, st["z"][1] + 0.5])   # 0.5 overlap -> one solid
+    out = out.union(_box(pl["x"], [y0 - pl["w"] / 2, y0 + pl["w"] / 2], pl["z"]))
+    out = out.union(_box(br["x"], [y0 - br["w"] / 2, y0 + br["w"] / 2], br["z"]))
+    for s in (1, -1):
+        ya, yb = sorted((y0 + s * jw["y_in"], y0 + s * (jw["y_in"] + jw["t"])))
+        out = out.union(_box(br["x"], [ya, yb], jw["z"]))
+        la, lb = sorted((y0 + s * (jw["y_in"] - jw["lip"]), y0 + s * (jw["y_in"] + jw["t"])))
+        out = out.union(_box(br["x"], [la, lb], [jw["z"][1] - jw["lip_t"], jw["z"][1]]))
+    return out
 
 
 def solid_info(body, rho_t_mm3):
@@ -69,4 +92,8 @@ def solid_info(body, rho_t_mm3):
 def export_step(spec, path, holes=True):
     body = build_solid(spec, holes=holes)
     cq.exporters.export(body, path, exportType="STEP")
-    return body, solid_info(body, spec["material"]["rho"])
+    info = solid_info(body, spec["material"]["rho"])
+    if spec["geometry"].get("holder"):
+        info["bracket_mass_g"] = solid_info(build_solid(spec, holes=holes, with_holder=False), spec["material"]["rho"])["mass_g"]
+        info["holder_mass_g"] = round(info["mass_g"] - info["bracket_mass_g"], 2)
+    return body, info

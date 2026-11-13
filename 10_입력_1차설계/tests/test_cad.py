@@ -23,7 +23,7 @@ def test_step_all_templates():
             P = Problem(s)
             on = P.solid | (P.design & (P.initial_density() > 0.5))
             vox_g = 2 * on.sum() * P.h ** 3 * s["material"]["rho"] * 1e6
-            cad_g = solid_info(build_solid(s, holes=False), s["material"]["rho"])["mass_g"]
+            cad_g = solid_info(build_solid(s, holes=False, with_holder=False), s["material"]["rho"])["mass_g"]
             assert abs(cad_g / vox_g - 1) < 0.05, (t["id"], cad_g, vox_g)
             out.append(f"{t['id']} {cad_g:.1f}/{vox_g:.1f} g")
     return out

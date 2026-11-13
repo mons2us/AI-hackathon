@@ -45,6 +45,7 @@ DEFAULT = dict(
     objective="min_mass",
     safety_factor=None,   # None -> evidence.FACTORS
     include_self_inertia=False,   # team v7 ignores bracket self-inertia in shock cases
+    holder_plate_t=4.0, holder_jaw_t=4.0, holder_jaw_len=36.0, holder_lip=3.0, holder_lip_t=2.5,   # phone holder (CAD)
     phone_clamp_t=8.0,    # phone back face above the joint axis (clamp body), assumed
     colour="black",       # print colour -> solar absorptance (sun requirement)
     requirements=(),      # user requirement ids (formproof_input.requirements)
@@ -226,6 +227,19 @@ def build_spec(params=None, template_id="custom", meta=None):
     geometry["phone"] = dict(name=phone_name, H=dims[0], W=dims[1], D=dims[2], mass_kg=round(m_total, 4),
                              cog=[(post_x0 + post_x1) / 2, z_top], clamp_t=p["phone_clamp_t"],
                              dims_source=phone_src if p["phone"] in ev.PHONES else "assumed")
+
+    # phone holder (the part that grips the phone) — part of the product: stem on the pad, back plate, cross bar, two jaws.
+    # Analysis keeps it as the rigid 'post' stand-in with the 50 g clamp mass (team v7); CAD / drawing carry the real shape.
+    zb = z_top - dims[2] / 2                                   # phone back face
+    geometry["holder"] = dict(
+        stem=dict(x=[post_x0, post_x1], w=p["post_w"], z=[pad_z1, round(zb - p["holder_plate_t"], 3)]),
+        plate=dict(x=[round((post_x0 + post_x1) / 2 - 0.34 * dims[0], 2), round((post_x0 + post_x1) / 2 + 0.34 * dims[0], 2)],
+                   w=round(0.6 * dims[1], 2), z=[round(zb - p["holder_plate_t"], 3), round(zb, 3)]),
+        bar=dict(x=[(post_x0 + post_x1) / 2 - p["holder_jaw_len"] / 2, (post_x0 + post_x1) / 2 + p["holder_jaw_len"] / 2],
+                 w=round(dims[1] + 2 * p["holder_jaw_t"], 2), z=[round(zb - p["holder_plate_t"], 3), round(zb, 3)]),
+        jaw=dict(t=p["holder_jaw_t"], z=[round(zb - p["holder_plate_t"], 3), round(zb + dims[2] + p["holder_lip_t"], 3)],
+                 lip=p["holder_lip"], lip_t=p["holder_lip_t"], y_in=round(dims[1] / 2, 2)),
+        phone_back_z=round(zb, 3), note="폰을 잡는 부분(받침 기둥·등판·가로대·양쪽 턱). 해석에서는 강체 대역 + 50 g으로 반영")
 
     spec = {
         "schema": "formproof.spec/0.1",

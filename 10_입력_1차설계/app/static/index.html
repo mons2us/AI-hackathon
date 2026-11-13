@@ -315,11 +315,8 @@ function showMount(rep){
   // phone + commercial clamp stand-in at the spec's phone centre of gravity
   const ph=rep.phone, ys=rep.geometry.y_sym, padTop=rep.geometry.pad.z[1], e=ph.clamp_t+ph.D/2, jz=ph.cog[1]-e;
   const hold=new THREE.Group();scene.add(hold);V3.holder=hold;
-  const post=new THREE.Mesh(new THREE.BoxGeometry(10,12,Math.max(jz-padTop,2)),V3.darkMat);post.position.set(ph.cog[0],ys,(padTop+jz)/2);post.castShadow=true;hold.add(post);
-  const pg=new THREE.Group();pg.position.set(ph.cog[0],ys,ph.cog[1]);pg.rotation.y=-0.28;hold.add(pg);
-  const cradle=new THREE.Mesh(new THREE.BoxGeometry(ph.H*0.68,ph.W*0.76,5),V3.darkMat);cradle.position.z=-ph.D/2-3;cradle.castShadow=true;pg.add(cradle);
-  for(const s of [-1,1]){const j=new THREE.Mesh(new THREE.BoxGeometry(14,10,ph.D+10),V3.darkMat);j.position.set(0,s*(ph.W/2+4),0);pg.add(j);}
-  const body=new THREE.Mesh(new THREE.BoxGeometry(ph.H,ph.W,ph.D),M(0x2b2f36,0.35,0.6));body.castShadow=true;pg.add(body);
+  const pg=new THREE.Group();pg.position.set(ph.cog[0],ys,ph.cog[1]);hold.add(pg);   // phone only: the holder is part of the CAD mesh
+  const body=new THREE.Mesh(new THREE.BoxGeometry(ph.H,ph.W-0.6,ph.D),M(0x2b2f36,0.35,0.6));body.castShadow=true;pg.add(body);
   const scr=new THREE.Mesh(new THREE.PlaneGeometry(ph.H-10,ph.W-8),new THREE.MeshStandardMaterial({color:0x0b2540,emissive:0x05182b,emissiveIntensity:0.4,roughness:0.2}));scr.position.z=ph.D/2+0.1;pg.add(scr);
   hold.visible=$('#vPhone').classList.contains('on');
   view('close');

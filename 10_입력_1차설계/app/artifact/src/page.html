@@ -1,0 +1,265 @@
+<title>FormProof 1차 설계</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+/* Layout: team GUI draft (09_GUI_시안) — input | result | hand-off, on a cool engineering grey; drawings stay on white paper. */
+:root{
+  --bg:#eef1f5; --card:#ffffff; --ink:#111827; --ink2:#4b5563; --ink3:#8a93a0; --line:#e1e6ee; --soft:#f3f5f9;
+  --nav:#172033; --nav-ink:#ffffff; --nav-ink2:#aab4c4; --nav-line:#2c3850; --nav-chip:#1f2a40;
+  --blue:#2563eb; --blue-d:#1d4ed8; --blue-s:#e8efff; --green:#0f8f63; --green-s:#e1f5ec;
+  --red:#cf3346; --red-s:#fdecee; --amber:#a95518; --amber-s:#fff1e2;
+  --tabon:#141c2c; --tabon-ink:#ffffff; --view-a:#f7f9fc; --view-b:#e7ecf3; --glass:rgba(255,255,255,.9);
+  --paper:#ffffff; --toast:#2b1720; --toast-ink:#ffffff;
+  --side-design:#e3eaf7; --side-first:#2f5fd0; --side-solid:#4a4f57; --side-rigid:#d9822b; --side-sup:#d0304a; --side-keep:rgba(208,48,74,.22);
+  --f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1219; --card:#151c27; --ink:#e7ebf1; --ink2:#a7b0bd; --ink3:#6f7a89; --line:#253043; --soft:#1b2433;
+  --nav:#0a1019; --nav-ink:#eef2f8; --nav-ink2:#8e9aae; --nav-line:#243049; --nav-chip:#121a28;
+  --blue:#5b8dff; --blue-d:#7aa2ff; --blue-s:#18264a; --green:#3cc995; --green-s:#123126;
+  --red:#ff6f80; --red-s:#3a1820; --amber:#f2a865; --amber-s:#3a2814;
+  --tabon:#e7ebf1; --tabon-ink:#0d1219; --view-a:#1a2230; --view-b:#0f151f; --glass:rgba(21,28,39,.9);
+  --paper:#ffffff; --toast:#f2d7dd; --toast-ink:#2b1720;
+  --side-design:#24324a; --side-first:#6f9bff; --side-solid:#a8b0bc; --side-rigid:#f0a050; --side-sup:#ff6f80; --side-keep:rgba(255,111,128,.25);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1219; --card:#151c27; --ink:#e7ebf1; --ink2:#a7b0bd; --ink3:#6f7a89; --line:#253043; --soft:#1b2433;
+  --nav:#0a1019; --nav-ink:#eef2f8; --nav-ink2:#8e9aae; --nav-line:#243049; --nav-chip:#121a28;
+  --blue:#5b8dff; --blue-d:#7aa2ff; --blue-s:#18264a; --green:#3cc995; --green-s:#123126;
+  --red:#ff6f80; --red-s:#3a1820; --amber:#f2a865; --amber-s:#3a2814;
+  --tabon:#e7ebf1; --tabon-ink:#0d1219; --view-a:#1a2230; --view-b:#0f151f; --glass:rgba(21,28,39,.9);
+  --paper:#ffffff; --toast:#f2d7dd; --toast-ink:#2b1720;
+  --side-design:#24324a; --side-first:#6f9bff; --side-solid:#a8b0bc; --side-rigid:#f0a050; --side-sup:#ff6f80; --side-keep:rgba(255,111,128,.25);
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:14px/1.55 var(--f-ui)}
+button,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.wrap{max-width:1440px;margin:0 auto;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{background:var(--nav);color:var(--nav-ink);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--blue);display:grid;place-items:center;flex:none}
+.brand{min-width:0}.brand b{font-size:19px;display:block;letter-spacing:-.2px;font-weight:700}.brand span{font-size:12px;color:var(--nav-ink2)}
+.steps{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.step{border:1px solid var(--nav-line);background:var(--nav-chip);color:var(--nav-ink2);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.step i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid currentColor;border-radius:50%;font-size:11px;margin-right:6px}
+.step.done{color:var(--nav-ink)}.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr) 300px;gap:16px;margin-top:16px;align-items:start}
+@media (max-width:1180px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.cands{grid-template-columns:1fr 1fr!important}.view{height:340px!important}.steps{margin-left:0}.files{grid-template-columns:1fr!important}}
+.grid>section{min-width:0;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--card);border-radius:16px;border:1px solid var(--line);padding:18px;min-width:0}
+.card h2{font-size:16px;margin:0 0 4px;letter-spacing:-.2px;display:flex;align-items:center;gap:8px;font-weight:700;text-wrap:balance}
+.card h2 .tag{margin-left:auto}
+.sub{color:var(--ink2);font-size:12.5px;margin:0 0 12px}
+.tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.tag.green{background:var(--green-s);color:var(--green)}.tag.red{background:var(--red-s);color:var(--red)}
+.tag.blue{background:var(--blue-s);color:var(--blue)}.tag.amber{background:var(--amber-s);color:var(--amber)}
+textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical;outline:none;background:var(--card)}
+textarea:focus{border-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--ink2)}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;gap:3px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:transparent;border-radius:8px;padding:7px 0;color:var(--ink2);font-weight:600;font-size:13px}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.pad{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;touch-action:none}
+.pad canvas{display:block;width:100%;aspect-ratio:4/3;cursor:crosshair}
+.pad .hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:#8a93a0;pointer-events:none}
+.pad .arrow{position:absolute;right:10px;top:8px;font-size:11.5px;color:#8a93a0;pointer-events:none}
+.tools{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 12px;font-size:13px}
+.btn:hover{border-color:var(--ink3)}
+.btn.primary{width:100%;border:0;background:var(--blue);color:#fff;font-weight:700;padding:13px;border-radius:12px;font-size:15px;margin-top:12px}
+.btn.primary:hover{background:var(--blue-d)}.btn.primary:disabled{opacity:.6;cursor:wait}
+.btn.handoff{width:100%;border:0;background:var(--tabon);color:var(--tabon-ink);font-weight:700;padding:13px;border-radius:12px;margin-top:10px}
+.btn.handoff:disabled{opacity:.45;cursor:not-allowed}
+.drop{display:block;border:1.5px dashed var(--ink3);border-radius:12px;padding:18px;text-align:center;color:var(--ink2);font-size:13px;background:var(--soft);cursor:pointer}
+.drop.over{border-color:var(--blue);background:var(--blue-s)}
+.drop img{max-width:100%;max-height:220px;border-radius:8px;display:block;margin:0 auto 8px;background:#fff}
+.reqs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.req{background:var(--soft);border-radius:10px;padding:8px 10px;min-width:0}
+.req small{display:block;color:var(--ink2);font-size:11.5px}.req b{font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.req.wide{grid-column:1/-1}
+.q{font-size:12.5px;color:var(--amber);background:var(--amber-s);border-radius:10px;padding:8px 10px;margin-top:8px}
+.tabs{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;font-weight:600;font-size:13.5px;color:var(--ink2)}
+.tab.on{background:var(--tabon);color:var(--tabon-ink);border-color:var(--tabon)}
+#tplTag{margin-left:auto;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.view{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(var(--view-a),var(--view-b));border:1px solid var(--line);height:460px}
+.view canvas{display:block}
+.view .ovl{position:absolute;left:10px;top:10px;background:var(--glass);border-radius:8px;padding:4px 8px;font-size:11.5px;color:var(--ink2);max-width:calc(100% - 180px)}
+.view .vt{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.view .vt button{border:1px solid var(--line);background:var(--glass);border-radius:8px;padding:4px 9px;font-size:12px}
+.view .vt button.on{background:var(--tabon);color:var(--tabon-ink);border-color:var(--tabon)}
+.pane{height:100%}
+#pside{display:grid;place-items:center;padding:12px}
+#sideCv{max-width:100%;max-height:100%}
+#pdraw{overflow:auto;background:var(--paper)}
+#pdraw svg{display:block;width:100%;height:auto;min-width:560px}
+.legend{position:absolute;left:12px;bottom:10px;display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--ink2);background:var(--glass);border-radius:8px;padding:4px 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink3);font-size:13.5px;pointer-events:none;padding:16px}
+.cands{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.cand{border:1.5px solid var(--line);border-radius:12px;padding:8px;background:var(--card);text-align:left;min-width:0}
+.cand img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border-radius:8px;display:block}
+.cand .t{font-size:12.5px;font-weight:700;margin-top:6px}.cand .s{font-size:11.5px;color:var(--ink2)}
+.cand.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}
+.cand.input{border-style:dashed;cursor:default}
+.modes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.modes .ml{font-size:12px;color:var(--ink3);margin-right:2px}
+.modes button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 11px;font-size:12.5px;color:var(--ink2)}
+.modes button.on{background:var(--tabon);color:var(--tabon-ink);border-color:var(--tabon)}
+.modes button:disabled{opacity:.45;cursor:not-allowed}
+.hm{margin-top:8px;background:var(--soft);border-radius:10px;padding:8px 10px;font-size:12.5px}
+.hm b{font-weight:600}.hm small{color:var(--ink2);display:block;margin-top:2px}
+.hmrow{display:flex;align-items:center;gap:8px;margin-top:4px}
+.hmbar{flex:1;height:10px;border-radius:99px;background:linear-gradient(90deg,#2c4bd6,#22b8d6,#3fcf6b,#f2c230,#e0342b)}
+.flow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.flow span{font-size:12px;background:var(--soft);border-radius:999px;padding:4px 10px;color:var(--ink2)}
+.flow span.ok{background:var(--green-s);color:var(--green)}
+.metric{margin-bottom:12px}
+.metric .row{display:flex;justify-content:space-between;gap:8px;font-size:13px}.metric .row b{font-size:14px}
+.bar{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
+.bar i.bad{background:var(--red)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi{background:var(--soft);border-radius:10px;padding:8px 10px}.kpi small{color:var(--ink2);font-size:11.5px;display:block}.kpi b{font-size:18px}
+.note{font-size:12px;color:var(--ink2);background:var(--soft);border-radius:10px;padding:8px 10px}
+table.vars{width:100%;border-collapse:collapse;font-size:13px}
+table.vars td{padding:7px 0;border-bottom:1px solid var(--line)}table.vars td:last-child{text-align:right;font-weight:600}
+.cons{display:flex;flex-direction:column;gap:6px}
+.con{background:var(--soft);border-radius:10px;padding:8px 10px;font-size:12.5px;overflow-wrap:anywhere}
+.con b{display:block;font-size:13px;font-weight:600}.con small{color:var(--ink2)}
+.con.req{background:var(--blue-s)}
+.warn{font-size:12px;color:var(--amber);background:var(--amber-s);border-radius:10px;padding:8px 10px}
+.files{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.files button{border:1px solid var(--line);border-radius:10px;padding:10px 6px;background:var(--card);font-size:13px;font-weight:600}
+.files button:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.files button:disabled{color:var(--ink3);cursor:not-allowed}
+.zipnote{font-size:11.5px;color:var(--ink3);margin-top:8px}
+details{margin-top:10px;font-size:12.5px;color:var(--ink2)}details li{margin:3px 0}
+.busy{position:absolute;inset:0;background:var(--glass);display:grid;place-items:center;z-index:5}
+.busy .box{text-align:center}.busy .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--blue);border-radius:50%;animation:sp .9s linear infinite;margin:0 auto 10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.busy .spin{animation:none}}
+.busy .stage{font-size:13px;color:var(--ink2)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--toast);color:var(--toast-ink);padding:10px 16px;border-radius:10px;font-size:13px;z-index:20;max-width:calc(100% - 32px)}
+footer{text-align:center;color:var(--ink3);font-size:12px;padding:16px 0 4px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
+    <div class="brand"><b>FormProof</b><span>말·스케치·사진 → 1차 설계 → 물리 최적화</span></div>
+    <nav class="steps" id="steps">
+      <span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>요구사양</span>
+      <span class="step"><i>3</i>1차 설계</span><span class="step"><i>4</i>최적화로 넘기기</span>
+    </nav>
+  </header>
+
+  <div class="grid">
+    <section>
+      <div class="card">
+        <h2>아이디어 입력</h2>
+        <p class="sub">말로 쓰고, 옆에서 본 모양을 그리거나 사진을 올려 주세요</p>
+        <textarea id="text" aria-label="요청 문장">자갈길에서도 폰이 안 흔들리게, 최대한 가볍게. 갤럭시 S25 울트라, 3D 프린터로 뽑을 거야</textarea>
+        <div class="chips" id="chips"></div>
+        <div class="seg"><button id="mSketch" class="on">스케치</button><button id="mImage">이미지 첨부</button></div>
+        <div id="sketchBox">
+          <div class="pad"><canvas id="pad" width="800" height="600" aria-label="스케치 판"></canvas>
+            <span class="hint">옆에서 본 모습 · 원 = 핸들바 클램프</span><span class="arrow">진행 방향 →</span></div>
+          <div class="tools">
+            <button class="btn" id="undo">되돌리기</button><button class="btn" id="clear">지우기</button>
+            <select class="btn" id="example" aria-label="예시 스케치"><option value="">예시 스케치…</option></select>
+          </div>
+        </div>
+        <div id="imageBox" hidden>
+          <label class="drop" id="drop"><span id="dropInner">종이 스케치 사진이나 실물 사진을 끌어 놓거나 눌러서 선택<br><small>PNG · JPG</small></span>
+            <input type="file" id="file" accept="image/*" hidden></label>
+        </div>
+        <button class="btn primary" id="go" disabled>엔진 불러오는 중…</button>
+      </div>
+
+      <div class="card">
+        <h2>AI가 정리한 요구사양 <span class="tag">자동 추출</span></h2>
+        <p class="sub" id="reqSub">입력하면 여기에 조건이 정리됩니다</p>
+        <div class="reqs" id="reqs"></div>
+        <div id="questions"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <div class="tabs">
+          <button class="tab on" data-pane="p3d">3D 모델</button>
+          <button class="tab" data-pane="pside">측면도 · 설계 영역</button>
+          <button class="tab" data-pane="pdraw">2D 도면</button>
+          <span class="tag" id="tplTag">대기 중</span>
+        </div>
+        <div class="view" id="view">
+          <div class="pane" id="p3d"><div id="three" style="width:100%;height:100%"></div>
+            <span class="ovl" id="ovl3d">자전거 핸들 위 1차 설계(폰 홀더 포함) · 드래그로 회전</span>
+            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button></div></div>
+          <div class="pane" id="pside" hidden><canvas id="sideCv" width="900" height="560" aria-label="측면도"></canvas>
+            <div class="legend" id="sideLegend"></div></div>
+          <div class="pane" id="pdraw" hidden></div>
+          <div class="empty" id="empty">왼쪽에서 입력하고 <b>&nbsp;1차 설계 만들기</b>를 누르세요</div>
+          <div class="busy" id="busy" hidden><div class="box"><div class="spin"></div><div class="stage" id="stage">선 추출</div></div></div>
+        </div>
+        <div class="modes" id="modes" role="group" aria-label="표시할 물리량">
+          <span class="ml">색으로 보기</span>
+          <button data-m="shape" class="on">형상</button><button data-m="vm:shock_vertical">응력 · 위아래 충격</button><button data-m="vm:shock_lateral">응력 · 옆 충격</button>
+          <button data-m="disp:shock_vertical">처짐 · 위아래</button><button data-m="disp:shock_lateral">처짐 · 옆</button>
+        </div>
+        <div class="hm" id="hm" hidden><b id="hmTitle"></b><div class="hmrow"><span class="num">0</span><i class="hmbar"></i><span class="num" id="hmMax"></span></div><small id="hmNote"></small></div>
+        <div class="flow" id="flow"></div>
+      </div>
+
+      <div class="card">
+        <h2>입력과 비슷한 설계 후보 <span class="tag" id="matchTag">브라우저 비전 엔진</span></h2>
+        <p class="sub">눌러서 다른 후보로 바꾸면 1차 설계를 다시 만듭니다</p>
+        <div class="cands" id="cands"><div class="note" style="grid-column:1/-1">스케치나 이미지를 넣으면 후보 3개가 나옵니다. 텍스트만 넣으면 문장에서 형태를 고릅니다.</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>1차 설계 성능 <span class="tag" id="perfTag">최적화 전</span></h2>
+        <p class="sub">스케치 형상 그대로의 성능. 기준 충족은 물리 최적화 단계에서</p>
+        <div class="kpis"><div class="kpi"><small>질량 (CAD)</small><b class="num" id="kMass">–</b><small id="kMassSub"></small></div><div class="kpi"><small>처리 시간 (브라우저)</small><b class="num" id="kTime">–</b></div></div>
+        <div id="metrics"></div>
+      </div>
+      <div class="card">
+        <h2>설계 변수</h2>
+        <table class="vars" id="vars"><tr><td style="color:var(--ink3)">아직 없음</td><td></td></tr></table>
+      </div>
+      <div class="card">
+        <h2>최적화에 넘길 물리 조건</h2>
+        <p class="sub" id="loadsSub">하중·기준·사용자 요구</p>
+        <div class="cons" id="cons"></div>
+        <details id="assump"><summary>가정 보기</summary><ul id="assumpList"></ul></details>
+      </div>
+      <div class="card">
+        <h2>결과 파일</h2>
+        <div class="files" id="files">
+          <button data-f="spec" disabled>설계 명세 · JSON</button><button data-f="svg" disabled>2D 도면 · SVG</button>
+          <button data-f="report" disabled>결과 보고 · JSON</button><button data-f="side" disabled>측면도 · PNG</button>
+        </div>
+        <button class="btn handoff" id="handoff" disabled>물리 최적화로 넘기기 (.zip)</button>
+        <p class="zipnote">STEP·DXF·STL은 zip에 들어 있습니다. zip 안: spec.json · design_1st.step · design_1st_drawing.dxf/svg · design_1st.stl · initial_design.npy · report.json</p>
+      </div>
+    </section>
+  </div>
+  <footer>브라우저에서 바로 실행 · 서버·LLM 없음 — 입력 → 1차 설계(STEP·도면) + 물리 조건 명세</footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>/*@@engine.js@@*/</script>
+<script>/*@@app.js@@*/</script>

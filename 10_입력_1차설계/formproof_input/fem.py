@@ -45,7 +45,8 @@ def _free(P, on, case):
     return np.setdiff1d(dof, np.array(fixed, int))
 
 
-def evaluate(P, dens, n_modes=2):
+def evaluate(P, dens, n_modes=2, fields=False):
+    """fields=True also returns per-element arrays (von Mises, displacement magnitude) for heat maps."""
     spec = P.spec
     mat = spec["material"]
     KE, C, B0, _ = hex8_KB(mat["E"], mat["nu"], P.h)
@@ -93,6 +94,10 @@ def evaluate(P, dens, n_modes=2):
         s = (C @ B0 @ ue.T).T
         vm = np.sqrt(0.5 * ((s[:, 0] - s[:, 1]) ** 2 + (s[:, 1] - s[:, 2]) ** 2 + (s[:, 2] - s[:, 0]) ** 2)
                      + 3 * (s[:, 3:] ** 2).sum(1))
+        if fields:
+            un = np.linalg.norm(u.reshape(-1, 3), axis=1)
+            out.setdefault("fields", {})[c["name"]] = dict(vm=np.where(on, vm, 0.0), disp=np.where(on, un[P.enodes].mean(1), 0.0),
+                                                           on=on.copy(), judged=judge.copy())
         tip = P.mass_sets[c["applies_to"][0]][0]
         d = int(np.argmax(np.abs(c["dir"])))
         out[c["name"]] = dict(vm_max_mpa=round(float(vm[judge].max()), 1),
