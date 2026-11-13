@@ -265,9 +265,18 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     </div>
     <div class="box" style="border-top:4px solid var(--d)">
       <h3>📺 TV 스탠드 (사례 1 · 텍스트 · 대표)</h3>
-      <p>IEC 62368-1: 10° 기울임, 총중량 13% 수평력 · 65" 20.8 kg · Al 6061-T6<br>처짐 자중 1 mm·수평력 2 mm ❓ · <b>정적만</b> + 넘어짐 해석식<br>🔄 1·2차 출력형상 검증 미통과(얇은 부재), 3차 계산 중</p>
+      <p>IEC 62368-1: 10° 기울임, 총중량 13% 수평력 · 65" 20.8 kg · Al 6061-T6<br>처짐 자중 1 mm·수평력 2 mm ❓ · <b>정적만</b> + 넘어짐 해석식<br>🔄 master에 판재 다리(plate_v2) 최적화 결과 추가됨</p>
     </div>
   </div>
+  <h3 style="font-size:15px;margin:16px 0 6px">TV 스탠드 = 같은 방식, 더 단순 (master plate_v2 기준)</h3>
+  <table>
+    <tr><th></th><th>자전거 거치대</th><th>TV 스탠드</th></tr>
+    <tr><td>제작</td><td>3D 프린트(PETG)</td><td>알루미늄 판 10 mm 레이저·CNC</td></tr>
+    <tr><td>해석</td><td>3D hex8 2 mm</td><td><b>2D 평면응력</b> Q4 1 mm, 300×120 mm</td></tr>
+    <tr><td>하중·제약</td><td>모드 + 충격 / 진동수 4개</td><td>정적 3종 / 처짐 3개</td></tr>
+    <tr><td>대리 모델</td><td>3D DeepSDF + PINO(변위 + 진동수)</td><td><b>2D DeepSDF + 정적 PINO</b> (6채널)</td></tr>
+  </table>
+  <p class="note">정직한 기대치: 2D 정적 FEM은 1회 1초 안팎일 가능성(미측정) → 속도 이득은 작음. TV는 "같은 프레임워크가 다른 제품·물리에 그대로 적용됨"을 보이는 <b>확장성 시연</b>. 처짐 기준은 README(1·2 mm)와 plate.py 기본값(SAG 0.10, UTOP 1.0)이 달라 확인 필요.</p>
 </section>
 
 <section>
@@ -308,6 +317,8 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>07</td></tr>
     <tr><td>11</td><td><b>폰 각도별 질량 절점</b> 생성 옵션 (형상 불변, point_masses 위치만 이동)</td><td>07</td></tr>
     <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>07·거치대</td></tr>
+    <tr><td>13</td><td><b>TV 처짐 기준값 확정</b> (README 1·2 mm vs plate.py 0.10·1.0), 넘어짐이 형상과 무관한지</td><td>TV</td></tr>
+    <tr><td>14</td><td>sosopapa에 master(TV plate_v2) 병합 여부</td><td>소소파파</td></tr>
   </table>
   <p class="note">opt3d.py 확인: 제약은 진동수 4개뿐(응력 제약 없음 → 응력 PINO 데이터는 정적 해석 추가 필요), 5회마다 밀도 스냅샷·매회 진동수 기록을 이미 저장, 초기값은 전 칸 0.5.</p>
 </section>
@@ -340,6 +351,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (5)</td><td>TV 스탠드 계획(master plate_v2 기준): 2D DeepSDF + 정적 PINO, 확장성 시연. 요청 13·14</td></tr>
     <tr><td>2026-11-13 (4)</td><td>진동수 설계: 한 모델에 변위 헤드 + 진동수 헤드, 1차 = 레일리(u) × 보정, 2차 = 직접 회귀, 같이 학습 시 주의점. 폰 회전 관성 확인 제외(팀 판단)</td></tr>
     <tr><td>2026-11-13 (3)</td><td>0-1 받침 위치 그룹(10종 → 7개 위치, MVP 50·80·120 mm), 0-2 폰 기둥·홀더 그림과 폰 각도 = 하중 조건, 격자 2 mm 유지 근거, 요청 11·12</td></tr>
     <tr><td>2026-11-13 (2)</td><td>0절 설계 범위(받침·클램프 고정, 팔 최적화)와 고정 이유 5가지, 경로 B를 DeepSDF(z)+라벨 마스크+PINO로 변경, 마스크 그림·학습 데이터 표, opt3d 확인 사항, 요청 8~10</td></tr>
