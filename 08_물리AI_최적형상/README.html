@@ -49,6 +49,41 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 </header>
 
 <section>
+  <h2><span class="n">0</span>설계 범위 — 받침·클램프는 고정, 팔만 최적화 (확정)</h2>
+  <svg viewBox="0 0 900 230" role="img" aria-label="거치대 옆모습에서 고정부와 최적화 대상 팔">
+    <circle cx="150" cy="120" r="48" fill="none" stroke="#5F5E5A" stroke-width="16"/>
+    <rect x="135" y="172" width="30" height="40" fill="#5F5E5A"/>
+    <rect x="560" y="62" width="110" height="14" fill="#5F5E5A"/>
+    <rect x="600" y="22" width="34" height="40" fill="#7F77DD"/>
+    <path d="M190 92 C300 70 420 90 560 70 L560 78 C420 100 300 86 196 108 Z" fill="#F0997B"/>
+    <path d="M200 140 C330 135 450 110 560 76" fill="none" stroke="#F0997B" stroke-width="7" stroke-dasharray="10 6"/>
+    <text x="150" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#444">고정: 클램프 링·볼트 귀</text>
+    <text x="615" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#444">고정: 받침판·폰 기둥</text>
+    <text x="615" y="125" text-anchor="middle" font-size="12" fill="#5b6475">위치·각도·크기 = 사용자 요구</text>
+    <text x="380" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#b35a17">최적화: 둘을 잇는 팔 (설계 영역 안에서 3D로 자유)</text>
+    <text x="380" y="212" text-anchor="middle" font-size="12" fill="#5b6475">템플릿 팔 모양은 출발점·학습 씨앗일 뿐 (점선 = 다른 가능한 팔)</text>
+    <g font-size="12" fill="#1d2330">
+      <rect x="720" y="20" width="170" height="190" rx="10" fill="#fff8f1" stroke="#e8833a"/>
+      <text x="735" y="44" font-weight="700" fill="#b35a17">MVP</text>
+      <text x="735" y="70">받침 위치 1개로 시작</text>
+      <text x="735" y="92">(T01·T07 = 앞 80, 높이 16)</text>
+      <text x="735" y="118">확장: 3~5개 값</text>
+      <text x="735" y="144">받침 각도: 항상 수평</text>
+      <text x="735" y="170">실행 1회 = 받침 1개</text>
+    </g>
+  </svg>
+  <table style="margin-top:8px">
+    <tr><th>#</th><th>왜 받침을 고정할 수밖에 없나</th></tr>
+    <tr><td>1</td><td><b>사용 요구다</b> — 폰을 어디서 볼지(시야·손 위치)는 사용자가 정함. 07도 스케치·텍스트에서 받침 위치를 정함</td></tr>
+    <tr><td>2</td><td><b>풀면 답이 뻔하다</b> — 무게 최소 + 진동수 기준이면 받침을 당길수록 유리 → 항상 "최대한 당겨라". 근거: 짧은 팔 T02 31.7 Hz vs 긴 팔 T03 10.4 Hz (07 1차 설계 표)</td></tr>
+    <tr><td>3</td><td><b>미분이 안 된다</b> — 받침이 움직이면 고정·빈 곳·질량 절점이 2 mm 칸 단위로 불연속 변화 → 몇 개 값을 시도하는 바깥 루프로만 가능</td></tr>
+    <tr><td>4</td><td><b>데이터가 위치 수만큼 는다</b> — DeepSDF·PINO 학습 데이터가 위치마다 필요 → 이틀에 3~5개가 한계</td></tr>
+    <tr><td>5</td><td><b>각도는 표현 수단이 없다</b> — 07 템플릿에 각도 변수 없음(수평 4 mm 판). 2 mm 격자에서 기울인 판은 칸 2개짜리 계단 → 끊김 위험</td></tr>
+  </table>
+  <p class="note">받침 위치 허용 범위·각도 변수는 확장 항목(07 수정 필요). 템플릿은 옆모습을 폭 20 mm로 압출한 2.5D, 최적화 결과는 폭 방향까지 바뀌는 3D.</p>
+</section>
+
+<section>
   <h2><span class="n">1</span>파이프라인에서 08의 위치</h2>
   <svg viewBox="0 0 900 230" role="img" aria-label="07 입력에서 08 물리 AI를 거쳐 검증 출력으로">
     <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#5b6475"/></marker></defs>
@@ -90,9 +125,9 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <rect x="720" y="40" width="160" height="50" rx="10" fill="#e7f7f1" stroke="#12a37f"/><text x="800" y="62" text-anchor="middle" font-size="13" font-weight="700">약 20분</text><text x="800" y="80" text-anchor="middle" font-size="11" fill="#5b6475">160회 반복</text>
     <g stroke="#5b6475" stroke-width="2" marker-end="url(#ar)"><line x1="220" y1="65" x2="267" y2="65"/><line x1="470" y1="65" x2="517" y2="65"/><line x1="680" y1="65" x2="717" y2="65"/></g>
     <text x="20" y="138" font-size="14" font-weight="700" fill="#b35a17">경로 B · 대리 모델 가속 ⏳</text>
-    <rect x="20" y="150" width="200" height="50" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="120" y="180" text-anchor="middle" font-size="13">밀도 ρ</text>
+    <rect x="20" y="150" width="200" height="50" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="120" y="172" text-anchor="middle" font-size="13" font-weight="700">z → DeepSDF</text><text x="120" y="190" text-anchor="middle" font-size="11" fill="#5b6475">+ 라벨 마스크 → ρ</text>
     <rect x="270" y="150" width="200" height="50" rx="10" fill="#fff1e6" stroke="#e8833a" stroke-width="2"/><text x="370" y="172" text-anchor="middle" font-size="13" font-weight="700">PINO 예측 + 자동미분</text><text x="370" y="190" text-anchor="middle" font-size="11" fill="#5b6475">ms 단위 (예상)</text>
-    <rect x="520" y="150" width="160" height="50" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="600" y="172" text-anchor="middle" font-size="13">MMA 갱신</text><text x="600" y="190" text-anchor="middle" font-size="11" fill="#5b6475">대부분 반복</text>
+    <rect x="520" y="150" width="160" height="50" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="600" y="172" text-anchor="middle" font-size="13">z 갱신</text><text x="600" y="190" text-anchor="middle" font-size="11" fill="#5b6475">무게 + 기준 위반 벌점</text>
     <rect x="720" y="150" width="160" height="50" rx="10" fill="#e7f7f1" stroke="#12a37f"/><text x="800" y="172" text-anchor="middle" font-size="13" font-weight="700">마지막 N회 FEM</text><text x="800" y="190" text-anchor="middle" font-size="11" fill="#5b6475">+ verify5 재검증</text>
     <g stroke="#5b6475" stroke-width="2" marker-end="url(#ar)"><line x1="220" y1="175" x2="267" y2="175"/><line x1="470" y1="175" x2="517" y2="175"/><line x1="680" y1="175" x2="717" y2="175"/></g>
     <text x="450" y="235" text-anchor="middle" font-size="12" fill="#d9455f" font-weight="700">발표 핵심 수치 = A vs B 시간·무게·f₁·응력 비교 (아직 미측정)</text>
@@ -122,6 +157,45 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 </section>
 
 <section>
+  <h2><span class="n">3+</span>라벨 마스크 — 거르기가 아니라 칸 단위 덮어쓰기</h2>
+  <svg viewBox="0 0 900 230" role="img" aria-label="DeepSDF 형상에 라벨 마스크를 덮어써 PINO 입력을 만드는 과정">
+    <defs><clipPath id="nb"><path d="M0 0H260V200H0Z M38 95A30 30 0 1 0 98 95A30 30 0 1 0 38 95Z" clip-rule="evenodd"/></clipPath></defs>
+    <g transform="translate(20,10)">
+      <rect x="0" y="0" width="260" height="170" rx="10" fill="#fff" stroke="#e3e6ec"/>
+      <rect x="40" y="82" width="150" height="20" rx="4" fill="#F0997B"/><circle cx="68" cy="95" r="18" fill="#F0997B"/>
+      <text x="130" y="195" text-anchor="middle" font-size="13" font-weight="700">① DeepSDF 형상</text>
+      <text x="130" y="214" text-anchor="middle" font-size="12" fill="#5b6475">구멍 침범, 받침에 안 닿음</text>
+    </g>
+    <g transform="translate(320,10)">
+      <rect x="0" y="0" width="260" height="170" rx="10" fill="#fff" stroke="#e3e6ec"/>
+      <circle cx="68" cy="95" r="37" fill="none" stroke="#5F5E5A" stroke-width="12"/>
+      <circle cx="68" cy="95" r="30" fill="none" stroke="#9aa1ad" stroke-dasharray="3 3"/>
+      <rect x="200" y="70" width="50" height="12" fill="#5F5E5A"/>
+      <text x="68" y="99" text-anchor="middle" font-size="11" fill="#5b6475">빈 곳=0</text>
+      <text x="225" y="62" text-anchor="middle" font-size="11" fill="#5b6475">고정=1</text>
+      <text x="130" y="195" text-anchor="middle" font-size="13" font-weight="700">② 라벨 마스크</text>
+      <text x="130" y="214" text-anchor="middle" font-size="12" fill="#5b6475">problem.npz 그대로</text>
+    </g>
+    <g transform="translate(620,10)">
+      <rect x="0" y="0" width="260" height="170" rx="10" fill="#fff" stroke="#e3e6ec"/>
+      <g clip-path="url(#nb)"><rect x="40" y="82" width="150" height="20" rx="4" fill="#F0997B"/><circle cx="68" cy="95" r="18" fill="#F0997B"/></g>
+      <circle cx="68" cy="95" r="37" fill="none" stroke="#5F5E5A" stroke-width="12"/>
+      <rect x="200" y="70" width="50" height="12" fill="#5F5E5A"/>
+      <text x="195" y="125" text-anchor="middle" font-size="12" fill="#d9455f" font-weight="700">끊김</text>
+      <text x="130" y="195" text-anchor="middle" font-size="13" font-weight="700">③ PINO 입력 ρ</text>
+      <text x="130" y="214" text-anchor="middle" font-size="12" fill="#5b6475">구멍 비움, 링·받침 채움</text>
+    </g>
+  </svg>
+  <div class="callout" style="margin-top:8px">모든 z의 형상이 PINO로 감(버리지 않음). 마스크는 <b>범위</b>만 보장하고 <b>연결성</b>은 보장하지 않음 → 끊긴 형상도 학습 데이터에 넣어 PINO가 "낮은 진동수"로 평가하게 하고, 최종안은 FEM으로 확인. 마스크를 빼면 링·받침이 칸 단위로 어긋나거나, 최적화가 링을 얇게 만드는 z로 빠져 대리 모델이 틀린 점수를 줄 위험.</div>
+  <table style="margin-top:10px">
+    <tr><th>학습 데이터</th><th>출처</th><th>비용</th></tr>
+    <tr><td>DeepSDF 형상 (수백 개)</td><td>07 템플릿 파라미터 무작위 변형 + <code>opt3d</code> 스냅샷 + 최적화 결과(39.8 g 등)</td><td>거의 0 / 기존 run 재사용</td></tr>
+    <tr><td>PINO 정답</td><td>형상마다 FEM 1회 (모드 S·A + 정적 충격)</td><td>약 7.5 s/개 추정 → 500개 ≈ 1시간 (미측정)</td></tr>
+  </table>
+  <p class="note">최적화 결과를 꼭 섞을 것: 템플릿 변형만 배우면 z 공간에 "템플릿처럼 생긴 형상"만 들어가 경로 A(39.8 g)보다 무거운 답이 나올 가능성이 큼. 받침 위치가 다른 템플릿은 한 모델에 섞지 않음(받침이 흐릿하게 두 군데 생김).</p>
+</section>
+
+<section>
   <h2><span class="n">4</span>시나리오별 판정 기준</h2>
   <div class="grid g2">
     <div class="box" style="border-top:4px solid var(--c)">
@@ -142,14 +216,17 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
       <li>거치대 FEM 위상최적화·강건 최적화·1 mm 재검증</li>
       <li>07 → opt3d 연결 어댑터 (07)</li>
       <li>방법 결정: PINO(정적) + f 회귀 헤드</li>
+      <li>설계 범위: 받침·클램프 고정, 팔 최적화</li>
+      <li>형상 표현: DeepSDF(z) + 라벨 마스크</li>
       <li>DeepSDF 2D 검증: 학습 2분, 처음 보는 형상 IoU 0.991–0.996</li></ul></div>
     <div class="col todo"><h3>⏳ 예정</h3><ul>
-      <li>opt3d 반복별 스냅샷 저장</li>
-      <li>3D PINO 학습 코드</li>
-      <li>MMA 루프 FEM → PINO 교체, A/B 비교</li>
+      <li>학습 형상 생성기 + 연결성 검사</li>
+      <li>opt3d 저장 확장 (정적 해석 추가)</li>
+      <li>3D DeepSDF · 3D PINO 학습</li>
+      <li>z 최적화 + FEM 재검증, A/B 비교</li>
       <li>TV 스탠드 정적 모델</li></ul></div>
-    <div class="col hold"><h3>⛔ 보류</h3><ul>
-      <li>DeepSDF 핵심 경로 연결 (변환·데이터·얇은 부재 위험)</li>
+    <div class="col hold"><h3>⛔ 보류·확장</h3><ul>
+      <li>받침 위치 허용 범위·각도 변수 (07 수정 필요)</li>
       <li>공개 사전학습 가중치 (ShapeNet 약관, 형상 불일치)</li></ul></div>
   </div>
 </section>
@@ -165,7 +242,11 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>5</td><td>발표 표현: 07은 <b>LLM 없이 규칙·템플릿</b> — "LLM이 요구사항 추출" 표현 금지</td><td>발표</td></tr>
     <tr><td>6</td><td>TV 처짐 기준·스탠드 3 kg 근거 확인 (가정값)</td><td>TV</td></tr>
     <tr><td>7</td><td>외부 데이터셋(ShapeNet 등) 미사용 원칙 · 사내 오픈소스 규정 확인</td><td>전원</td></tr>
+    <tr><td>8</td><td><b>받침 위치를 넘기는 형태</b> 합의 (템플릿 ID / pad_x0·pad_z0 값 / 허용 범위), 각도 변수 여부</td><td>07</td></tr>
+    <tr><td>9</td><td><b>기존 opt3d run(a~d)</b>의 snaps_*.bin · hist_*.json · x_*.npy 공유 (저장소에 없음)</td><td>거치대</td></tr>
+    <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>07</td></tr>
   </table>
+  <p class="note">opt3d.py 확인: 제약은 진동수 4개뿐(응력 제약 없음 → 응력 PINO 데이터는 정적 해석 추가 필요), 5회마다 밀도 스냅샷·매회 진동수 기록을 이미 저장, 초기값은 전 칸 0.5.</p>
 </section>
 
 <section>
@@ -196,6 +277,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (2)</td><td>0절 설계 범위(받침·클램프 고정, 팔 최적화)와 고정 이유 5가지, 경로 B를 DeepSDF(z)+라벨 마스크+PINO로 변경, 마스크 그림·학습 데이터 표, opt3d 확인 사항, 요청 8~10</td></tr>
     <tr><td>2026-11-13</td><td>신규 작성 — 기존 Model.html(데모 아이템 검토) 대체. 07 인터페이스 반영, 경로 A/B, PINO 설계안, DeepSDF 보류·2D 검증, 진행·필요 사항·일정</td></tr></table>
 </section>
 
