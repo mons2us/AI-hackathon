@@ -10,6 +10,7 @@
 | 03_자전거거치대 | 사례 2(스케치 입력). `cad/` STL·도면, `code_3D/` 3D MMA 무게최소화(opt3d.py)·검증(verify5.py)·STL 생성(mkstl3d.py) |
 | 04_TV스탠드 | 사례 1(텍스트 입력, 대표). 진행 중 — tvopt.py(최적화), tvverify.py(출력형상 검증), tvstl.py. 1·2차 결과는 출력형상 검증 미통과(얇은 부재), 3차 계산 중 |
 | 06_발표 | 발표 초안 PPT v1~v4와 생성 스크립트, 자전거 장착 3D 장면 렌더링(scene/) |
+| 07_입력_1차설계 | 입력(텍스트·스케치·사진) → 템플릿 선택 → 설계 명세(spec.json)·해석 문제(problem.npz)·1차 설계 STL. 오프라인·CPU. `run.py`, 검증 `tests/run_all.py`, 최적화 연결 `formproof_input/adapter.py` |
 | 05_영상 | 설계과정·시연 영상 |
 | 99_빌드스크립트 | 서류·페이지·그림 생성 스크립트 |
 
