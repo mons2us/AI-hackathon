@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Idea2Product 로봇청소기 데모</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#eef1f5}
+a{color:#1f56c9}a:hover{color:#163f94}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="font-family: 'Noto Sans KR', system-ui, sans-serif; color: #172033; background: #eef1f5; min-height: 100vh; box-sizing: border-box; padding: 20px">
+<div style="max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px">
+
+  <!-- 상단 바 -->
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #172033; color: #ffffff; border-radius: 14px; padding: 14px 20px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: #2f6fed; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" aria-hidden="true"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9z"></path><path d="M12 11v9M4 6.5l8 4.5 8-4.5"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700">Idea2Product</span>
+        <span style="font-size: 12px; color: #b9c3d6">머릿속 아이디어를 검증된 제품으로</span>
+      </div>
+    </div>
+    <nav aria-label="진행 단계" style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px">
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2a3550; color: #d6deec">① 입력</span>
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2a3550; color: #d6deec">② 요구사양</span>
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2a3550; color: #d6deec">③ 3D 설계</span>
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2a3550; color: #d6deec">④ 물리 검증</span>
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2a3550; color: #d6deec">⑤ 자동 재설계</span>
+      <span style="padding: 6px 12px; border-radius: 99px; background: #2f6fed; color: #ffffff; font-weight: 700">⑥ 결과</span>
+    </nav>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+    <!-- 좌: 입력 + 요구사양 -->
+    <section aria-label="입력과 요구사양" style="flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #dde3ec">
+        <h2 style="margin: 0; font-size: 16px">아이디어 입력</h2>
+        <label for="idea" style="font-size: 12px; color: #4d586c">말하거나, 쓰거나, 올려주세요</label>
+        <textarea id="idea" rows="4" style="font-family: inherit; font-size: 14px; line-height: 1.5; border: 1px solid #c9d2df; border-radius: 10px; padding: 10px; resize: vertical; color: #172033">우리집 현관 문턱이 2cm인데 로봇청소기가 못 넘어가. 높이는 10cm 안으로 유지하면서 넘어갈 수 있게 바꿔줘.</textarea>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>음성
+          </button>
+          <button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"></path></svg>스케치
+          </button>
+          <button type="button" style="display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"></path></svg>사진 · 문서 · STEP
+          </button>
+        </div>
+        <button type="button" style="min-height: 48px; border-radius: 10px; border: none; background: #2f6fed; color: #ffffff; font-size: 15px; font-weight: 700; cursor: pointer">설계 시작</button>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #dde3ec">
+        <div style="display: flex; justify-content: space-between; align-items: center">
+          <h2 style="margin: 0; font-size: 16px">AI가 정리한 요구사양</h2>
+          <span style="font-size: 11px; color: #4d586c; background: #eef1f5; padding: 3px 8px; border-radius: 99px">자동 추출</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 13px">
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">제품</div><div style="font-weight: 700">로봇청소기</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">문턱 높이</div><div style="font-weight: 700">2.0 cm 통과</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">본체 높이</div><div style="font-weight: 700">≤ 10 cm</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">성공 확률</div><div style="font-weight: 700">≥ 95 %</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">최대 기울기</div><div style="font-weight: 700">≤ 15°</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="color: #4d586c; font-size: 12px">물리 해석</div><div style="font-weight: 700">강체 + 접촉</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 중앙: 뷰어 -->
+    <section aria-label="설계와 시뮬레이션" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #dde3ec">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px">
+          <div style="display: flex; gap: 6px" role="group" aria-label="보기 전환">
+            <button type="button" onClick="{{ showSim }}" style="{{ simTabStyle }}">문턱 넘기 시뮬레이션</button>
+            <button type="button" onClick="{{ showCad }}" style="{{ cadTabStyle }}">3D 모델</button>
+          </div>
+          <span style="{{ statusStyle }}">{{ statusText }}</span>
+        </div>
+
+        <sc-if value="{{ isSim }}" hint-placeholder-val="{{ true }}">
+          <div style="background: #f6f8fb; border-radius: 12px; border: 1px solid #e3e8ef; overflow: hidden">
+            <svg viewBox="0 0 900 340" role="img" aria-label="{{ simAria }}" style="width: 100%; height: auto; display: block">
+              <defs>
+                <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#fbfcfd"></stop><stop offset="0.55" stop-color="#e9edf2"></stop><stop offset="1" stop-color="#c7ced9"></stop>
+                </linearGradient>
+                <linearGradient id="gLidar" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#3b4660"></stop><stop offset="1" stop-color="#151c2c"></stop>
+                </linearGradient>
+                <linearGradient id="gWallL" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f1f3f6"></stop><stop offset="1" stop-color="#e3e7ec"></stop>
+                </linearGradient>
+                <linearGradient id="gSill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#b98d62"></stop><stop offset="1" stop-color="#8a6442"></stop>
+                </linearGradient>
+                <radialGradient id="gShadow" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="#172033" stop-opacity="0.32"></stop><stop offset="1" stop-color="#172033" stop-opacity="0"></stop>
+                </radialGradient>
+                <marker id="mArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                  <path d="M0 0 L10 5 L0 10 z" fill="#d4691f"></path>
+                </marker>
+              </defs>
+              <!-- 방 배경: 두 방 + 문틀 -->
+              <rect x="0" y="0" width="420" height="290" fill="url(#gWallL)"></rect>
+              <rect x="495" y="0" width="405" height="290" fill="#e6eaf0"></rect>
+              <rect x="420" y="40" width="75" height="250" fill="#dde2e9"></rect>
+              <rect x="408" y="34" width="14" height="256" fill="#c2ab8b"></rect>
+              <rect x="493" y="34" width="14" height="256" fill="#c2ab8b"></rect>
+              <rect x="408" y="30" width="99" height="12" fill="#b59c7a"></rect>
+              <rect x="0" y="276" width="408" height="14" fill="#d3d8df"></rect>
+              <rect x="507" y="276" width="393" height="14" fill="#d3d8df"></rect>
+              <!-- 바닥: 마루 -->
+              <rect x="0" y="290" width="430" height="50" fill="#c99d6e"></rect>
+              <rect x="485" y="290" width="415" height="50" fill="#bf9a72"></rect>
+              <line x1="0" y1="306" x2="430" y2="306" stroke="#b48a5e" stroke-width="1"></line>
+              <line x1="0" y1="323" x2="430" y2="323" stroke="#b48a5e" stroke-width="1"></line>
+              <line x1="485" y1="306" x2="900" y2="306" stroke="#ad8a64" stroke-width="1"></line>
+              <line x1="485" y1="323" x2="900" y2="323" stroke="#ad8a64" stroke-width="1"></line>
+              <line x1="120" y1="290" x2="120" y2="306" stroke="#b48a5e"></line><line x1="300" y1="290" x2="300" y2="306" stroke="#b48a5e"></line>
+              <line x1="60" y1="306" x2="60" y2="323" stroke="#b48a5e"></line><line x1="240" y1="306" x2="240" y2="323" stroke="#b48a5e"></line>
+              <line x1="180" y1="323" x2="180" y2="340" stroke="#b48a5e"></line><line x1="360" y1="323" x2="360" y2="340" stroke="#b48a5e"></line>
+              <line x1="600" y1="290" x2="600" y2="306" stroke="#ad8a64"></line><line x1="780" y1="290" x2="780" y2="306" stroke="#ad8a64"></line>
+              <line x1="680" y1="306" x2="680" y2="323" stroke="#ad8a64"></line><line x1="560" y1="323" x2="560" y2="340" stroke="#ad8a64"></line>
+              <!-- 문턱 (2cm × 5cm) -->
+              <rect x="430" y="268" width="55" height="22" rx="2" fill="url(#gSill)"></rect>
+              <line x1="431" y1="269" x2="484" y2="269" stroke="#d2a77a" stroke-width="2"></line>
+              <text x="457" y="333" text-anchor="middle" font-size="11" fill="#3a2a1a">문턱 2cm</text>
+              <!-- 그림자 -->
+              <ellipse cx="{{ f.shadowX }}" cy="292" rx="215" ry="7" fill="url(#gShadow)"></ellipse>
+
+              <!-- 로봇 (차축 중심 좌표계) -->
+              <g transform="{{ f.pose }}">
+                <g transform="{{ f.bodyShift }}">
+                  <!-- 서스펜션 -->
+                  <line x1="0" y1="0" x2="-58" y2="{{ L.armY }}" stroke="#5b6475" stroke-width="5" stroke-linecap="round"></line>
+                  <polyline points="{{ L.spring }}" fill="none" stroke="#5b6475" stroke-width="2"></polyline>
+                  <!-- 본체 -->
+                  <rect x="-192" y="{{ L.top }}" width="385" height="{{ L.bodyH }}" rx="26" fill="url(#gBody)" stroke="#172033" stroke-width="2" fill-opacity="0.9"></rect>
+                  <line x1="-176" y1="{{ L.seamY }}" x2="176" y2="{{ L.seamY }}" stroke="#aeb7c4" stroke-width="1.5"></line>
+                  <rect x="-48" y="{{ L.lidarY }}" width="96" height="20" rx="7" fill="url(#gLidar)"></rect>
+                  <rect x="-40" y="{{ L.lidarWin }}" width="80" height="4" rx="2" fill="#6aa0f0"></rect>
+                  <rect x="166" y="{{ L.bumperY }}" width="27" height="{{ L.bumperH }}" rx="10" fill="#2a3550"></rect>
+                  <rect x="178" y="{{ L.sensorY }}" width="9" height="16" rx="3" fill="#8fb4f0"></rect>
+                  <sc-if value="{{ f.bodyHot }}" hint-placeholder-val="{{ false }}">
+                    <rect x="-170" y="{{ L.barY }}" width="345" height="6" rx="3" fill="{{ f.bodyColor }}" stroke="#172033" stroke-width="1"></rect>
+                  </sc-if>
+                  <!-- 휠 하우징(단면) -->
+                  <circle cx="0" cy="0" r="{{ L.wellR }}" fill="#2a3550" fill-opacity="0.12" stroke="#7d8798" stroke-width="1.5" stroke-dasharray="5 4"></circle>
+                  <!-- 앞바퀴 포크 -->
+                  <line x1="{{ L.wb }}" y1="{{ L.casterY }}" x2="{{ L.wb }}" y2="{{ L.bottom }}" stroke="#5b6475" stroke-width="4"></line>
+                  <!-- 사이드 브러시 -->
+                  <g transform="{{ f.brush }}">
+                    <line x1="150" y1="{{ L.brushY }}" x2="166" y2="{{ L.brushY }}" stroke="#d4691f" stroke-width="2" stroke-linecap="round"></line>
+                    <line x1="150" y1="{{ L.brushY }}" x2="142" y2="{{ L.brushY2 }}" stroke="#d4691f" stroke-width="2" stroke-linecap="round"></line>
+                    <line x1="150" y1="{{ L.brushY }}" x2="142" y2="{{ L.brushY3 }}" stroke="#d4691f" stroke-width="2" stroke-linecap="round"></line>
+                  </g>
+                </g>
+                <!-- 구동바퀴: 메쉬 + 휠 -->
+                <circle cx="0" cy="0" r="{{ L.R }}" fill="#f3f6fa"></circle>
+                <g transform="{{ f.spin }}">
+                  <sc-for list="{{ mesh }}" as="m" hint-placeholder-count="48">
+                    <path d="{{ m.d }}" fill="{{ m.fill }}" stroke="#ffffff" stroke-width="1"></path>
+                  </sc-for>
+                  <sc-for list="{{ spokes }}" as="sp" hint-placeholder-count="5">
+                    <line x1="0" y1="0" x2="{{ sp.x }}" y2="{{ sp.y }}" stroke="#8fa3c7" stroke-width="3" stroke-linecap="round"></line>
+                  </sc-for>
+                </g>
+                <circle cx="0" cy="0" r="{{ L.R }}" fill="none" stroke="#172033" stroke-width="2"></circle>
+                <circle cx="0" cy="0" r="{{ L.hubR }}" fill="none" stroke="#2a3550" stroke-width="3"></circle>
+                <circle cx="0" cy="0" r="5" fill="#172033"></circle>
+                <!-- 앞바퀴(캐스터) -->
+                <circle cx="{{ L.wb }}" cy="{{ L.casterY }}" r="{{ L.Rc }}" fill="{{ f.casterColor }}" stroke="#172033" stroke-width="2"></circle>
+                <circle cx="{{ L.wb }}" cy="{{ L.casterY }}" r="3" fill="#172033"></circle>
+              </g>
+
+              <!-- 접촉력 화살표 (월드 좌표) -->
+              <sc-for list="{{ f.arrows }}" as="ar" hint-placeholder-count="2">
+                <line x1="{{ ar.x1 }}" y1="{{ ar.y1 }}" x2="{{ ar.x2 }}" y2="{{ ar.y2 }}" stroke="#d4691f" stroke-width="3" marker-end="url(#mArrow)"></line>
+                <text x="{{ ar.lx }}" y="{{ ar.ly }}" text-anchor="middle" font-size="12" font-weight="700" fill="#8a420c">{{ ar.label }}</text>
+              </sc-for>
+              <sc-if value="{{ f.showFail }}" hint-placeholder-val="{{ false }}">
+                <circle cx="{{ f.failX }}" cy="{{ f.failY }}" r="15" fill="none" stroke="#c4314b" stroke-width="3"></circle>
+                <rect x="{{ f.failBoxX }}" y="58" width="150" height="30" rx="8" fill="#c4314b"></rect>
+                <text x="{{ f.failX }}" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">{{ cur.fail }}</text>
+              </sc-if>
+              <rect x="12" y="10" width="440" height="26" rx="6" fill="#ffffff" fill-opacity="0.85"></rect>
+              <text x="22" y="28" font-size="13" fill="#2a3550">MuJoCo 강체·접촉 · 설계 {{ cur.label }} · 단면 보기 · 바퀴 색 = 구간별 받는 힘</text>
+            </svg>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+            <button type="button" onClick="{{ togglePlay }}" aria-label="{{ playLabel }}" style="min-width: 88px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: none; background: #2f6fed; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer">{{ playLabel }}</button>
+            <label for="tscrub" style="font-size: 12px; color: #4d586c">시간</label>
+            <input id="tscrub" type="range" min="0" max="5" step="0.05" value="{{ tVal }}" onChange="{{ scrub }}" style="flex: 1 1 200px; min-width: 0; accent-color: #2f6fed">
+            <span style="font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; min-width: 64px; text-align: right">{{ tText }}</span>
+          </div>
+          <p aria-live="polite" style="margin: 0; font-size: 13px; color: #172033">바퀴 메쉬(24구간 × 2링): {{ meshText }} <span style="color: #4d586c">· 구간 색 0 → 0.8W</span></p>
+        </sc-if>
+        <sc-if value="{{ isCad }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #f6f8fb; border-radius: 12px; border: 1px solid #e3e8ef; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 20px; box-sizing: border-box">
+            <svg viewBox="0 0 360 200" role="img" aria-label="로봇청소기 3D 모델 미리보기 자리" style="width: 60%; max-width: 360px; height: auto">
+              <ellipse cx="180" cy="130" rx="150" ry="46" fill="#dfe5ee" stroke="#172033" stroke-width="2"></ellipse>
+              <path d="M30 130 V100 A150 46 0 0 1 330 100 V130" fill="#ffffff" stroke="#172033" stroke-width="2"></path>
+              <ellipse cx="180" cy="100" rx="150" ry="46" fill="#ffffff" stroke="#172033" stroke-width="2"></ellipse>
+              <ellipse cx="180" cy="92" rx="34" ry="12" fill="#2f6fed"></ellipse>
+            </svg>
+            <p style="margin: 0; font-size: 13px; color: #4d586c; text-align: center">회전 · 확대 가능한 3D 뷰어 (CadQuery → STEP/GLB)<br>바퀴 Ø{{ cur.wheel }}mm · 지상고 {{ cur.clear }}mm · 본체 높이 {{ cur.height }}cm</p>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- 접촉력 히트맵 -->
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #dde3ec">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px">
+          <h2 style="margin: 0; font-size: 16px">바퀴별 접촉력 — 시간에 따라 (MuJoCo 접촉 계산)</h2>
+          <span style="font-size: 12px; color: #4d586c">최대 {{ hmPeak }}</span>
+        </div>
+        <p aria-live="polite" style="margin: 0; font-size: 13px; color: #172033; min-height: 20px">{{ hoverText }}</p>
+        <div role="img" aria-label="{{ hmAria }}" style="display: flex; flex-direction: column; gap: 2px">
+          <sc-for list="{{ hm }}" as="row" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 96px; flex: 0 0 96px; font-size: 12px; color: #4d586c; text-align: right">{{ row.name }}</span>
+              <div style="flex: 1 1 auto; display: flex; gap: 2px; min-width: 0">
+                <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="40">
+                  <span title="{{ c.tip }}" onMouseEnter="{{ c.hover }}" style="{{ c.style }}"></span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display: flex; gap: 8px; margin-top: 4px">
+            <span style="width: 96px; flex: 0 0 96px"></span>
+            <div style="flex: 1 1 auto; display: flex; justify-content: space-between; font-size: 11px; color: #4d586c">
+              <span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: #4d586c">
+          <span>힘 (로봇 무게 W 대비)</span>
+          <span>0</span>
+          <span style="display: flex; gap: 2px">
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #f3f6fa; border: 1px solid #dde3ec"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #cde2fb"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #9ec5f4"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #6da7ec"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #3987e5"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #256abf"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #1c5cab"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #184f95"></span>
+            <span style="width: 22px; height: 12px; border-radius: 3px; background: #0d366b"></span>
+          </span>
+          <span>2W 이상</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #4d586c">읽는 법: 진한 칸 = 그 순간 그 바퀴에 큰 힘. 성공한 설계는 앞바퀴 → 구동바퀴 순서로 짧게 진해졌다 돌아오고, 실패한 설계는 진한 칸이 끝까지 이어집니다(걸림·헛바퀴).</p>
+      </div>
+
+      <!-- 재설계 이력 -->
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #dde3ec">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px">
+          <h2 style="margin: 0; font-size: 16px">자동 재설계 이력</h2>
+          <span style="font-size: 12px; color: #4d586c">막대를 눌러 각 설계안 보기 · 점선 = 목표 95%</span>
+        </div>
+        <div style="position: relative; display: flex; align-items: flex-end; gap: 12px; height: 150px; padding-top: 8px; border-bottom: 1px solid #c9d2df">
+          <div style="position: absolute; left: 0; right: 0; bottom: 114px; border-top: 2px dashed #e8833a"></div>
+          <sc-for list="{{ iters }}" as="it" hint-placeholder-count="6">
+            <button type="button" onClick="{{ it.pick }}" aria-label="{{ it.aria }}" style="flex: 1 1 0; min-width: 44px; height: 100%; border: none; background: transparent; padding: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; cursor: pointer">
+              <span style="font-size: 12px; font-weight: 700; color: #172033">{{ it.prob }}%</span>
+              <span style="{{ it.barStyle }}"></span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 12px">
+          <sc-for list="{{ iters }}" as="it" hint-placeholder-count="6">
+            <span style="{{ it.labelStyle }}">{{ it.label }}</span>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+    <!-- 우: 결과 -->
+    <section aria-label="성능 결과와 파일" style="flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #dde3ec">
+        <h2 style="margin: 0; font-size: 16px">성능 예측 (AI 서로게이트)</h2>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; justify-content: space-between; font-size: 13px"><span>성공 확률</span><span style="font-weight: 700">{{ cur.prob }}% <span style="color: #4d586c; font-weight: 400">/ 목표 95%</span></span></div>
+          <div style="height: 10px; background: #e3e8ef; border-radius: 99px; overflow: hidden"><div style="{{ probBarStyle }}"></div></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="font-size: 12px; color: #4d586c">통과 시간</div><div style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700">{{ cur.time }}</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="font-size: 12px; color: #4d586c">최대 기울기</div><div style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700">{{ cur.pitch }}</div></div>
+          <div style="background: #f6f8fb; border-radius: 10px; padding: 10px"><div style="font-size: 12px; color: #4d586c">본체 높이</div><div style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700">{{ cur.height }}cm</div></div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #4d586c">예측 0.02초 · 최종안은 MuJoCo 정밀 시뮬로 재검증</p>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #dde3ec">
+        <h2 style="margin: 0; font-size: 16px">설계 변수 (설계 {{ cur.label }})</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px">
+          <tbody>
+            <tr><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; color: #4d586c">구동바퀴 지름</td><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; text-align: right; font-weight: 700">{{ cur.wheel }} mm</td></tr>
+            <tr><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; color: #4d586c">앞바퀴 지름</td><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; text-align: right; font-weight: 700">{{ cur.caster }} mm</td></tr>
+            <tr><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; color: #4d586c">지상고</td><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; text-align: right; font-weight: 700">{{ cur.clear }} mm</td></tr>
+            <tr><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; color: #4d586c">서스펜션 스트로크</td><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; text-align: right; font-weight: 700">{{ cur.stroke }} mm</td></tr>
+            <tr><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; color: #4d586c">스프링 강성</td><td style="padding: 7px 0; border-bottom: 1px solid #e3e8ef; text-align: right; font-weight: 700">{{ cur.k }}</td></tr>
+            <tr><td style="padding: 7px 0; color: #4d586c">무게중심</td><td style="padding: 7px 0; text-align: right; font-weight: 700">{{ cur.cg }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="background: #ffffff; border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #dde3ec">
+        <h2 style="margin: 0; font-size: 16px">결과 파일</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <button type="button" style="min-height: 44px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">3D 설계 · STEP</button>
+          <button type="button" style="min-height: 44px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">2D 도면 · PDF</button>
+          <button type="button" style="min-height: 44px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">3D 프린트 · STL</button>
+          <button type="button" style="min-height: 44px; border-radius: 10px; border: 1px solid #c9d2df; background: #f6f8fb; color: #172033; font-size: 13px; cursor: pointer">시뮬 영상 · MP4</button>
+        </div>
+        <button type="button" style="min-height: 48px; border-radius: 10px; border: none; background: #172033; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer">성능 리포트 전체 받기</button>
+      </div>
+    </section>
+  </div>
+  <p style="margin: 0; font-size: 12px; color: #4d586c; text-align: center">화면의 수치는 GUI 구성을 보여주기 위한 예시 값입니다.</p>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1360}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 5, view: 'sim', hov: '', t: 5, playing: false };
+    this.timer = null;
+  }
+  componentWillUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  }
+  stopPlay() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.state.playing) this.setState({ playing: false });
+  }
+  simulate(cur) {
+    // 단위: px (1mm = 1.1px). 바닥 y=290, 문턱 x 430~485, 높이 22px(2cm)
+    const s = 1.1, R = cur.wheel / 2 * s, Rc = cur.caster / 2 * s;
+    const H = 22, S0 = 430, S1 = 485, WB = 150, FY = 290;
+    const clearPx = cur.clear * s;
+    const kind = cur.ok ? 'ok' : ({ '앞바퀴 걸림': 'front', '배 걸림': 'belly', '헛바퀴': 'slip' })[cur.fail];
+    // 원(반지름 rho)의 중심 높이: 바닥 / 문턱 윗면 / 문턱 모서리 중 가장 높은 지지점
+    const sup = (x, rho) => {
+      const c = [{ h: rho, type: 'floor' }];
+      if (x >= S0 && x <= S1) c.push({ h: H + rho, type: 'top' });
+      [S0, S1].forEach((p) => {
+        const d = x - p;
+        if (Math.abs(d) < rho) c.push({ h: H + Math.sqrt(rho * rho - d * d), type: 'corner', p: p });
+      });
+      const m = Math.max.apply(null, c.map((q) => q.h));
+      return { h: m, contacts: c.filter((q) => q.h > m - 0.4) };
+    };
+    const pose = (ax) => {
+      const w = sup(ax, R), c = sup(ax + WB, Rc);
+      const sn = Math.max(-0.5, Math.min(0.5, ((c.h - w.h) + (R - Rc)) / WB));
+      return { ax: ax, cw: w.h, cc: c.h, phi: Math.asin(sn), wC: w.contacts, cC: c.contacts };
+    };
+    const bellyHit = (P) => {
+      for (let xs = S0; xs <= S1; xs += 5) {
+        const lx = (xs - P.ax) / Math.cos(P.phi);
+        if (lx < -180 || lx > 180) continue;
+        if (Math.abs(lx) < R + 2 || Math.abs(lx - WB) < Rc + 2) continue;
+        const hU = P.cw + lx * Math.sin(P.phi) + (clearPx - R) * Math.cos(P.phi);
+        if (hU < H - 0.5) return xs;
+      }
+      return null;
+    };
+    let xStop = Infinity;
+    if (kind === 'front') xStop = S0 - Rc - WB;
+    if (kind === 'slip') xStop = S0 - Math.sqrt(Math.max(0, R * R - (R - H) * (R - H)));
+    const cgF = cur.cg.indexOf('앞쪽') === 0 ? 0.8 : 1;
+    const dt = 0.0125, v0 = 140;
+    let ax = 100, stuck = false, tStuck = 99, bellyX = null, rot = 0;
+    let prevS1 = false, landW = 0, prevS1c = false, landC = 0;
+    const frames = [];
+    for (let i = 0; i <= 400; i++) {
+      const t = i * dt;
+      const P = pose(ax);
+      const corner = P.wC.find((q) => q.type === 'corner');
+      const cCorner = P.cC.find((q) => q.type === 'corner');
+      const onS1 = !!(corner && corner.p === S1), onS1c = !!(cCorner && cCorner.p === S1);
+      if (prevS1 && !onS1) landW = 6;
+      if (prevS1c && !onS1c) landC = 6;
+      prevS1 = onS1; prevS1c = onS1c;
+      let fD, fC, fB = 0;
+      if (stuck && kind === 'front') {
+        fC = 1.6 + 0.08 * Math.sin(t * 20); fD = 0.4 + 0.12 * (1 + Math.sin(t * 18)) / 2;
+      } else if (stuck && kind === 'belly') {
+        fB = 1.0; fD = 0.05; fC = 0.3;
+      } else if (stuck && kind === 'slip') {
+        const tanS = Math.sqrt(R * R - (R - H) * (R - H)) / (R - H);
+        fD = Math.min(2.2, 0.4 + 0.35 * tanS) + 0.15 * Math.abs(Math.sin(t * 14)); fC = 0.25;
+      } else {
+        if (corner && corner.p === S0) fD = Math.min(2.2, 0.4 + cgF * 0.35 * Math.abs(P.ax - S0) / Math.max(1, P.cw - H));
+        else if (onS1) fD = 0.45;
+        else fD = 0.4;
+        if (landW > 0) { fD = 0.9; landW--; }
+        if (cCorner && cCorner.p === S0) fC = Math.min(1.5, 0.2 + 0.25 * Math.abs(P.ax + WB - S0) / Math.max(1, P.cc - H));
+        else fC = 0.2;
+        if (landC > 0) { fC = 0.6; landC--; }
+      }
+      // 구동바퀴 접촉 방향(월드 각도)과 분담
+      const wcon = P.wC.map((q) => ({
+        ang: q.type === 'corner' ? Math.atan2(P.cw - H, q.p - P.ax) * 180 / Math.PI : 90,
+        corner: q.type === 'corner'
+      }));
+      wcon.forEach((q) => { q.share = wcon.length > 1 ? (q.corner ? 0.7 : 0.3) : 1; });
+      frames.push({ t: t, ax: P.ax, cw: P.cw, cc: P.cc, phi: P.phi, fD: fD, fC: fC, fB: fB, wcon: fB > 0.5 ? [] : wcon, rot: rot, stuck: stuck });
+      // 다음 스텝
+      if (!stuck) {
+        const climbing = !!(corner || cCorner);
+        let nx = ax + v0 * (climbing ? 0.55 : 1) * dt;
+        if (nx >= xStop) { nx = xStop; stuck = true; tStuck = t; }
+        if (kind === 'belly') {
+          const hit = bellyHit(pose(nx));
+          if (hit !== null) { stuck = true; tStuck = t; bellyX = hit; nx = ax; }
+        }
+        rot += (nx - ax) / R * 57.2958;
+        ax = nx;
+      } else if (kind === 'slip') rot += 900 * dt;
+      else if (kind === 'front') rot += 300 * dt;
+    }
+    return { frames: frames, dt: dt, R: R, Rc: Rc, H: H, S0: S0, FY: FY, WB: WB, clearPx: clearPx, kind: kind, tStuck: tStuck, bellyX: bellyX };
+  }
+  renderVals() {
+    const data = [
+      { label: 'v1', wheel: 50, caster: 20, clear: 12, stroke: 4, k: '낮음', cg: '중앙', ok: false, fail: '앞바퀴 걸림', prob: 8, time: '—', pitch: '—', height: 8.8 },
+      { label: 'v2', wheel: 60, caster: 50, clear: 12, stroke: 4, k: '낮음', cg: '중앙', ok: false, fail: '배 걸림', prob: 22, time: '—', pitch: '—', height: 9.0 },
+      { label: 'v3', wheel: 60, caster: 50, clear: 24, stroke: 6, k: '중간', cg: '중앙', ok: false, fail: '헛바퀴', prob: 41, time: '—', pitch: '—', height: 9.4 },
+      { label: 'v4', wheel: 68, caster: 50, clear: 24, stroke: 10, k: '중간', cg: '중앙', ok: true, fail: '', prob: 72, time: '4.1s', pitch: '14°', height: 9.5 },
+      { label: 'v5', wheel: 72, caster: 50, clear: 26, stroke: 10, k: '높음', cg: '중앙', ok: true, fail: '', prob: 91, time: '3.2s', pitch: '12°', height: 9.6 },
+      { label: 'v6', wheel: 72, caster: 50, clear: 26, stroke: 10, k: '높음', cg: '앞쪽 +8mm', ok: true, fail: '', prob: 97, time: '2.6s', pitch: '9°', height: 9.6 }
+    ];
+    const sel = this.state.sel;
+    const cur = data[sel];
+    const meets = cur.prob >= 95;
+    const tabOn = 'min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #172033; background: #172033; color: #ffffff; font-size: 13px; cursor: pointer';
+    const tabOff = 'min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid #c9d2df; background: #ffffff; color: #172033; font-size: 13px; cursor: pointer';
+    let statusText, statusStyle;
+    if (meets) {
+      statusText = '목표 달성 · 설계 ' + cur.label;
+      statusStyle = 'font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 99px; background: #dcf3ea; color: #0b6b52';
+    } else if (cur.ok) {
+      statusText = '통과했지만 성공 확률 부족 · 재설계 중';
+      statusStyle = 'font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 99px; background: #fdebd9; color: #8a420c';
+    } else {
+      statusText = '목표 미달 · ' + cur.fail;
+      statusStyle = 'font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 99px; background: #fbe3e7; color: #a3253c';
+    }
+    const iters = data.map((d, i) => {
+      const on = i === sel;
+      const color = d.prob >= 95 ? '#12a37f' : (d.ok ? '#e8833a' : '#c4314b');
+      return {
+        label: d.label, prob: d.prob,
+        aria: '설계 ' + d.label + ', 성공 확률 ' + d.prob + '%',
+        pick: () => { this.stopPlay(); this.setState({ sel: i, t: 5, hov: '' }); },
+        barStyle: 'display: block; width: 100%; max-width: 56px; border-radius: 8px 8px 0 0; background: ' + color + '; height: ' + Math.max(4, d.prob * 1.2) + 'px; outline: ' + (on ? '3px solid #172033' : 'none') + '; outline-offset: 2px',
+        labelStyle: 'flex: 1 1 0; min-width: 44px; text-align: center; font-size: 12px; color: ' + (on ? '#172033' : '#4d586c') + '; font-weight: ' + (on ? '700' : '400')
+      };
+    });
+
+    // ---- 시뮬레이션 (설계별 1회 계산 후 캐시) ----
+    this._sim = this._sim || {};
+    if (!this._sim[cur.label]) this._sim[cur.label] = this.simulate(cur);
+    const S = this._sim[cur.label];
+    const F = S.frames;
+    const ramp = ['#f3f6fa', '#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#1c5cab', '#184f95', '#0d366b'];
+    const colorOf = (v) => ramp[v < 0.1 ? 0 : Math.min(8, 1 + Math.floor((v - 0.1) / 0.24))];
+
+    // ---- 히트맵: 프레임 10개(0.125s)씩 평균 ----
+    const rowNames = ['앞바퀴', '왼쪽 구동바퀴', '오른쪽 구동바퀴', '차체 바닥'];
+    const pick = [(fr) => fr.fC, (fr) => fr.fD, (fr) => fr.fD * 0.96, (fr) => fr.fB];
+    const t = this.state.t;
+    const curBin = Math.min(39, Math.floor(t / 0.125));
+    let peak = { v: 0, row: 0, t: 0 };
+    const hm = rowNames.map((name, ri) => ({
+      name: name,
+      cells: Array.from({ length: 40 }, (_, k) => {
+        let sum = 0, n = 0;
+        for (let j = k * 10; j < k * 10 + 10 && j < F.length; j++) { sum += pick[ri](F[j]); n++; }
+        const v = n ? sum / n : 0;
+        const tc = (k + 0.5) * 0.125;
+        if (v > peak.v) peak = { v: v, row: ri, t: tc };
+        const tip = name + ' · ' + tc.toFixed(2) + 's · ' + v.toFixed(2) + 'W';
+        return {
+          tip: tip,
+          hover: () => this.setState({ hov: tip }),
+          style: 'flex: 1 1 0; height: 26px; border-radius: 3px; background: ' + colorOf(v) + '; cursor: crosshair' + (k === curBin ? '; box-shadow: inset 0 0 0 2px #e8833a' : '')
+        };
+      })
+    }));
+    const hmPeak = rowNames[peak.row] + ' ' + peak.v.toFixed(1) + 'W @ ' + peak.t.toFixed(1) + 's';
+
+    // ---- 현재 프레임 ----
+    const idx = Math.max(0, Math.min(F.length - 1, Math.round(t / S.dt)));
+    const fr = F[idx];
+    const R = S.R, Rc = S.Rc, FY = S.FY, H = S.H;
+    const phiDeg = -fr.phi * 57.2958;
+    const comp = Math.max(-2, Math.min(6, (fr.fD - 0.4) * 5));
+    const heightPx = cur.height * 10 * 1.1;
+    const top = R - heightPx, bottom = R - S.clearPx, bodyH = bottom - top;
+    const armY = -R * 0.3, springTop = top + 22;
+    const spBase = (armY - comp) / 2;
+    let spring = '';
+    for (let k = 0; k <= 8; k++) {
+      const yy = spBase + (springTop - spBase) * k / 8;
+      const xx = -29 + (k === 0 || k === 8 ? 0 : (k % 2 ? 5 : -5));
+      spring += xx.toFixed(1) + ',' + yy.toFixed(1) + ' ';
+    }
+    const L = {
+      R: R.toFixed(1), Rc: Rc.toFixed(1), wb: S.WB, casterY: (R - Rc).toFixed(1),
+      top: top.toFixed(1), bottom: bottom.toFixed(1), bodyH: bodyH.toFixed(1),
+      seamY: (top + bodyH * 0.42).toFixed(1), lidarY: (top - 18).toFixed(1), lidarWin: (top - 11).toFixed(1),
+      bumperY: (top + 16).toFixed(1), bumperH: Math.max(10, bodyH - 30).toFixed(1), sensorY: (top + 26).toFixed(1),
+      barY: (bottom - 3).toFixed(1), wellR: (R + 5).toFixed(1), hubR: (R * 0.4).toFixed(1),
+      armY: (armY - comp).toFixed(1), spring: spring,
+      brushY: (R - 3).toFixed(1), brushY2: (R - 7).toFixed(1), brushY3: (R + 1).toFixed(1)
+    };
+    // 바퀴 메쉬 24구간 × 2링
+    const D2R = Math.PI / 180, N = 24, sigma = 16;
+    const angDiff = (x, y) => Math.abs(((x - y) % 360 + 540) % 360 - 180);
+    const segF = new Array(N).fill(0);
+    fr.wcon.forEach((q) => {
+      const w = [];
+      for (let k = 0; k < N; k++) w.push(Math.exp(-Math.pow(angDiff(k * 15 + 7.5 + fr.rot + phiDeg, q.ang) / sigma, 2)));
+      const sum = w.reduce((x, y) => x + y, 0) || 1;
+      for (let k = 0; k < N; k++) segF[k] += fr.fD * q.share * w[k] / sum;
+    });
+    const segColor = (v) => ramp[v < 0.02 ? 0 : Math.min(8, 1 + Math.floor((v - 0.02) / 0.1))];
+    const pt = (rad, deg) => (rad * Math.cos(deg * D2R)).toFixed(1) + ' ' + (rad * Math.sin(deg * D2R)).toFixed(1);
+    const ring = (ri, ro, k) => {
+      const a0 = k * 15, a1 = a0 + 15;
+      return 'M ' + pt(ro, a0) + ' A ' + ro.toFixed(1) + ' ' + ro.toFixed(1) + ' 0 0 1 ' + pt(ro, a1) +
+             ' L ' + pt(ri, a1) + ' A ' + ri.toFixed(1) + ' ' + ri.toFixed(1) + ' 0 0 0 ' + pt(ri, a0) + ' Z';
+    };
+    const mesh = [];
+    for (let k = 0; k < N; k++) {
+      mesh.push({ d: ring(R * 0.72, R, k), fill: segColor(segF[k]) });
+      mesh.push({ d: ring(R * 0.42, R * 0.72, k), fill: segColor(segF[k] * 0.45) });
+    }
+    const spokes = [0, 1, 2, 3, 4].map((k) => ({ x: (R * 0.4 * Math.cos(k * 72 * D2R)).toFixed(1), y: (R * 0.4 * Math.sin(k * 72 * D2R)).toFixed(1) }));
+    const segMax = Math.max.apply(null, segF);
+    // 접촉력 화살표 (월드 좌표)
+    const wx = fr.ax, wy = FY - fr.cw;
+    const arrows = [];
+    fr.wcon.forEach((q) => {
+      const Fc = fr.fD * q.share;
+      if (Fc < 0.08) return;
+      const ca = Math.cos(q.ang * D2R), sa = Math.sin(q.ang * D2R);
+      const px = wx + R * ca, py = wy + R * sa, len = 14 + 26 * Fc;
+      arrows.push({ x1: (px + len * ca).toFixed(1), y1: (py + len * sa).toFixed(1), x2: (px + 2 * ca).toFixed(1), y2: (py + 2 * sa).toFixed(1),
+        lx: (px + (len + 14) * ca).toFixed(1), ly: (py + (len + 14) * sa + 4).toFixed(1), label: Fc.toFixed(2) + 'W' });
+    });
+    if (fr.fB > 0.1 && S.bellyX !== null) {
+      arrows.push({ x1: S.bellyX, y1: FY - H + 34, x2: S.bellyX, y2: FY - H + 2, lx: S.bellyX + 30, ly: FY - H + 30, label: fr.fB.toFixed(1) + 'W' });
+    }
+    let failX = S.S0, failY = FY - H;
+    if (S.kind === 'front') failY = FY - Rc;
+    if (S.kind === 'belly' && S.bellyX !== null) failX = S.bellyX;
+    const brushPhase = Math.cos(t * 9);
+    const f = {
+      pose: 'translate(' + fr.ax.toFixed(1) + ' ' + wy.toFixed(1) + ') rotate(' + phiDeg.toFixed(2) + ')',
+      bodyShift: 'translate(0 ' + comp.toFixed(1) + ')',
+      spin: 'rotate(' + fr.rot.toFixed(1) + ')',
+      brush: 'translate(150 0) scale(' + brushPhase.toFixed(2) + ' 1) translate(-150 0)',
+      shadowX: fr.ax.toFixed(1),
+      casterColor: colorOf(fr.fC), bodyColor: colorOf(fr.fB), bodyHot: fr.fB > 0.1,
+      arrows: arrows,
+      showFail: fr.stuck && t >= S.tStuck + 0.3,
+      failX: failX, failY: failY, failBoxX: failX - 75
+    };
+    const nC = fr.wcon.length;
+    const hasCorner = fr.wcon.some((q) => q.corner);
+    return {
+      f: f, L: L, mesh: mesh, spokes: spokes,
+      meshText: (nC === 0 || fr.fD < 0.1) ? '구동바퀴 접촉 없음 (공중에 뜸)' : ('접촉 ' + nC + '곳 · 최대 구간 힘 ' + segMax.toFixed(2) + 'W' + (hasCorner ? ' · 문턱 모서리에 집중' : ' · 바닥 접지면')),
+      tVal: t, tText: 't = ' + t.toFixed(2) + 's',
+      playLabel: this.state.playing ? '일시정지' : '재생',
+      togglePlay: () => {
+        if (this.state.playing) { this.stopPlay(); return; }
+        this.setState({ playing: true, t: this.state.t >= 4.99 ? 0 : this.state.t });
+        this.timer = setInterval(() => {
+          const nt = Math.min(5, this.state.t + 0.05);
+          this.setState({ t: nt });
+          if (nt >= 5) this.stopPlay();
+        }, 50);
+      },
+      scrub: (e) => { this.stopPlay(); this.setState({ t: parseFloat(e.target.value) }); },
+      hm: hm, hmPeak: hmPeak,
+      hoverText: this.state.hov || '칸에 마우스를 올리면 시간·힘 값이 보입니다.',
+      hmAria: '설계 ' + cur.label + ' 바퀴별 접촉력 히트맵, 최대 ' + hmPeak,
+      cur: cur, iters: iters,
+      isSim: this.state.view === 'sim', isCad: this.state.view === 'cad',
+      showSim: () => this.setState({ view: 'sim' }),
+      showCad: () => this.setState({ view: 'cad' }),
+      simTabStyle: this.state.view === 'sim' ? tabOn : tabOff,
+      cadTabStyle: this.state.view === 'cad' ? tabOn : tabOff,
+      statusText: statusText, statusStyle: statusStyle,
+      simAria: '설계 ' + cur.label + ' 로봇청소기가 2cm 문턱을 ' + (cur.ok ? '넘는 시뮬레이션' : '넘지 못하는 시뮬레이션: ' + cur.fail),
+      probBarStyle: 'height: 100%; border-radius: 99px; width: ' + cur.prob + '%; background: ' + (meets ? '#12a37f' : (cur.ok ? '#e8833a' : '#c4314b'))
+    };
+  }
+}
+</script>
+</body>
+</html>
