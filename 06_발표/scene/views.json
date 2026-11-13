@@ -1,0 +1,7 @@
+[
+ {"name":"bike","show":["final","holder"],"pos":[1400,2700,600],"tgt":[-380,0,-420],"fov":25},
+ {"name":"close_final","show":["final","holder"],"pos":[-420,760,560],"tgt":[60,40,0],"fov":17},
+ {"name":"close_final_front","show":["final","holder"],"pos":[620,700,260],"tgt":[50,45,5],"fov":17},
+ {"name":"close_base_stress","show":["base_stress","clamp","bar"],"bike":false,"pos":[330,900,420],"tgt":[45,55,-4],"fov":11},
+ {"name":"close_final_stress","show":["final_stress","bar"],"bike":false,"pos":[330,900,420],"tgt":[45,55,-4],"fov":11}
+]

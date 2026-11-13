@@ -1,0 +1,258 @@
+<title>FormProof 파이프라인 v3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: four stage columns (input → generate → physics AI → result) over a shared base layer; detail sheet on the right */
+:root{
+  --bg:#F2F4F8; --panel:#FFFFFF; --ink:#141C26; --mute:#5A6677; --line:#D5DCE6;
+  --accent:#1F5BD8; --accent-soft:#E2EBFD; --core:#0F1E4A; --core-ink:#E8EEFF; --core-mute:#A9B8E6;
+  --ok:#1F9D6B; --hk:#D98A1B; --plan:#7A6FD1; --edge:#9AA7B8;
+  --sans:"Noto Sans KR",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E131A; --panel:#161D27; --ink:#E5EBF2; --mute:#95A1B1; --line:#2A3442;
+  --accent:#6F9BFF; --accent-soft:#1B2944; --core:#0B1634; --core-ink:#E8EEFF; --core-mute:#8FA2D8;
+  --ok:#3CC48D; --hk:#F0A54B; --plan:#9C93F0; --edge:#5B6878; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E131A; --panel:#161D27; --ink:#E5EBF2; --mute:#95A1B1; --line:#2A3442;
+  --accent:#6F9BFF; --accent-soft:#1B2944; --core:#0B1634; --core-ink:#E8EEFF; --core-mute:#8FA2D8;
+  --ok:#3CC48D; --hk:#F0A54B; --plan:#9C93F0; --edge:#5B6878; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px}
+h1{font-size:22px;margin:0;text-wrap:balance}
+header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.paths{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.paths span{font-size:12px;color:var(--mute)}
+.paths button{all:unset;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 12px;font-size:13px}
+.paths button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.paths button:focus-visible,.node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:1000px){.main{grid-template-columns:1fr}}
+.board{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;overflow:hidden}
+svg.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:1}
+.stages{display:grid;grid-template-columns:0.9fr 1.1fr 2.2fr 1.1fr;gap:18px}
+@media (max-width:760px){.stages{grid-template-columns:1fr}}
+.stage{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage>h2{margin:0;font-size:11px;letter-spacing:.08em;color:var(--mute);font-weight:700}
+.stage.core{background:var(--core);border-radius:12px;padding:12px;color:var(--core-ink)}
+.stage.core>h2{color:var(--core-mute)}
+.corecols{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+@media (max-width:460px){.corecols{grid-template-columns:1fr}}
+.node{all:unset;box-sizing:border-box;cursor:pointer;display:block;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;transition:opacity .2s,border-color .2s,box-shadow .2s;position:relative;z-index:2}
+.core .node{background:#1A2A5C;border-color:rgba(169,184,230,.35);color:var(--core-ink)}
+.node b{display:block;font-size:13.5px;line-height:1.3}
+.node small{display:block;font-size:11.5px;color:var(--mute);margin-top:2px;line-height:1.35}
+.core .node small{color:var(--core-mute)}
+.node .st{position:absolute;top:-8px;right:8px;font-size:10px;font-weight:700;padding:0 6px;border-radius:99px;color:#fff;line-height:16px}
+.st.ok{background:var(--ok)}.st.hk{background:var(--hk)}.st.plan{background:var(--plan)}
+.node.dim{opacity:.28}
+.node.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.core .node.on{border-color:#8FB0FF;box-shadow:0 0 0 3px rgba(111,155,255,.25)}
+.node.sel{outline:2px solid var(--accent);outline-offset:2px}
+.span2{grid-column:1/-1}.span3{grid-column:1/-1}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+.tabs button{all:unset;cursor:pointer;padding:8px 14px;font-weight:700;font-size:14px;color:var(--mute);border-bottom:3px solid transparent}
+.tabs button.on{color:var(--ink);border-color:var(--accent)}
+.tabs button:focus-visible{outline:2px solid var(--accent)}
+.sec{display:grid;gap:12px}.sec>h2{font-size:17px;margin:6px 0 0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips button{all:unset;cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;font-size:13px}.chips button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.prob{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}@media (max-width:860px){.prob{grid-template-columns:1fr 1fr}}@media (max-width:460px){.prob{grid-template-columns:1fr}}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px;min-width:0}.cell .k{font-size:11px;color:var(--mute);font-weight:700;letter-spacing:.05em}.cell .v{font-size:13.5px}
+.phys{display:flex;gap:5px;flex-wrap:wrap}.phys i{font-style:normal;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--mute)}.phys i.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}@media (max-width:860px){.chal{grid-template-columns:1fr}}
+.chal .cell b{font-size:14px}.chal .cell p{margin:0;font-size:13px;color:var(--mute)}.chal .cell .to{font-size:12.5px;color:var(--accent);font-weight:700}
+.tl{display:grid;gap:12px}.step{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}@media (max-width:700px){.step{grid-template-columns:1fr}}
+.step .lab{display:grid;align-content:start;gap:4px}.step .lab .n{font-family:var(--mono);font-size:12px;color:var(--mute)}.step .lab b{font-size:15px}.step.core{background:var(--core);color:var(--core-ink);border-color:var(--core)}.step.core .lab .n{color:var(--core-mute)}
+.step .body{display:grid;gap:10px;min-width:0}.step .body p{margin:0;font-size:13.5px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.kv div{background:var(--bg);border-radius:8px;padding:8px 10px;min-width:0}.step.core .kv div{background:#1A2A5C}.kv span{display:block;font-size:11px;color:var(--mute)}.step.core .kv span{color:var(--core-mute)}.kv b{font-family:var(--mono);font-size:14px}
+.rounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.rd{background:#1A2A5C;border-radius:10px;padding:8px;display:grid;gap:6px;min-width:0}.rd img{width:100%;border-radius:6px;background:#fff;aspect-ratio:4/3;object-fit:contain}.rd .t{font-size:12.5px;font-weight:700}.rd .m{font-family:var(--mono);font-size:12px;color:var(--core-mute)}
+.kv span.pill,.pill{display:inline-block;color:#fff;font-size:11px;font-weight:700;padding:1px 7px;border-radius:99px;color:#fff}.pill.bad{background:#C8423B}.pill.good{background:var(--ok)}
+.catch{border-left:3px solid #E5482F;padding:6px 10px;font-size:13px;background:var(--bg);border-radius:0 8px 8px 0}.step.core .catch{background:#1A2A5C}
+.src{font-size:11.5px;color:var(--mute)}.src a{color:var(--accent)}
+.imgrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,420px));gap:10px}.imgrow img{width:100%;border-radius:8px;border:1px solid var(--line);background:#fff}
+.base{margin-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.base{grid-template-columns:1fr}}
+.base .node{background:var(--accent-soft);border-color:transparent}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:12px}
+.legend i{display:inline-block;font-style:normal;font-size:10px;font-weight:700;color:#fff;padding:0 6px;border-radius:99px;margin-right:4px;line-height:16px}
+aside{display:grid;gap:12px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.card h3{margin:0;font-size:16px}
+.card .k{font-size:11px;letter-spacing:.06em;color:var(--mute);font-weight:700}
+.card p{margin:0;font-size:13.5px}
+.io{font-family:var(--mono);font-size:12px;background:var(--bg);border-radius:8px;padding:8px 10px;overflow-wrap:anywhere}
+.ex{border-left:3px solid var(--accent);padding-left:10px;font-size:13px}
+.pathdesc{font-size:13px}
+.pathdesc b{color:var(--accent)}
+.note{font-size:11.5px;color:var(--mute)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+@keyframes dash{to{stroke-dashoffset:-20}}
+path.e.on{animation:dash 1.2s linear infinite}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>FormProof 파이프라인</h1>
+  <p>앞에서 다룬 과제(규모, 비전문가, 학습 범위, LLM 신뢰성, 제작성, 조건 근거)를 모두 푼다고 가정한 범용 플랫폼 구조와, 지금 풀고 있는 자전거 거치대 사례입니다.</p>
+</header>
+<div class="tabs" role="tablist"><button role="tab" data-t="G" class="on">범용 프레임워크</button><button role="tab" data-t="B">자전거 거치대 사례</button></div>
+<section id="tabG" class="tabpane">
+<div class="paths" id="paths"><span>경로</span>
+  <button data-p="A" class="on">처음 보는 문제</button>
+  <button data-p="B">반복 제품군 (학습된 모델 있음)</button>
+  <button data-p="C">새 제품군·대형 구조 (모델 자동 생성)</button>
+  <button data-p="D">광학·역문제 (PINN)</button>
+</div>
+<div class="main">
+<section class="board" id="board">
+  <svg class="edges" id="edges" aria-hidden="true"><defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--edge)"/></marker>
+    <marker id="arOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+  </defs></svg>
+  <div class="stages">
+    <div class="stage"><h2>1 · 입력</h2>
+      <button class="node" id="in"><span class="st hk">해커톤</span><b>요청·자료</b><small>텍스트·음성·스케치·이미지·문서·STEP</small></button>
+    </div>
+    <div class="stage"><h2>2 · 3D 설계 생성</h2>
+      <button class="node" id="spec"><span class="st hk">해커톤</span><b>설계 명세</b><small>형상 범위 + 물리 조건, 항목별 근거</small></button>
+      <button class="node" id="geo"><span class="st hk">해커톤</span><b>초기 3D 형상</b><small>고정 부품·설계 공간 (CAD 코드)</small></button>
+    </div>
+    <div class="stage core"><h2>3 · 물리 기반 AI · 성능 확인 ⇄ 재설계</h2>
+      <button class="node span2" id="route"><span class="st hk">해커톤</span><b>경로 선택</b><small>물리 종류·형상 계열·규모·반복 여부 판단</small></button>
+      <div class="corecols">
+        <button class="node" id="fem"><span class="st ok">사전 검증</span><b>FEM 직접 최적화</b><small>미분 기반 Topology 최적화 (MMA)</small></button>
+        <button class="node" id="plan"><span class="st plan">개발 예정</span><b>학습 계획 자동 수립</b><small>변수 범위·샘플 수·물리 손실 설계</small></button>
+        <button class="node" id="pinn"><span class="st plan">기존 연구 연계</span><b>PINN 해석기</b><small>광학 등 메쉬 해석이 어려운 물리·역문제</small></button>
+        <button class="node" id="data"><span class="st plan">개발 예정</span><b>FEM 데이터 생성</b><small>계획대로 계산, 결과 축적</small></button>
+        <div></div>
+        <button class="node" id="sur"><span class="st hk">해커톤 (1종)</span><b>대리 모델</b><small>신경 연산자·DeepSDF, 오차 검사·능동 학습</small></button>
+        <div></div>
+        <button class="node" id="fast"><span class="st hk">해커톤 (1종)</span><b>대리 모델 최적화</b><small>수 초 단위 후보 제안</small></button>
+        <button class="node span2" id="check"><span class="st ok">사전 검증</span><b>성능 확인 (기준 수치해석)</b><small>구조·진동·열은 FEM, 광학은 파동광학 해석으로 판정, 미충족이면 재설계로</small></button>
+      </div>
+    </div>
+    <div class="stage"><h2>4 · 결과</h2>
+      <button class="node" id="out"><span class="st ok">사전 검증</span><b>제작 형상 변환</b><small>STL·도면·STEP(고정 부품)</small></button>
+      <button class="node" id="ver"><span class="st ok">사전 검증</span><b>출력 형상 재검증</b><small>최종 STL을 다시 해석</small></button>
+      <button class="node" id="res"><span class="st hk">해커톤</span><b>결과 + 근거 리포트</b><small>성능·조건 출처·미확인 항목 표시</small></button>
+    </div>
+  </div>
+  <div class="base">
+    <button class="node" id="llm"><span class="st hk">해커톤</span><b>LLM 에이전트</b><small>요청 해석, 도구 호출, 결과 설명 (계산은 하지 않음)</small></button>
+    <button class="node" id="db"><span class="st hk">해커톤</span><b>근거 DB</b><small>규격·측정 논문·재료 데이터시트</small></button>
+    <button class="node" id="gate"><span class="st hk">해커톤</span><b>자동 검증 관문</b><small>모든 단계 결과를 코드로 판정</small></button>
+    <button class="node span3" id="lib"><span class="st hk">일부 사전 검증</span><b>물리 모듈 라이브러리</b><small>구조 · 진동 · 열 · 유동 · 전자기 · 음향 · 광학, 제작 제약(최소 두께·출력 방향)을 블록처럼 조합</small></button>
+  </div>
+  <div class="legend"><span><i style="background:var(--ok)">사전 검증</i>개념·계산 확인 완료</span><span><i style="background:var(--hk)">해커톤</i>해커톤 기간 개발</span><span><i style="background:var(--plan)">개발 예정</i>해커톤 이후 개발</span><span>파란 선: 선택한 경로 · 점선: 반복·피드백</span></div>
+</section>
+<aside>
+  <div class="card"><div class="k">선택한 경로</div><div class="pathdesc" id="pathdesc"></div></div>
+  <div class="card" id="detail"><div class="k" id="dk"></div><h3 id="dt"></h3><p id="dd"></p><div class="io" id="dio"></div><div class="ex" id="dex"></div></div>
+  <div class="card note">사전 검증 사례 숫자는 자전거 폰 거치대 계산(2코어 CPU, 8 GB 환경)에서 확인한 값입니다. 대리 모델 경로의 속도·정확도는 아직 구현 전이라 확인이 필요합니다.</div>
+</aside>
+</div>
+<div class="sec"><h2>문제별 적용</h2>
+  <div class="chips" id="probs"></div>
+  <div class="prob" id="probv"></div>
+  <div class="note">문제별 물리·경로는 플랫폼을 다 만들었다고 가정한 예시 매핑입니다. 사전 검증 표시가 있는 문제만 실제 계산을 했습니다.</div>
+</div>
+<div class="sec"><h2>앞에서 다룬 과제와 해결 모듈</h2><div class="chal" id="chal"></div></div>
+</section>
+<section id="tabB" class="tabpane" hidden>__BIKE__</section>
+</div>
+
+<script>
+const N={
+ in:['입력','요청·자료','사용자가 말이나 글, 스케치, 사진, 문서, 보유 3D 파일(STEP)로 만들고 싶은 것을 설명합니다.','텍스트·스케치·STEP → 요청 원문 + 첨부','예: 스케치 + “울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게, 3D 프린터로”'],
+ spec:['3D 설계 생성','설계 명세','요청을 계산 가능한 형식(JSON)으로 바꿉니다. 하중·고정·판정 기준은 근거 DB에서 출처와 함께 정하고, 근거가 없으면 “확인 필요”로 표시해 사용자에게 묻습니다.','요청 → {설계 공간, 고정 부품, 하중, 재료, 판정 기준, 근거}','예: 자갈길 진동 34.6–45.6 Hz·최대 48.5 g(측정 논문), PETG E 1.7 GPa(데이터시트) → 판정 1차 진동 ≥ 91 Hz'],
+ geo:['3D 설계 생성','초기 3D 형상','핸들바 클램프·폰 받침판 같은 고정 부품과 최적화할 설계 공간을 3D로 만듭니다.','설계 명세 → 고정 부품 형상 + 설계 공간 격자','예: 클램프 Ø31.8 mm, 받침판 20×20 mm, 설계 공간 최대 폭 40 mm'],
+ route:['물리 기반 AI','경로 선택','문제의 물리 종류, 형상 계열, 규모, 같은 계열 요청이 반복되는지 보고 계산 경로를 고릅니다. 학습된 모델이 있으면 빠른 경로, 없으면 FEM 직접 최적화 또는 모델 자동 생성으로 보냅니다.','문제 특성 → 경로 A / B / C','기준(예정): 학습된 모델의 적용 범위, 예상 계산 시간, 반복 요청 수'],
+ fem:['물리 기반 AI','FEM 직접 최적화','칸마다 재료 밀도를 설계 변수로 두고, FEM 해석과 해석적 미분(adjoint)으로 무게 최소·진동/강도 제약 문제를 MMA로 풉니다. 학습 데이터가 필요 없고 새로운 구조도 만들 수 있습니다.','설계 공간 + 조건 → 최적 밀도 분포','예: 클램프 포함 3D, 진동 모드 4개 ≥ 91 Hz 제약, 약 1.6만 변수(대칭 절반), 160회 반복 약 20분'],
+ plan:['물리 기반 AI','학습 계획 자동 수립','물리 종류와 형상 계열을 보고 대리 모델에 필요한 학습 데이터 계획(변수 범위, 샘플 수, 물리 손실)을 에이전트가 자동으로 세웁니다.','문제 특성 → 데이터 생성 계획','아직 구현 전 (확인 필요)'],
+ data:['물리 기반 AI','FEM 데이터 생성','계획에 따라 FEM을 반복 실행해 학습 데이터를 만듭니다. FEM 직접 최적화에서 나온 결과도 계속 쌓입니다.','계획 → 형상·물리장 데이터셋','아직 구현 전 (확인 필요)'],
+ sur:['물리 기반 AI','대리 모델','형상을 받아 물리장을 즉시 예측하는 모델(신경 연산자, DeepSDF 형상 표현)을 학습하고, 오차가 큰 영역은 데이터를 추가합니다. 물리 방정식을 손실에 넣어 새 형상에서도 보정할 수 있습니다.','데이터셋 → 학습된 대리 모델 + 오차 범위','해커톤: 제품군 1종(거치대)으로 FEM 대비 속도·오차 비교 예정'],
+ fast:['물리 기반 AI','대리 모델 최적화','대리 모델과 형상 표현을 미분으로 연결해 수 초 안에 후보 형상을 냅니다. 결과는 FEM 직접 최적화의 초기값이나 미리보기로 씁니다.','요청 → 후보 형상 + 예상 성능','해커톤: 미리보기 수 초 목표 (확인 필요)'],
+ check:['물리 기반 AI','성능 확인 (FEM)','어느 경로로 나온 형상이든 FEM으로 진동·강도·처짐을 계산해 판정합니다. 미충족이면 조건·설계 공간을 바꿔 재설계로 돌려보냅니다.','형상 → 판정 (충족/미충족) + 원인','예: 이전 설계 61 Hz → 근거 기준 91 Hz 미충족 발견 → 설계 공간 확장·3D 최적화로 재설계'],
+ out:['결과','제작 형상 변환','최적 밀도 분포를 매끄러운 표면으로 바꾸고 고정 부품·구멍과 합쳐 STL과 도면을 만듭니다.','밀도 분포 → STL(닫힌 형상) + A4 도면','예: STL 닫힌 형상 확인, 정면·평면·우측면도와 주요 치수'],
+ ver:['결과','출력 형상 재검증','실제로 출력할 STL을 다시 해석해 설계 계산과 같은 성능인지 확인합니다.','STL → 진동·응력 재계산, 설계값과 비교','예: 얇은 부재가 끊겨 설계 91 Hz → 출력 형상 50 Hz 발견 → 최소 두께·강건 최적화로 재설계'],
+ res:['결과','결과 + 근거 리포트','성능, 적용 조건과 출처, 확인하지 못한 항목을 함께 보여줍니다. 확인되지 않은 결과는 검증 완료로 표시하지 않습니다.','전 단계 기록 → 3D 페이지 + 파일','예: 근거 표(논문·데이터시트), 가정 항목 “확인 필요” 표시'],
+ pinn:['물리 기반 AI','PINN 해석기','물리 방정식을 손실로 학습해 메쉬 해석이 어렵거나 역문제 성격이 강한 물리(광학 등)를 풉니다. 형상·광학 변수를 미분으로 바로 최적화할 수 있습니다.','형상·재료 변수 → 물리장 + 기울기','연계: 기존 PINN 기반 광학 역설계 연구 (UDFPS)'],
+ lib:['공통','물리 모듈 라이브러리','문제마다 필요한 물리와 제약을 블록처럼 골라 조합합니다. 새 물리는 모듈을 추가하면 같은 파이프라인에 들어옵니다.','명세의 물리 종류 → 해석·민감도 모듈','사전 검증: 구조 정적, 진동(고유값), 열전도 / 개발 예정: 유동, 전자기, 음향 / 광학: PINN 연계'],
+ llm:['공통','LLM 에이전트','요청을 해석해 설계 명세를 만들고, 도구를 호출하고, 결과를 설명합니다. 계산 코드를 새로 짜지 않고 검증된 도구만 호출합니다.','대화 ↔ 도구 호출','LLM 단독으로 했을 때 생긴 오류들을 아래 검증 관문이 잡습니다'],
+ db:['공통','근거 DB','재료 물성, 제품별 하중·판정 기준, 측정 논문을 출처와 함께 보관합니다.','조건 질의 → 값 + 출처','예: ISBS 2020 자갈길 진동, Prusament PETG 데이터시트'],
+ gate:['공통','자동 검증 관문','각 단계 결과를 코드로 판정합니다. 사람이 눈으로 잡던 오류를 자동으로 막습니다.','결과 → 통과 / 차단 + 이유','오늘 실제로 잡은 오류: 떨어진 조각(4 Hz), 받침 미연결, 형상 잘림, 클램프가 핸들바에 “붙어 있다”는 가정, 얇은 부재 끊김']
+};
+const PATHS={
+ A:{nodes:['in','spec','geo','route','fem','check','out','ver','res'],edges:['in-spec','spec-geo','geo-route','route-fem','fem-check','check-out','out-ver','ver-res','check-fem'],
+    desc:'<b>처음 보는 문제</b> · 학습 없이 FEM 직접 최적화로 바로 풉니다. 수 분~수십 분이 걸리지만 어떤 구조든 가능하고, 결과가 학습 데이터로 쌓입니다.'},
+ B:{nodes:['in','spec','geo','route','sur','fast','check','out','ver','res'],edges:['in-spec','spec-geo','geo-route','route-sur','sur-fast','fast-check','check-out','out-ver','ver-res','check-fast'],
+    desc:'<b>반복 제품군</b> · 이미 학습된 대리 모델로 수 초 안에 후보를 내고, FEM으로 성능 확인·재검증만 합니다.'},
+ D:{nodes:['in','spec','geo','route','pinn','check','out','ver','res'],edges:['in-spec','spec-geo','geo-route','route-pinn','pinn-check','check-out','out-ver','ver-res','check-pinn'],
+    desc:'<b>광학·역문제</b> · PINN 해석기로 물리를 학습하며 형상·광학 변수를 바로 최적화하고, 기준 수치해석으로 확인합니다.'},
+ C:{nodes:['in','spec','geo','route','plan','data','sur','fast','check','out','ver','res'],edges:['in-spec','spec-geo','geo-route','route-plan','plan-data','data-sur','sur-fast','fast-check','check-out','out-ver','ver-res','check-fast'],
+    desc:'<b>새 제품군·대형 구조</b> · 에이전트가 학습 계획을 세워 데이터를 만들고 대리 모델을 자동 생성합니다. 초기 비용이 들지만 같은 계열 요청이 늘수록 빨라집니다.'}
+};
+const EDGES=['in-spec:h','spec-geo','geo-route:h','route-fem','route-plan','route-sur:side','plan-data','data-sur','sur-fast','fem-check','fast-check','check-out:h','out-ver','ver-res','check-fem:loop','check-fast:loop','fem-data:fb','route-pinn','pinn-check','check-pinn:loop'];
+let cur='A',sel='fem';
+const svg=document.getElementById('edges'),board=document.getElementById('board');
+function rect(id){const r=document.getElementById(id).getBoundingClientRect(),b=board.getBoundingClientRect();return {x:r.left-b.left,y:r.top-b.top,w:r.width,h:r.height}}
+function draw(){
+  [...svg.querySelectorAll('path.e')].forEach(p=>p.remove());
+  const P=PATHS[cur],narrow=board.clientWidth<760;
+  for(const spec of EDGES){const [ab,kind]=spec.split(':');const [a,b]=ab.split('-');const A=rect(a),B=rect(b);
+    let x1,y1,x2,y2,d;
+    const dx=(B.x+B.w/2)-(A.x+A.w/2),dy=(B.y+B.h/2)-(A.y+A.h/2);
+    if(kind==='loop'){x2=B.x+B.w*0.5+16;y2=B.y+B.h;x1=x2;y1=A.y;d=`M${x1},${y1} L${x2},${y2}`}
+    else if(kind==='fb'&&!narrow){x1=A.x+A.w;y1=A.y+A.h*0.7;x2=B.x;y2=B.y+B.h/2;const mx=(x1+x2)/2;d=`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
+    else if(kind==='side'&&!narrow){x1=A.x+A.w-14;y1=A.y+A.h;x2=B.x+B.w-14;y2=B.y;const xs=B.x+B.w+10;d=`M${x1},${y1} C${xs},${y1+40} ${xs},${y2-40} ${x2},${y2}`}
+    else if((kind==='h'||Math.abs(dx)>Math.abs(dy))&&!narrow){x1=dx>0?A.x+A.w:A.x;y1=A.y+A.h/2;x2=dx>0?B.x:B.x+B.w;y2=B.y+B.h/2;const mx=(x1+x2)/2;d=`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
+    else{x1=A.x+A.w/2;y1=dy>0?A.y+A.h:A.y;x2=B.x+B.w/2;y2=dy>0?B.y:B.y+B.h;const my=(y1+y2)/2;d=`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`}
+    const on=P.edges.includes(ab)||(kind==='loop'&&P.edges.includes(ab));
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('class','e'+(on?' on':''));
+    p.setAttribute('fill','none');p.setAttribute('stroke',on?'var(--accent)':'var(--edge)');p.setAttribute('stroke-width',on?2.2:1.2);
+    const dashed=kind==='loop'||kind==='fb';if(dashed||on)p.setAttribute('stroke-dasharray',dashed?'5 4':'7 3');if(!on)p.setAttribute('opacity','.55');
+    p.setAttribute('marker-end',on?'url(#arOn)':'url(#ar)');svg.appendChild(p)}
+}
+function apply(){const P=PATHS[cur];
+  document.querySelectorAll('.node').forEach(n=>{const base=['llm','db','gate','lib'].includes(n.id);n.classList.toggle('dim',!base&&!P.nodes.includes(n.id));n.classList.toggle('on',P.nodes.includes(n.id));n.classList.toggle('sel',n.id===sel)});
+  document.querySelectorAll('#paths button').forEach(b=>b.classList.toggle('on',b.dataset.p===cur));
+  document.getElementById('pathdesc').innerHTML=P.desc;show(sel);draw()}
+function show(id){const d=N[id];document.getElementById('dk').textContent=d[0];document.getElementById('dt').textContent=d[1];document.getElementById('dd').textContent=d[2];document.getElementById('dio').textContent=d[3];document.getElementById('dex').textContent=d[4]}
+document.getElementById('paths').onclick=e=>{const p=e.target.dataset.p;if(p){cur=p;apply()}};
+document.querySelectorAll('.node').forEach(n=>n.onclick=()=>{sel=n.id;apply()});
+new ResizeObserver(draw).observe(board);addEventListener('load',draw);
+apply();
+
+const PHYS=['구조','진동','열','유동','전자기','음향','광학'];
+const PROBS=[
+ {n:'자전거 폰 거치대',s:'사전 검증 (진행 중)',in:'스케치 + 텍스트',ph:['구조','진동'],c:'1차 진동 ≥ 91 Hz, 충격 응력 ≤ 26 MPa, 최소 두께',p:'A',h:'옆 흔들림·비틀림, 출력 형상의 얇은 부재',o:'근거 기반 조건 + 3D 무게 최소화 + 출력 형상 재검증'},
+ {n:'접이식 방열 거치대',s:'사전 검증 ①',in:'텍스트',ph:['구조','열'],c:'처짐, 방열판 온도 상승',p:'A',h:'접이 구조를 유지하며 경량화',o:'고정 부품 지정 + Topology 최적화'},
+ {n:'AR 글래스',s:'사전 검증 ②',in:'얼굴 스캔 + 문서',ph:['구조','열'],c:'16개 물리 제약 (코 하중, 온도, 사용 시간 등)',p:'B',h:'부품 배치 조합이 많음',o:'빠른 근사 모델로 조합 탐색 후 확인'},
+ {n:'TV 스탠드',s:'예시',in:'텍스트',ph:['구조'],c:'넘어짐 각도, 강도, 무게',p:'A',h:'넘어짐 방지와 경량화가 부딪힘',o:'안정성 제약 + 구조 최적화 (기준값은 규격 확인 필요)'},
+ {n:'폰 내부 방열 구조',s:'예시',in:'문서 + STEP',ph:['열'],c:'손 닿는 면 43 °C 이하',p:'C',h:'3D 열 해석이 크고 반복이 많음',o:'대리 모델 자동 생성 후 배치 탐색'},
+ {n:'에어컨·공기청정기 팬',s:'예시',in:'텍스트 + STEP',ph:['유동','음향'],c:'풍량 증가, 소음 감소',p:'C',h:'유동 해석 1회가 매우 무거움',o:'유동 대리 모델 + 최종 유동 해석 확인'},
+ {n:'폴더블 힌지',s:'예시',in:'STEP',ph:['구조'],c:'수십만 회 접힘 피로, 대변형',p:'C',h:'비선형·피로 해석',o:'비선형 모듈 + 대리 모델'},
+ {n:'무선충전 코일',s:'예시',in:'문서',ph:['전자기','열'],c:'충전 효율 증가, 발열 감소',p:'C',h:'전자기·열 연성',o:'연성 모듈 + 대리 모델'},
+ {n:'디스플레이 광학 (UDFPS·렌즈)',s:'기존 연구 연계',in:'문서 + 목표 사양',ph:['광학'],c:'PSF·밝기 균일도',p:'D',h:'파동광학 역설계',o:'PINN 해석기 + 파동광학 확인'}];
+const PNAME={A:'처음 보는 문제 (FEM 직접 최적화)',B:'빠른 모델 경로',C:'모델 자동 생성',D:'PINN 경로'};
+let curProb=0;
+function drawProb(){const pr=PROBS[curProb];
+ document.querySelectorAll('#probs button').forEach((b,i)=>b.classList.toggle('on',i===curProb));
+ document.getElementById('probv').innerHTML=`<div class="cell"><span class="k">입력</span><span class="v">${pr.in}</span></div>
+ <div class="cell"><span class="k">물리 모듈</span><span class="phys">${PHYS.map(x=>`<i class="${pr.ph.includes(x)?'on':''}">${x}</i>`).join('')}</span></div>
+ <div class="cell"><span class="k">핵심 제약</span><span class="v">${pr.c}</span></div>
+ <div class="cell"><span class="k">경로 · 상태</span><span class="v">${PNAME[pr.p]}<br><span class="note">${pr.s}</span></span></div>
+ <div class="cell" style="grid-column:1/-1"><span class="k">어려운 점 → 해결</span><span class="v">${pr.h} → <b>${pr.o}</b></span></div>`}
+const pe=document.getElementById('probs');PROBS.forEach((pr,i)=>{const b=document.createElement('button');b.textContent=pr.n;b.onclick=()=>{curProb=i;cur=pr.p;apply();drawProb()};pe.appendChild(b)});
+const CHAL=[['규모가 큰 구조','격자가 늘수록 계산 시간·메모리가 급증 (오늘 1 mm 검증에서 메모리 부족 발생)','대리 모델·축소 모델 (경로 C), 다중 해상도','sur'],
+ ['비전문가 사용','장비와 해석 지식이 없음','서버 계산 + 수 초 미리보기, 조건 자동 정의','route'],
+ ['학습 범위 밖 형상','대리 모델은 학습한 형상 계열 밖에서 틀림','FEM·물리 손실 자유 최적화로 새 구조 생성, 결과를 학습 데이터로 축적','fem'],
+ ['LLM 신뢰성','LLM 단독은 매번 다른 코드·가정·오류','검증된 도구만 호출 + 자동 검증 관문','gate'],
+ ['제작 가능성','얇은 부재, “붙어 있다”는 가정, 형상 잘림','최소 두께·강건 최적화 + 출력 형상 재검증','ver'],
+ ['조건 근거','하중·기준을 짐작하면 결과가 틀림 (이전 설계 61 Hz가 기준 미달)','근거 DB + 출처 표시, 근거 없으면 확인 필요','db']];
+const ce=document.getElementById('chal');CHAL.forEach(c=>{const d=document.createElement('button');d.className='cell';d.style.cssText='all:unset;cursor:pointer;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px';
+ d.innerHTML=`<b>${c[0]}</b><p>${c[1]}</p><span class="to">→ ${c[2]}</span>`;d.onclick=()=>{sel=c[3];apply();board.scrollIntoView({behavior:'smooth',block:'start'})};ce.appendChild(d)});
+drawProb();
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+ document.getElementById('tabG').hidden=b.dataset.t!=='G';document.getElementById('tabB').hidden=b.dataset.t!=='B';if(b.dataset.t==='G')draw()});
+</script>
