@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#fff;overflow:hidden}canvas{display:block}</style>
+<script src="three.min.js"></script></head><body>
+<script>
+const W=1600,H=1000;
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(window.devicePixelRatio);renderer.setSize(W,H);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.setClearColor(0xffffff,1);
+document.body.appendChild(renderer.domElement);
+THREE.Object3D.DefaultUp.set(0,0,1);
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,W/H,5,30000);cam.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a9399,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,1.0);sun.position.set(1200,-2200,3000);sun.castShadow=true;
+sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-1500,right:1500,top:1500,bottom:-1500,near:100,far:8000});sun.shadow.bias=-0.0005;scene.add(sun);
+const fill=new THREE.DirectionalLight(0xe6eeff,0.35);fill.position.set(-1500,1200,800);scene.add(fill);
+const M=(c,r=0.5,m=0.1)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+// table (wood-ish), top at z=0
+const table=new THREE.Mesh(new THREE.BoxGeometry(2600,900,40),M(0x6e5a44,0.75,0));table.position.set(0,0,-20);table.receiveShadow=true;scene.add(table);
+// TV: 1451.7 x 25.7 x 832.2, bottom on feet top (z=120)
+const ZB=120;
+const tv=new THREE.Group();scene.add(tv);
+const body=new THREE.Mesh(new THREE.BoxGeometry(1451.7,25.7,832.2),M(0x1b1e22,0.4,0.3));body.position.set(0,0,ZB+416.1);body.castShadow=true;tv.add(body);
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(1435,815),new THREE.MeshStandardMaterial({color:0x05090e,emissive:0x03070c,emissiveIntensity:0.3,roughness:0.15,metalness:0.2}));
+scr.rotation.x=Math.PI/2;scr.position.set(0,-12.9,ZB+416.1);tv.add(scr);
+const dec=s=>{const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer);};
+const parts={};
+fetch('meshes.json').then(r=>r.json()).then(J=>{
+  for(const k of ['c','T_web40']){
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(dec(J[k].pos),3));g.computeVertexNormals();
+    const mat=k==='c'?M(0x2aa3a6,0.35,0.55):M(0x9aa3ab,0.35,0.7);
+    const grp=new THREE.Group();
+    for(const sx of [-600,600]){const m=new THREE.Mesh(g,mat);m.position.x=sx;m.castShadow=true;m.receiveShadow=true;grp.add(m);}
+    grp.visible=false;scene.add(grp);parts[k]=grp;
+  }
+  window.ready=true;
+});
+window.show=function(k,tvOn){for(const p in parts)parts[p].visible=(p===k);tv.visible=tvOn;};
+window.view=function(p,t,fov){cam.fov=fov||30;cam.position.set(...p);cam.lookAt(...t);cam.updateProjectionMatrix();renderer.render(scene,cam);};
+</script></body></html>
