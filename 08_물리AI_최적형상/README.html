@@ -337,17 +337,33 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
       <li>최종 방향: 제품군별 대리 모델 자동 생성 + 재사용</li>
       <li>설계 범위·받침 위치 그룹·폰 각도 처리</li>
       <li>모델 구조: DeepSDF + 마스크 + PINO(변위 + 진동수 2단)</li>
-      <li>DeepSDF 2D 검증: 학습 2분, 처음 보는 형상 IoU 0.991–0.996</li></ul></div>
+      <li>DeepSDF 2D 검증: 학습 2분, 처음 보는 형상 IoU 0.991–0.996</li>
+      <li><b>fp08 코드 1차 완성</b>: 6그룹 문제·FEM·무작위 형상·데이터·DeepSDF·PINO·최적화·자동 루프</li>
+      <li>처음~끝 리허설 (CPU 2코어, 그룹당 형상 200·FEM 100)</li></ul></div>
     <div class="col todo"><h3>⏳ 예정</h3><ul>
-      <li>② 학습 계획 규칙 (제품군 2종)</li>
-      <li>③ 무작위 형상 생성기 + FEM 정답 배치 + 능동 학습</li>
-      <li>④ 제품 무관 DeepSDF·PINO 학습 코드</li>
-      <li>⑤ 품질 관문·경로 A 전환, ⑥ z 최적화 + FEM 검증</li>
-      <li>레일리 사전 확인, 진동수 ①/② 비교, 손익분기 측정</li></ul></div>
+      <li>월요일 서버 실행 (RUN_MONDAY.md), GPU 학습 시간 실측</li>
+      <li>경로 A 기준점 자동 실행 (현재 팀 opt3d·ped 결과 사용)</li>
+      <li>손익분기 측정</li></ul></div>
     <div class="col hold"><h3>⛔ 보류·확장</h3><ul>
       <li>받침 위치 허용 범위·각도 변수 (07 수정 필요)</li>
       <li>공개 사전학습 가중치 (ShapeNet 약관, 형상 불일치)</li></ul></div>
   </div>
+</section>
+
+<section>
+  <h2><span class="n">5-1</span>주말 리허설 실측 (CPU 2코어)</h2>
+  <img src="docs/random_shapes_gallery.png" alt="무작위 형상 예시" style="max-width:100%;border:1px solid #ddd;border-radius:8px">
+  <p class="cap">그룹별 무작위 형상 예시 (거치대 3그룹 · TV 양발 2그룹 · 중앙형). 대칭면 거울 복원 표시</p>
+  <table>
+    <tr><th>항목</th><th>실측</th><th>의미</th></tr>
+    <tr><td>무작위 형상 생성</td><td>0.01~0.02 s/개</td><td>3만 개도 몇 분</td></tr>
+    <tr><td>FEM 정답 1개 (정적 + 진동 4개)</td><td><b>1.1~1.7 s</b> (추정 7.5 s)</td><td>6,000개 ≈ 2.5시간·코어</td></tr>
+    <tr><td>무작위 형상 합격 비율</td><td>거치대 51/22/6%, TV L300 55%, <b>L220 0%</b>, 중앙형 85%</td><td>기준 근처 형상 포함</td></tr>
+    <tr><td>DeepSDF 1,500스텝</td><td>IoU 0.54~0.62</td><td><b>낮음</b> → GPU 2만 스텝 + 필요 시 모델 키움</td></tr>
+    <tr><td>PINO 250스텝</td><td>변위장 L2 약 0.9</td><td>학습 초반, 정확도 판단은 GPU 결과로</td></tr>
+  </table>
+  <p><b>고친 것</b>: float32 강성 → 에너지 오차 5% (float64로), EMIN 1e-6 → 에너지 2.5% (학습용 1e-9), 에너지 손실 폭주 → 야코비 잔차 + 크기 오차, MKL 스레드 과부하 → 작업자당 1스레드</p>
+  <p><b>결정 필요</b>: ① TV 양발형 L220은 넘어짐 여유 0.89 → 어떤 형상도 불합격 (L ≥ 약 248 mm) ② 앞뒤 밀기 때 뒤쪽 패드 들림이 대부분 → 현재 경고만 ③ FEM이 빨라서 정답 수를 3,000 이상으로 늘릴지</p>
 </section>
 
 <section>
@@ -368,6 +384,9 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>07·거치대</td></tr>
     <tr><td>13</td><td><b>TV 처짐 기준값 확정</b> (README 1·2 mm vs plate.py 0.10·1.0), 넘어짐이 형상과 무관한지, <b>TV에서 바뀌는 조건과 범위</b></td><td>TV</td></tr>
     <tr><td>14</td><td>sosopapa에 master(TV plate_v2) 병합 여부</td><td>소소파파</td></tr>
+    <tr><td>15</td><td><b>TV 양발형 두 번째 발끝 길이</b> — L220 넘어짐 불합격. 후보 260 / 340 mm</td><td>소소파파·TV</td></tr>
+    <tr><td>16</td><td>TV 패드 들림을 불합격으로 볼지 / 경고로 둘지</td><td>TV</td></tr>
+    <tr><td>17</td><td>FEM 정답 수 그룹당 1,000 → 3,000 이상</td><td>소소파파</td></tr>
   </table>
   <p class="note">opt3d.py 확인: 제약은 진동수 4개뿐(응력 제약 없음 → 응력 PINO 데이터는 정적 해석 추가 필요), 5회마다 밀도 스냅샷·매회 진동수 기록을 이미 저장, 초기값은 전 칸 0.5.</p>
 </section>
@@ -401,6 +420,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (9)</td><td>fp08 코드 1차 완성 + 리허설, RUN_MONDAY.md, 실측 FEM 1.1~1.7 s/개, 발견: L220 넘어짐 불합격·TV 패드 들림, 요청 15~17</td></tr>
     <tr><td>2026-11-13 (8)</td><td>설계 결정 1~11 확정 요약, 발표 구성(채점 기준 3개) 대응, 일정: 주말 코드·리허설 / 월요일 CPU 서버 + GPU 8장</td></tr>
     <tr><td>2026-11-13 (7)</td><td>③ 데이터 생성 변경: DeepSDF는 설계 범위 안 무작위 형상(부재·트러스·덩어리)으로 학습, PINO 정답은 형상별 FEM, 능동 학습으로 최적점 근처 보강</td></tr>
     <tr><td>2026-11-13 (6)</td><td><b>최종 방향으로 재구성</b>: 제품군별 대리 모델 자동 생성(②~⑤) + 재사용 + 최적화·검증(⑥), 시연 범위(앞단 LLM → 고정 시나리오), 손익분기, 조건 무작위 위상최적화 데이터, 제품 무관 코드, 품질 관문, TV로 먼저 디버깅하는 일정, 요청 5·13 수정</td></tr>

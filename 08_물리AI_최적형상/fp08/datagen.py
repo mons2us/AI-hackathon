@@ -12,7 +12,7 @@
 """
 import os, json, time, argparse
 import numpy as np
-from multiprocessing import Pool
+from multiprocessing import get_context
 from . import problems, shapes, labels
 
 SHARD = 100
@@ -124,7 +124,16 @@ def run_pool(fn, tasks, workers, log=print):
     if workers <= 1:
         it = map(fn, tasks)
     else:
-        pool = Pool(workers, initializer=_init_worker)
+        # 작업자마다 1스레드 (MKL/pypardiso 가 코어 수만큼 스레드를 띄워 과부하되는 것 방지). spawn 이라 자식이 환경변수를 새로 읽음
+        old = {k: os.environ.get(k) for k in ('MKL_NUM_THREADS', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS')}
+        for k in old:
+            os.environ[k] = '1'
+        pool = get_context('spawn').Pool(workers)
+        for k, v in old.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
         it = pool.imap_unordered(fn, tasks)
     for path, dt in it:
         done += 1
@@ -132,11 +141,6 @@ def run_pool(fn, tasks, workers, log=print):
             log(f'  {os.path.basename(os.path.dirname(path))}/{os.path.basename(path)} {dt:.1f}s ({done}/{len(tasks)}, 경과 {time.time()-t0:.0f}s)')
     if workers > 1:
         pool.close(); pool.join()
-
-
-def _init_worker():
-    os.environ.setdefault('OMP_NUM_THREADS', '1')
-    os.environ.setdefault('MKL_NUM_THREADS', '1')
 
 
 def make_shapes(group, n, out, workers, n_pts=4000, log=print):

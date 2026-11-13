@@ -65,7 +65,7 @@ def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu'
                             {'params': model.lat.parameters(), 'lr': lr * 2}])
     step, hist = 0, []
     if os.path.exists(ck):
-        c = torch.load(ck, map_location=device)
+        c = torch.load(ck, map_location=device, weights_only=False)
         if c['n'] == len(idx):
             model.load_state_dict(c['model']); opt.load_state_dict(c['opt']); step, hist = c['step'], c['hist']
             log(f'[sdf {group}] 이어하기 step {step}')

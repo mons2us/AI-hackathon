@@ -66,23 +66,24 @@ class Loop:
     def run_jobs(self, jobs):
         """jobs: [(이름, [명령])] → 장치마다 하나씩 동시에 실행"""
         procs, queue = {}, list(jobs)
+        slots = list(enumerate(self.devices))          # 같은 장치를 여러 번 적으면 그 수만큼 동시 실행
         while queue or procs:
-            for dv in self.devices:
-                if dv not in procs and queue:
+            for slot, dv in slots:
+                if slot not in procs and queue:
                     name, cmd = queue.pop(0)
                     lf = open(os.path.join(self.run, f'{name}.log'), 'a')
                     env = dict(os.environ)
                     if dv == 'cpu':
                         env['OMP_NUM_THREADS'] = str(max(1, (os.cpu_count() or 2) // len(self.devices)))
-                    procs[dv] = (name, subprocess.Popen(cmd + ['--device', dv], stdout=lf, stderr=subprocess.STDOUT, env=env), lf)
+                    procs[slot] = (name, subprocess.Popen(cmd + ['--device', dv], stdout=lf, stderr=subprocess.STDOUT, env=env), lf)
                     self.log(f'시작 {name} on {dv}')
             time.sleep(5)
-            for dv in list(procs):
-                name, pr, lf = procs[dv]
+            for slot in list(procs):
+                name, pr, lf = procs[slot]
                 if pr.poll() is not None:
                     lf.close()
                     self.log(f'끝 {name} (코드 {pr.returncode})')
-                    del procs[dv]
+                    del procs[slot]
             self.save()
 
     # ---------------------------------------------------------------- 단계
