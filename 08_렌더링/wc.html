@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff;overflow:hidden}canvas{display:block}</style>
+<script src="three.min.js"></script><script src="RoomEnvironment.js"></script><script src="RoundedBoxGeometry.js"></script></head><body><script>
+const W=1600,H=1000;const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(window.devicePixelRatio);renderer.setSize(W,H);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.7;renderer.setClearColor(0xffffff,1);
+document.body.appendChild(renderer.domElement);THREE.Object3D.DefaultUp.set(0,0,1);
+const scene=new THREE.Scene();const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new THREE.RoomEnvironment(),0.04).texture;
+const cam=new THREE.PerspectiveCamera(30,W/H,1,10000);cam.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a9399,0.2));
+const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(250,-300,600);sun.castShadow=true;sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-250,right:250,top:250,bottom:-250,near:10,far:2000});sun.shadow.bias=-0.0003;scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.ShadowMaterial({opacity:0.22}));ground.receiveShadow=true;scene.add(ground);
+const M=(c,r=0.5,m=0.0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m,side:THREE.DoubleSide});
+// phone on the stand (lean 70 deg)
+const ANG=70*Math.PI/180; const fy=z=>-40+(z-10)/Math.tan(ANG);
+const t=new THREE.Vector3(0,Math.cos(ANG),Math.sin(ANG)), nOut=new THREE.Vector3(0,-Math.sin(ANG),Math.cos(ANG));
+const ph=new THREE.Group(); scene.add(ph);
+const body=new THREE.Mesh(new THREE.RoundedBoxGeometry(76,8.5,162,6,7),new THREE.MeshPhysicalMaterial({color:0x2a2e35,roughness:0.3,metalness:0.7,clearcoat:1}));body.castShadow=true;ph.add(body);
+const cv=document.createElement('canvas');cv.width=480;cv.height=1024;const cx=cv.getContext('2d');const gr=cx.createLinearGradient(0,0,0,1024);gr.addColorStop(0,'#0e2a44');gr.addColorStop(1,'#1d6f86');cx.fillStyle=gr;cx.fillRect(0,0,480,1024);
+cx.strokeStyle='rgba(120,230,190,0.95)';cx.lineWidth=26;cx.beginPath();cx.arc(240,430,120,-Math.PI/2,-Math.PI/2+Math.PI*2*0.72);cx.stroke();cx.fillStyle='#fff';cx.font='bold 88px sans-serif';cx.textAlign='center';cx.fillText('72%',240,460);
+cx.font='40px sans-serif';cx.fillStyle='rgba(255,255,255,0.85)';cx.fillText('Wireless charging',240,640);
+const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;
+const scr=new THREE.Mesh(new THREE.PlaneGeometry(70,154),new THREE.MeshPhysicalMaterial({map:tex,emissiveMap:tex,emissive:0xffffff,emissiveIntensity:0.6,roughness:0.05,clearcoat:1}));scr.rotation.x=Math.PI/2;scr.position.y=-4.35;ph.add(scr);
+// orient: phone local y = -nOut (screen faces -y local => outward), local z along t
+const basis=new THREE.Matrix4().makeBasis(new THREE.Vector3(1,0,0), nOut.clone().negate(), t);ph.quaternion.setFromRotationMatrix(basis);
+const p0=new THREE.Vector3(0,fy(20),20).addScaledVector(t,81).addScaledVector(nOut,4.6);ph.position.copy(p0);
+
+// analytic plastic parts: front cover plate, keep-out disk (thermally conductive plastic), ledge
+const nin=new THREE.Vector3(0,Math.sin(ANG),-Math.cos(ANG));
+const pg=new THREE.Group();scene.add(pg);pg.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(1,0,0),nin,t));
+let META=null; const TL=new THREE.TextureLoader(); const texs={};
+const plateMat=new THREE.MeshStandardMaterial({color:0xf2f3f5,roughness:0.5});
+const keepSide=new THREE.MeshStandardMaterial({color:0xd9dde1,roughness:0.6}), keepCap=new THREE.MeshStandardMaterial({color:0xd9dde1,roughness:0.6});
+const ledgeMat=new THREE.MeshStandardMaterial({color:0xf2f3f5,roughness:0.5});
+let plate,keepc,ledgeM;
+fetch('wc_meta.json').then(r=>r.json()).then(m=>{META=m;
+  plate=new THREE.Mesh(new THREE.BoxGeometry(75,2.6,m.SMAX),plateMat);plate.castShadow=true;plate.receiveShadow=true;pg.add(plate);
+  pg.position.set(...m.O); plate.position.set(0,1.3,m.SMAX/2);
+  const P0=new THREE.Vector3(...m.P0), O=new THREE.Vector3(...m.O); const rel=P0.clone().sub(O); const sAl=rel.dot(t);
+  keepc=new THREE.Mesh(new THREE.CylinderGeometry(m.RKO,m.RKO,m.DKO-2.6,64),[keepSide,keepCap,keepCap]);keepc.position.set(0,2.6+(m.DKO-2.6)/2,sAl);pg.add(keepc);
+  ledgeM=new THREE.Mesh(new THREE.BoxGeometry(75,10,12),ledgeMat);ledgeM.position.set(0,fy(14)-5,14);ledgeM.castShadow=true;scene.add(ledgeM);
+  for(const d of ['plastic','fullal','opt']){for(const k of ['skin','keep']){const tx=TL.load('tex_'+k+'_'+d+'.png');tx.encoding=THREE.sRGBEncoding;texs[k+'_'+d]=tx;}}
+  window.metaReady=true;});
+window.plastic=function(mode){ // mode: 'mat' or design name for temperature
+  if(mode==='mat'){plateMat.map=null;plateMat.color.set(0xf2f3f5);keepSide.color.set(0xd9dde1);keepCap.map=null;keepCap.color.set(0xd9dde1);ledgeMat.color.set(0xf2f3f5);}
+  else{plateMat.map=texs['skin_'+mode];plateMat.color.set(0xffffff);keepCap.map=texs['keep_'+mode];keepCap.color.set(0xffffff);
+    const c=META[mode].keep_side;keepSide.color.setRGB(c[0]**2.2,c[1]**2.2,c[2]**2.2);const l=META[mode].ledge;ledgeMat.color.setRGB(l[0]**2.2,l[1]**2.2,l[2]**2.2);}
+  for(const mm of [plateMat,keepCap,keepSide,ledgeMat]){mm.emissive=new THREE.Color(mode==='mat'?0x000000:0x000000);mm.needsUpdate=true;}
+};
+const dec=s=>{const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer);};
+const parts={};
+const alMat=new THREE.MeshStandardMaterial({color:0xb9c2c9,roughness:0.32,metalness:0.85,side:THREE.DoubleSide}), plMat=M(0xf2f3f5,0.55,0);
+const tMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.65,metalness:0,envMapIntensity:0.35,side:THREE.DoubleSide});
+fetch('meshes_wc.json').then(r=>r.json()).then(J=>{for(const k in J){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(dec(J[k].pos),3));if(J[k].col)g.setAttribute('color',new THREE.BufferAttribute(dec(J[k].col),3));g.computeVertexNormals();
+ const mat=J[k].col?tMat:(k.endsWith('_al')?alMat:plMat);const m=new THREE.Mesh(g,mat);m.castShadow=true;m.receiveShadow=true;m.visible=false;scene.add(m);parts[k]=m;}window.ready=true;});
+window.show=function(list,phone){for(const p in parts)parts[p].visible=list.includes(p);ph.visible=phone;};
+window.view=function(p,tg,fov){cam.fov=fov||30;cam.position.set(...p);cam.lookAt(...tg);cam.updateProjectionMatrix();renderer.render(scene,cam);};
+</script></body></html>
