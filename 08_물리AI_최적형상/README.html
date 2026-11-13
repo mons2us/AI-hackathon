@@ -65,11 +65,11 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <g font-size="12" fill="#1d2330">
       <rect x="720" y="20" width="170" height="190" rx="10" fill="#fff8f1" stroke="#e8833a"/>
       <text x="735" y="44" font-weight="700" fill="#b35a17">MVP</text>
-      <text x="735" y="70">받침 위치 1개로 시작</text>
-      <text x="735" y="92">(T01·T07 = 앞 80, 높이 16)</text>
-      <text x="735" y="118">확장: 3~5개 값</text>
-      <text x="735" y="144">받침 각도: 항상 수평</text>
-      <text x="735" y="170">실행 1회 = 받침 1개</text>
+      <text x="735" y="70">받침 위치 3개</text>
+      <text x="735" y="92">높이 16, 앞 50·80·120</text>
+      <text x="735" y="118">시연 기본: 80 mm</text>
+      <text x="735" y="144">받침판: 항상 수평</text>
+      <text x="735" y="170">폰 각도 = 하중 조건</text>
     </g>
   </svg>
   <table style="margin-top:8px">
@@ -78,9 +78,60 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>2</td><td><b>풀면 답이 뻔하다</b> — 무게 최소 + 진동수 기준이면 받침을 당길수록 유리 → 항상 "최대한 당겨라". 근거: 짧은 팔 T02 31.7 Hz vs 긴 팔 T03 10.4 Hz (07 1차 설계 표)</td></tr>
     <tr><td>3</td><td><b>미분이 안 된다</b> — 받침이 움직이면 고정·빈 곳·질량 절점이 2 mm 칸 단위로 불연속 변화 → 몇 개 값을 시도하는 바깥 루프로만 가능</td></tr>
     <tr><td>4</td><td><b>데이터가 위치 수만큼 는다</b> — DeepSDF·PINO 학습 데이터가 위치마다 필요 → 이틀에 3~5개가 한계</td></tr>
-    <tr><td>5</td><td><b>각도는 표현 수단이 없다</b> — 07 템플릿에 각도 변수 없음(수평 4 mm 판). 2 mm 격자에서 기울인 판은 칸 2개짜리 계단 → 끊김 위험</td></tr>
+    <tr><td>5</td><td><b>받침판 각도는 필요도 낮다</b> — 07 템플릿에 각도 변수 없음(수평 4 mm 판). 폰 각도는 시판 홀더가 조절하고, 무게중심 이동은 하중 조건으로 반영</td></tr>
   </table>
-  <p class="note">받침 위치 허용 범위·각도 변수는 확장 항목(07 수정 필요). 템플릿은 옆모습을 폭 20 mm로 압출한 2.5D, 최적화 결과는 폭 방향까지 바뀌는 3D.</p>
+  <p class="note">받침 위치 허용 범위는 확장 항목(07 수정 필요). 템플릿은 옆모습을 폭 20 mm로 압출한 2.5D, 최적화 결과는 폭 방향까지 바뀌는 3D.</p>
+</section>
+
+<section>
+  <h2><span class="n">0-1</span>받침 위치 그룹 — 10종이 7개 위치로</h2>
+  <p class="sub">08은 팔을 새로 설계하므로 문제를 정하는 것은 템플릿 ID가 아니라 <b>받침 위치</b>. 07의 스케치 매칭용 10종은 그대로 유지.</p>
+  <svg viewBox="0 0 900 250" role="img" aria-label="받침 위치 그룹 산점도">
+    <line x1="80" y1="210" x2="860" y2="210" stroke="#5b6475"/><line x1="80" y1="20" x2="80" y2="210" stroke="#5b6475"/>
+    <text x="470" y="242" text-anchor="middle" font-size="12" fill="#5b6475">앞 거리 pad_x0 (mm): 40 → 130</text>
+    <text x="20" y="30" font-size="12" fill="#5b6475">높이 (mm)</text>
+    <g font-size="11" fill="#5b6475"><text x="62" y="214">0</text><text x="56" y="138">20</text><text x="56" y="62">40</text></g>
+    <g>
+      <circle cx="167" cy="149" r="14" fill="#e8833a"/><text x="167" y="125" text-anchor="middle" font-size="12" font-weight="700">50·16 · T02</text>
+      <circle cx="427" cy="149" r="18" fill="#e8833a"/><text x="427" y="121" text-anchor="middle" font-size="12" font-weight="700">80·16 · T01, T07 (기본)</text>
+      <circle cx="773" cy="149" r="18" fill="#e8833a"/><text x="773" y="121" text-anchor="middle" font-size="12" font-weight="700">120·16 · T03, T08</text>
+      <circle cx="427" cy="58" r="18" fill="#cfd5df"/><text x="427" y="34" text-anchor="middle" font-size="12">80·40 · T04, T05</text>
+      <circle cx="167" cy="96" r="14" fill="#cfd5df"/><text x="167" y="72" text-anchor="middle" font-size="12">50·30 · T09</text>
+      <circle cx="340" cy="210" r="14" fill="#cfd5df"/><text x="340" y="190" text-anchor="middle" font-size="12">70·0 · T06</text>
+      <circle cx="686" cy="210" r="14" fill="#cfd5df"/><text x="686" y="190" text-anchor="middle" font-size="12">110·0 · T10</text>
+    </g>
+  </svg>
+  <p class="note">주황 = MVP 3개 위치(높이 16 mm, 앞 50·80·120). 큰 원 = 템플릿 2종이 같은 위치. 클램프 링은 모든 템플릿 기본값이 같음(핸들바 31.8 mm, 가정값).</p>
+</section>
+
+<section>
+  <h2><span class="n">0-2</span>폰 기둥·폰 홀더와 폰 각도</h2>
+  <svg viewBox="0 0 900 300" role="img" aria-label="받침부 옆모습: 받침판, 강체 폰 기둥, 꼭대기 질량, 폰 자리">
+    <rect x="300" y="30" width="230" height="200" fill="none" stroke="#9aa1ad" stroke-dasharray="5 4"/>
+    <text x="480" y="22" text-anchor="middle" font-size="12" fill="#5b6475">폰 자리 = 빈 곳</text>
+    <rect x="120" y="242" width="194" height="14" rx="2" fill="#F0997B"/><text x="130" y="275" font-size="12" fill="#b35a17">팔 (설계 영역)</text>
+    <rect x="312" y="230" width="140" height="28" fill="#5F5E5A"/>
+    <rect x="354" y="80" width="70" height="150" fill="#7F77DD"/>
+    <circle cx="389" cy="80" r="10" fill="#E24B4A"/>
+    <g transform="rotate(-15 389 80)"><rect x="372" y="8" width="34" height="160" rx="6" fill="none" stroke="#5F5E5A" stroke-dasharray="3 3"/></g>
+    <g font-size="12" fill="#1d2330">
+      <line x1="400" y1="80" x2="560" y2="60" stroke="#9aa1ad"/><text x="566" y="56">폰 + 홀더 질량 → 기둥 꼭대기에 집중</text><text x="566" y="72" fill="#5b6475">폰 기종표(미지정 200 g) + 홀더 50 g(가정)</text>
+      <line x1="424" y1="160" x2="560" y2="150" stroke="#9aa1ad"/><text x="566" y="146">폰 기둥 = 홀더 대역, 강체</text><text x="566" y="162" fill="#5b6475">강성 ×20 · 질량 0 · 높이 22 mm(지렛대, 가정)</text>
+      <line x1="452" y1="244" x2="560" y2="240" stroke="#9aa1ad"/><text x="566" y="236">받침판 (고정부품, 두께 4 mm)</text><text x="566" y="252" fill="#5b6475">Ø8 체결 구멍 = 시판 홀더 장착 (가정)</text>
+    </g>
+    <text x="60" y="60" font-size="12" fill="#5b6475">점선 = 15° 기울인 실제 폰 예시</text>
+    <text x="60" y="78" font-size="12" fill="#5b6475">(모델에는 없음)</text>
+  </svg>
+  <div class="grid g2" style="margin-top:10px">
+    <div class="box"><h3>폰 각도 = 하중 조건 (형상 불변)</h3><p>각도가 바뀌면 무게중심 이동(22 mm × sin15° ≈ 6 mm) → <code>problem.npz</code>의 질량 절점 위치만 이동. DeepSDF 데이터는 그대로, PINO는 질량 마스크 채널로 처리. 최적화는 0°·±15° 제약을 동시에 만족.</p></div>
+    <div class="box"><h3>한계 (냉정하게)</h3><p>폰을 점 질량으로 둬 회전 관성이 거의 빠짐 → 일부 모드 진동수를 높게 평가할 가능성(미확인). 충격은 위아래·옆만 있고 <b>앞뒤 방향 없음</b> ❓. D1 오전 0° vs 15° FEM 비교로 각도 영향 확인.</p></div>
+  </div>
+  <table style="margin-top:10px">
+    <tr><th>격자</th><th>칸 수</th><th>FEM 1회</th><th>학습 데이터 500개</th></tr>
+    <tr><td><b>2 mm (유지)</b></td><td>약 2.4만</td><td>약 7.5 s</td><td>약 1시간</td></tr>
+    <tr><td>1 mm</td><td>약 19만 (8배)</td><td>수 분 예상</td><td>10시간 이상 예상</td></tr>
+  </table>
+  <p class="note">1 mm 수치는 추정(미측정). 1 mm는 verify5.py 최종 재검증에만 사용. 받침판을 기울여야 해도 걸치는 칸을 모두 고정부품으로 표시(보수적 복셀화)하면 2 mm로 충분.</p>
 </section>
 
 <section>
@@ -245,6 +296,8 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>8</td><td><b>받침 위치를 넘기는 형태</b> 합의 (템플릿 ID / pad_x0·pad_z0 값 / 허용 범위), 각도 변수 여부</td><td>07</td></tr>
     <tr><td>9</td><td><b>기존 opt3d run(a~d)</b>의 snaps_*.bin · hist_*.json · x_*.npy 공유 (저장소에 없음)</td><td>거치대</td></tr>
     <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>07</td></tr>
+    <tr><td>11</td><td><b>폰 각도별 질량 절점</b> 생성 옵션 (형상 불변, point_masses 위치만 이동)</td><td>07</td></tr>
+    <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>07·거치대</td></tr>
   </table>
   <p class="note">opt3d.py 확인: 제약은 진동수 4개뿐(응력 제약 없음 → 응력 PINO 데이터는 정적 해석 추가 필요), 5회마다 밀도 스냅샷·매회 진동수 기록을 이미 저장, 초기값은 전 칸 0.5.</p>
 </section>
@@ -254,7 +307,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <svg viewBox="0 0 900 150" role="img" aria-label="2일 일정">
     <g font-size="12" fill="#5b6475"><text x="20" y="20">D1 오전</text><text x="245" y="20">D1 오후</text><text x="470" y="20">D2 오전</text><text x="695" y="20">D2 오후</text></g>
     <g font-size="12" fill="#fff">
-      <rect x="15" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="25" y="57">스냅샷 저장 + 병렬 최적화</text>
+      <rect x="15" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="25" y="57">병렬 최적화 · 각도 0° vs 15°</text>
       <rect x="240" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="250" y="57">PINO 학습 · ⛳ f₁ 오차 ≈5%</text>
       <rect x="465" y="30" width="215" height="44" rx="8" fill="#e8833a"/><text x="475" y="57">A vs B 비교표 · TV 정적</text>
       <rect x="690" y="30" width="200" height="44" rx="8" fill="#d9455f"/><text x="700" y="57">정리·STL · 15시 동결</text>
@@ -277,6 +330,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-13 (3)</td><td>0-1 받침 위치 그룹(10종 → 7개 위치, MVP 50·80·120 mm), 0-2 폰 기둥·홀더 그림과 폰 각도 = 하중 조건, 격자 2 mm 유지 근거, 요청 11·12</td></tr>
     <tr><td>2026-11-13 (2)</td><td>0절 설계 범위(받침·클램프 고정, 팔 최적화)와 고정 이유 5가지, 경로 B를 DeepSDF(z)+라벨 마스크+PINO로 변경, 마스크 그림·학습 데이터 표, opt3d 확인 사항, 요청 8~10</td></tr>
     <tr><td>2026-11-13</td><td>신규 작성 — 기존 Model.html(데모 아이템 검토) 대체. 07 인터페이스 반영, 경로 A/B, PINO 설계안, DeepSDF 보류·2D 검증, 진행·필요 사항·일정</td></tr></table>
 </section>
