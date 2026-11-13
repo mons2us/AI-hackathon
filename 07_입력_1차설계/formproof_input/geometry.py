@@ -47,18 +47,23 @@ def eval_prim(prim, pts, closed):
         return m
     if kind == "seg":
         # thick line segment in a plane, e.g. {"plane":"xz","p0":[x,z],"p1":[x,z],"t":6,"y":[lo,hi]}
-        a, b = (AXES[c] for c in p["plane"])
-        p0, p1 = np.asarray(p["p0"], float), np.asarray(p["p1"], float)
-        q = np.c_[pts[:, a], pts[:, b]]
-        d = p1 - p0
-        s = np.clip(((q - p0) @ d) / max(d @ d, 1e-12), 0.0, 1.0)
-        dist = np.linalg.norm(q - (p0 + s[:, None] * d), axis=1)
+        dist = eval_seg_dist(p, pts)
         m &= (dist <= p["t"] / 2) if closed else (dist < p["t"] / 2)
         for ax in ("x", "y", "z"):
             if p.get(ax) is not None:
                 m &= eval_prim({"box": {ax: p[ax]}}, pts, closed)
         return m
     raise ValueError(f"unknown primitive '{kind}'")
+
+
+def eval_seg_dist(p, pts):
+    """Distance from points to a segment drawn in plane p['plane'] (e.g. 'xz')."""
+    a, b = (AXES[c] for c in p["plane"])
+    p0, p1 = np.asarray(p["p0"], float), np.asarray(p["p1"], float)
+    q = np.c_[pts[:, a], pts[:, b]]
+    d = p1 - p0
+    s = np.clip(((q - p0) @ d) / max(d @ d, 1e-12), 0.0, 1.0)
+    return np.linalg.norm(q - (p0 + s[:, None] * d), axis=1)
 
 
 def eval_shape(shape, pts, closed=False):

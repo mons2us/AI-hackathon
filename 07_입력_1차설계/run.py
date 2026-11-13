@@ -7,6 +7,8 @@ Writes to --out:
   spec.json            design spec (geometry roles, material, loads, supports, criteria, evidence, assumptions)
   problem.npz          voxel problem for the physics stage (labels, supports, symmetry, masses, load vectors)
   initial_design.npy   1st design density (0/1 per element, half model)
+  design_1st.step      1st design as exact CAD solid (B-rep, editable in any CAD tool)
+  design_1st_drawing.dxf/.pdf/.png  2-D drawing: third-angle views + isometric, dimensions, title block
   design_1st.stl       1st design, full model (mirrored), for viewing / printing
   side_view.png        side view: design space, kept parts, 1st design, supports
   report.json          input interpretation, template candidates, 1st-design check against the criteria
@@ -24,6 +26,8 @@ from formproof_input import text_rules
 from formproof_input.compile import Problem
 from formproof_input.export import side_preview, write_stl
 from formproof_input.fem import evaluate
+from formproof_input.cad import export_step
+from formproof_input.drawing import make_drawing
 from formproof_input.templates.bike_mount import build_spec
 from formproof_input.templates.library import BY_ID, TEMPLATES
 
@@ -69,6 +73,12 @@ def run(text="", sketch=None, photo=None, template=None, out="out", evaluate_1st
     report["assumptions"] = spec["assumptions"]
     if evaluate_1st:
         report["first_design_check"] = evaluate(P, dens)
+    body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
+    report["cad"] = dict(step="design_1st.step", **cad_info)
+    report["drawing"] = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
+                                     os.path.join(out, "design_1st_drawing.pdf"),
+                                     title=f"자전거 폰 거치대 — 1차 설계",
+                                     check=report.get("first_design_check"), mass_g=cad_info["mass_g"])
     report["seconds"] = round(time.time() - t0, 2)
     with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=1)
@@ -88,6 +98,7 @@ if __name__ == "__main__":
     c = r.get("first_design_check", {})
     print(json.dumps(dict(template=r["template"]["id"], name=r["template"]["name"], chosen_by=r["template"]["chosen_by"],
                           rules=[x["rule"] for x in r["text"]["fired"]], questions=r["text"]["questions"],
-                          problem=r["problem"]["elements"], mass_g=c.get("mass_g"), f1_hz=c.get("f1_hz"),
+                          problem=r["problem"]["elements"], cad_mass_g=r["cad"]["mass_g"], drawing=r["drawing"],
+                          mass_g=c.get("mass_g"), f1_hz=c.get("f1_hz"),
                           checks={k: v["pass"] for k, v in c.get("checks", {}).items()}, seconds=r["seconds"]),
                      ensure_ascii=False, indent=1))

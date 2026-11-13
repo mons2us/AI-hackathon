@@ -32,6 +32,10 @@ DEFAULT = dict(
     design_w=40.0,        # full width of the design space
     arm="straight",       # initial (1st) design arm: straight | L | truss | low
     arm_t=6.0,            # arm thickness in the side view
+    bolt_d=4.5,           # M4 clearance holes through the ears (axis x), team v7
+    bolt_z=7.0,           # bolt axis height above the ear bottom
+    bolt_dy=5.0,          # two bolts at y_sym +- bolt_dy
+    mount_hole_d=8.0,     # phone-clamp fixing hole through the pad (assumed interface)
     phone="default",      # key in evidence.PHONES or 'default'
     phone_mass_kg=None,   # user-stated phone mass overrides the table
     road="cobblestone",
@@ -54,7 +58,33 @@ def _snap(v, o, h, outward=0):
 
 
 def _arm_segments(p, ro):
-    """Initial-design arm in the xz side view as thick segments (p0, p1)."""
+    """Initial-design arm in the xz side view as thick segments (p0, p1).
+    Axis-aligned segments are shifted so their faces lie on grid lines; otherwise a 6 mm bar on a 2 mm grid
+    voxelises as 4 or 8 mm and the analysed design differs from the CAD (seen as +15-20 % mass on L arms)."""
+    segs = _arm_segments_raw(p, ro)
+    h, t = p["h"], p["arm_t"]
+    on_grid = lambda c: math.floor((c - t / 2) / h + 1e-9) * h + t / 2
+    out = []
+    for (x0, z0), (x1, z1) in segs:
+        if abs(x1 - x0) < 1e-9:
+            x0 = x1 = on_grid(x0)
+        if abs(z1 - z0) < 1e-9:
+            z0 = z1 = on_grid(z0)
+        out.append(((x0, z0), (x1, z1)))
+    # keep consecutive segments joined: the joint takes x from a vertical leg and z from a horizontal leg
+    for k in range(1, len(out)):
+        if math.dist(segs[k][0], segs[k - 1][1]) < 1e-9:
+            (px, pz), (qx, qz) = out[k - 1][1], out[k][0]
+            vert = lambda sg: abs(sg[0][0] - sg[1][0]) < 1e-9
+            horz = lambda sg: abs(sg[0][1] - sg[1][1]) < 1e-9
+            jx = px if vert(out[k - 1]) else qx if vert(out[k]) else px
+            jz = qz if horz(out[k]) else pz if horz(out[k - 1]) else pz
+            out[k - 1] = (out[k - 1][0], (jx, jz))
+            out[k] = ((jx, jz), out[k][1])
+    return out
+
+
+def _arm_segments_raw(p, ro):
     xp, zp = p["pad_x0"], p["pad_z0"]
     start = (0.0, ro - p["arm_t"] / 2)               # top of the clamp ring
     style = p["arm"]
@@ -130,6 +160,20 @@ def build_spec(params=None, template_id="custom", meta=None):
     arm = [{"seg": dict(plane="xz", p0=list(a), p1=list(b), t=p["arm_t"], y=[None, yw])}
            for a, b in _arm_segments(p, ro)]
 
+    # resolved CAD geometry (mm, same snapped values the analysis grid uses) — single source for STEP / drawing
+    geometry = dict(
+        frame="x 앞(진행 방향), z 위, y 핸들바 축. 핸들바 중심 (x=0, z=0), 대칭면 y=%.1f" % Y_SYM,
+        y_sym=Y_SYM, bar_d=p["bar_d"], bore_r=round(bore, 3), ring_ro=round(ro, 3), width=p["clamp_w"],
+        slit_half=sx, slit_r=round(ro + 5.4, 3), ear_x=[ex0, ex1], ear_z=[ear_bot, ear_top],
+        bolts=dict(d=p["bolt_d"], z=ear_bot + p["bolt_z"], y=[Y_SYM - p["bolt_dy"], Y_SYM + p["bolt_dy"]],
+                   x_span=[-ex1 - 2.0, ex1 + 2.0]),
+        pad=dict(x=[pad_x0, pad_x1], z=[pad_z0, pad_z1]),
+        mount_hole=dict(d=p["mount_hole_d"], x=(pad_x0 + pad_x1) / 2, y=Y_SYM),
+        arm=dict(style=p["arm"], t=p["arm_t"], segments=[[list(a), list(b)] for a, b in _arm_segments(p, ro)]),
+        clip=dict(holder_x=pad_x0 - p["holder_gap"], holder_z=pad_z1, z_above=z_above),
+        holes_in_analysis=False,
+    )
+
     mat = ev.MATERIALS[p["material"]]
     road = ev.ROADS.get(p["road"])
     road_status = "cited"
@@ -157,6 +201,7 @@ def build_spec(params=None, template_id="custom", meta=None):
         "material": dict(name=p["material"], E=mat["E"], nu=mat["nu"], rho=mat["rho"],
                          yield_mpa=mat["yield_mpa"], interlayer_mpa=mat["interlayer_mpa"], source=mat["source"]),
         "regions": regions,
+        "geometry": geometry,
         "initial_design": {"name": "arm", "style": p["arm"], "shape": arm,
                            "why": "스케치의 팔 형상 = 1차 설계. 설계 영역 안에서만 유효"},
         "supports": [{"name": "handlebar", "type": "fixed", "dofs": "xyz",

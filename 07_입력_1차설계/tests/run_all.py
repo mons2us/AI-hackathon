@@ -2,7 +2,7 @@
 import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import test_reproduce_opt3d, test_fem_cantilever, test_text_rules, test_sketch_match
+import test_reproduce_opt3d, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
@@ -13,6 +13,8 @@ CHECKS = [
     ("텍스트: 형태 힌트", test_text_rules.test_shape_hints),
     ("스케치: 정형 20장", test_sketch_match.test_clean_sketches_exact),
     ("스케치: 합성 손그림", test_sketch_match.test_hand_drawn),
+    ("CAD: STEP 10종 (유효·왕복·복셀 질량 ±5%)", test_cad.test_step_all_templates),
+    ("도면: 치수 = 명세", test_cad.test_drawing_dimensions),
 ]
 
 if __name__ == "__main__":

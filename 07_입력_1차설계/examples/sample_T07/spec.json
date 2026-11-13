@@ -1,0 +1,592 @@
+{
+ "schema": "formproof.spec/0.1",
+ "product": "bike_phone_mount",
+ "template": {
+  "id": "T07",
+  "params": {
+   "h": 2.0,
+   "bar_d": 31.8,
+   "bore_gap": 0.2,
+   "ring_t": 4.5,
+   "clamp_w": 20.0,
+   "slit_w": 4.0,
+   "ear_x": [
+    2.0,
+    8.0
+   ],
+   "ear_len": 20.0,
+   "pad_x0": 80.0,
+   "pad_len": 20.0,
+   "pad_z0": 16.0,
+   "pad_t": 4.0,
+   "post_x": [
+    6.0,
+    16.0
+   ],
+   "post_w": 12.0,
+   "post_h": 22.0,
+   "above_margin": 4.0,
+   "holder_gap": 2.0,
+   "design_w": 40.0,
+   "arm": "truss",
+   "arm_t": 6.0,
+   "bolt_d": 4.5,
+   "bolt_z": 7.0,
+   "bolt_dy": 5.0,
+   "mount_hole_d": 8.0,
+   "phone": "default",
+   "phone_mass_kg": null,
+   "road": "cobblestone",
+   "material": "PETG",
+   "objective": "min_mass",
+   "safety_factor": null,
+   "include_self_inertia": false
+  },
+  "name": "트러스",
+  "chosen_by": "스케치 매칭(ring 기준)"
+ },
+ "units": {
+  "length": "mm",
+  "mass": "t (kg in point_masses)",
+  "force": "N",
+  "stress": "MPa",
+  "time": "s"
+ },
+ "grid": {
+  "h": 2.0,
+  "origin": [
+   -24.0,
+   55.0,
+   -36.0
+  ],
+  "shape": [
+   62,
+   10,
+   39
+  ],
+  "symmetry": {
+   "axis": "y",
+   "at": 55.0,
+   "cases": [
+    "S",
+    "A"
+   ]
+  }
+ },
+ "material": {
+  "name": "PETG",
+  "E": 1700.0,
+  "nu": 0.38,
+  "rho": 1.27e-09,
+  "yield_mpa": 39.0,
+  "interlayer_mpa": 16.4,
+  "source": "prusament_petg"
+ },
+ "regions": [
+  {
+   "name": "bore",
+   "role": "void",
+   "shape": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 16.1
+     }
+    }
+   ],
+   "why": "핸들바가 지나가는 구멍"
+  },
+  {
+   "name": "slit",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       -2.0,
+       2.0
+      ],
+      "z": [
+       null,
+       0.0
+      ]
+     }
+    },
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 26.0
+     }
+    }
+   ],
+   "why": "클램프 조임용 절개"
+  },
+  {
+   "name": "post",
+   "role": "rigid",
+   "stiffness_scale": 20.0,
+   "mass_scale": 0.0,
+   "shape": [
+    {
+     "box": {
+      "x": [
+       86.0,
+       96.0
+      ],
+      "z": [
+       20.0,
+       null
+      ],
+      "y": [
+       null,
+       61.0
+      ]
+     }
+    }
+   ],
+   "why": "시판 폰 클램프(강체 가정, 질량은 point_masses에 포함)"
+  },
+  {
+   "name": "holder",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       78.0,
+       null
+      ],
+      "z": [
+       20.0,
+       null
+      ]
+     }
+    }
+   ],
+   "minus": [
+    "post"
+   ],
+   "why": "폰이 놓이는 공간"
+  },
+  {
+   "name": "above",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "z": [
+       24.0,
+       null
+      ]
+     }
+    }
+   ],
+   "minus": [
+    "post"
+   ],
+   "why": "폰 뒤 공간은 받침판 위 일정 높이까지만 허용"
+  },
+  {
+   "name": "contact",
+   "role": "solid",
+   "shape": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_min": 16.1,
+      "r_max": 20.6,
+      "y": [
+       null,
+       65.0
+      ]
+     }
+    }
+   ],
+   "why": "핸들바 클램프 링(지킬 곳)"
+  },
+  {
+   "name": "ears",
+   "role": "solid",
+   "shape": {
+    "union": [
+     [
+      {
+       "box": {
+        "x": [
+         2.0,
+         8.0
+        ],
+        "z": [
+         -34.0,
+         -14.0
+        ],
+        "y": [
+         null,
+         65.0
+        ]
+       }
+      }
+     ],
+     [
+      {
+       "box": {
+        "x": [
+         -8.0,
+         -2.0
+        ],
+        "z": [
+         -34.0,
+         -14.0
+        ],
+        "y": [
+         null,
+         65.0
+        ]
+       }
+      }
+     ]
+    ]
+   },
+   "why": "M4 볼트 귀(지킬 곳)"
+  },
+  {
+   "name": "pad",
+   "role": "solid",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       80.0,
+       100.0
+      ],
+      "z": [
+       16.0,
+       20.0
+      ],
+      "y": [
+       null,
+       65.0
+      ]
+     }
+    }
+   ],
+   "why": "폰 클램프 받침판(지킬 곳)"
+  }
+ ],
+ "geometry": {
+  "frame": "x 앞(진행 방향), z 위, y 핸들바 축. 핸들바 중심 (x=0, z=0), 대칭면 y=55.0",
+  "y_sym": 55.0,
+  "bar_d": 31.8,
+  "bore_r": 16.1,
+  "ring_ro": 20.6,
+  "width": 20.0,
+  "slit_half": 2.0,
+  "slit_r": 26.0,
+  "ear_x": [
+   2.0,
+   8.0
+  ],
+  "ear_z": [
+   -34.0,
+   -14.0
+  ],
+  "bolts": {
+   "d": 4.5,
+   "z": -27.0,
+   "y": [
+    50.0,
+    60.0
+   ],
+   "x_span": [
+    -10.0,
+    10.0
+   ]
+  },
+  "pad": {
+   "x": [
+    80.0,
+    100.0
+   ],
+   "z": [
+    16.0,
+    20.0
+   ]
+  },
+  "mount_hole": {
+   "d": 8.0,
+   "x": 90.0,
+   "y": 55.0
+  },
+  "arm": {
+   "style": "truss",
+   "t": 6.0,
+   "segments": [
+    [
+     [
+      0.0,
+      17.6
+     ],
+     [
+      82.0,
+      18.0
+     ]
+    ],
+    [
+     [
+      17.6,
+      0.0
+     ],
+     [
+      48.0,
+      18.0
+     ]
+    ]
+   ]
+  },
+  "clip": {
+   "holder_x": 78.0,
+   "holder_z": 20.0,
+   "z_above": 24.0
+  },
+  "holes_in_analysis": false
+ },
+ "initial_design": {
+  "name": "arm",
+  "style": "truss",
+  "shape": [
+   {
+    "seg": {
+     "plane": "xz",
+     "p0": [
+      0.0,
+      17.6
+     ],
+     "p1": [
+      82.0,
+      18.0
+     ],
+     "t": 6.0,
+     "y": [
+      null,
+      65.0
+     ]
+    }
+   },
+   {
+    "seg": {
+     "plane": "xz",
+     "p0": [
+      17.6,
+      0.0
+     ],
+     "p1": [
+      48.0,
+      18.0
+     ],
+     "t": 6.0,
+     "y": [
+      null,
+      65.0
+     ]
+    }
+   }
+  ],
+  "why": "스케치의 팔 형상 = 1차 설계. 설계 영역 안에서만 유효"
+ },
+ "supports": [
+  {
+   "name": "handlebar",
+   "type": "fixed",
+   "dofs": "xyz",
+   "nodes": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 16.700000000000003
+     }
+    }
+   ],
+   "assumption": "클램프 내면이 핸들바에 완전 고정(미끄럼·회전 없음)"
+  }
+ ],
+ "point_masses": [
+  {
+   "name": "phone_clamp",
+   "mass_kg": 0.25,
+   "nodes": [
+    {
+     "box": {
+      "x": [
+       86.0,
+       96.0
+      ],
+      "y": [
+       null,
+       61.0
+      ],
+      "z": [
+       42.0,
+       null
+      ]
+     }
+    }
+   ],
+   "source": [
+    "team_v7",
+    "assumed:clamp_50g"
+   ],
+   "note": "기종 미지정(200 g 가정) 200 g + 폰 클램프 50 g, 클램프 상단에 집중"
+  }
+ ],
+ "load_cases": [
+  {
+   "name": "road_vibration",
+   "type": "modal",
+   "modes_per_case": 2,
+   "excitation_hz": [
+    34.6,
+    45.6
+   ],
+   "source": "isbs2020"
+  },
+  {
+   "name": "shock_vertical",
+   "type": "inertial",
+   "accel_g": 48.5,
+   "dir": [
+    0,
+    0,
+    -1
+   ],
+   "applies_to": [
+    "phone_clamp"
+   ],
+   "include_self": false,
+   "source": "isbs2020"
+  },
+  {
+   "name": "shock_lateral",
+   "type": "inertial",
+   "accel_g": 48.5,
+   "dir": [
+    0,
+    1,
+    0
+   ],
+   "applies_to": [
+    "phone_clamp"
+   ],
+   "include_self": false,
+   "source": "assumed:lateral_equals_vertical"
+  }
+ ],
+ "objective": {
+  "type": "min_mass"
+ },
+ "constraints": [
+  {
+   "id": "f1",
+   "quantity": "natural_frequency_hz",
+   "op": ">=",
+   "value": 91.2,
+   "load_case": "road_vibration",
+   "derivation": "T_max=1.333 -> f1 >= 45.6 / sqrt(1-1/T_max)",
+   "source": [
+    "sdof",
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "stress",
+   "quantity": "von_mises_max_mpa",
+   "op": "<=",
+   "value": 26.0,
+   "load_cases": [
+    "shock_vertical",
+    "shock_lateral"
+   ],
+   "exclude_regions": [
+    "contact"
+   ],
+   "derivation": "yield 39.0 / SF 1.5",
+   "source": [
+    "prusament_petg",
+    "assumed:sf"
+   ]
+  },
+  {
+   "id": "interlayer",
+   "quantity": "layer_normal_tension_mpa",
+   "op": "<=",
+   "value": 10.9,
+   "layer_normal": "y",
+   "load_cases": [
+    "shock_vertical",
+    "shock_lateral"
+   ],
+   "exclude_regions": [
+    "contact"
+   ],
+   "derivation": "interlayer 16.4 / SF 1.5, 옆으로 눕혀 출력(적층 방향 y)",
+   "source": [
+    "prusament_petg",
+    "assumed:print_orientation"
+   ]
+  },
+  {
+   "id": "min_feature",
+   "quantity": "min_member_thickness_mm",
+   "op": ">=",
+   "value": 5.0,
+   "source": [
+    "team_v7"
+   ]
+  }
+ ],
+ "evidence": {
+  "isbs2020": {
+   "title": "Viellehner & Potthast, Road to lab: cobblestone cycling vibrations transferred to the lab, ISBS Proceedings 38 (2020)",
+   "url": "https://commons.nmu.edu/isbs/vol38/iss1/216/",
+   "note": "바퀴 축(드롭아웃) 측정값. 핸들바에 그대로 적용하는 것은 보수적 가정"
+  },
+  "prusament_petg": {
+   "title": "Prusament PETG V0 Technical Data Sheet v1.0 (2023), ISO 527-1 printed specimens",
+   "url": "https://cdn.shopify.com/s/files/1/1745/6181/files/prusament-petg-v0-technical-data-sheet.pdf",
+   "note": "출력 시편 수평 방향 값. 일반 PETG와 차이 가능"
+  },
+  "sdof": {
+   "title": "1자유도 진동 전달률 T = 1/|1-r^2|, r = f_excitation / f_natural",
+   "url": null,
+   "note": "교과서 식. 강성 설계(f_n > f_ex)에서 T <= T_max 이면 f_n >= f_ex / sqrt(1 - 1/T_max)"
+  },
+  "team_v7": {
+   "title": "FormProof 자전거 폰 거치대 시나리오 v7 (팀 내부 사전 검증)",
+   "url": "02_시연페이지/bike_mount_v7.html"
+  }
+ },
+ "assumptions": [
+  "노면 진동은 바퀴 축 측정값을 핸들바에 그대로 적용(보수적)",
+  "옆 충격 = 위아래 충격 크기",
+  "48.5 g 충격을 정적 하중으로 환산",
+  "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체",
+  "폰 클램프 질량 50 g",
+  "안전율 1.5, 진동 증폭 허용 1.33배는 선택값",
+  "충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장"
+ ]
+}

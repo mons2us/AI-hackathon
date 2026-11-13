@@ -97,6 +97,7 @@ class Problem:
                     if np.any(np.abs(rr - v) < 1e-9):
                         raise SpecError(f"region '{r['name']}': radius {v} hits element centres")
 
+
     # ------------------------------------------------------------- node sets
     def select_nodes(self, sel):
         m = eval_shape(sel, self.nodes, closed=True) if not isinstance(sel, dict) or "union" in sel \
