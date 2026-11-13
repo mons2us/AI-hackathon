@@ -126,9 +126,14 @@ def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', 
         k = rng.choice(gd.tr, min(bs, len(gd.tr)), replace=False)
         out, occ_t, nm, Fb = predict(net, gd, gd.occ[k], [gd.cond[i] for i in k], with_grad=True)
         ut = gd.target_u(k)
-        l_data = ((out['u'] - ut).norm(dim=-1) / (ut.norm(dim=-1) + 1e-30)).mean()
+        # 모양과 크기를 따로 학습: 상대 L2 하나로 묶으면 모양이 틀린 초기에 크기를 0으로 줄이는 쪽으로
+        # 붕괴함(리허설에서 log 크기 −60 까지 떨어짐) → 모양 손실(정규화 L2) + 크기 손실(log rms)
+        trms = ut.pow(2).mean(-1).sqrt() + 1e-30
+        l_shape = (out['un'] - ut / trms[..., None]).pow(2).mean(-1).sqrt().mean()
+        l_scale = (out['logs'] - torch.log(trms / net.u_ref)).abs().mean()
+        l_data = l_shape + l_scale
         loss = l_data
-        rec = dict(data=float(l_data.detach()))
+        rec = dict(shape=float(l_shape.detach()), scale=float(l_scale.detach()))
         if nfp:
             ft = torch.tensor(gd.freq[k], dtype=torch.float32, device=device)
             fp = torch.stack([out['f1'][:, 0], out['f2'][:, 0], out['f1'][:, 1], out['f2'][:, 1]], 1)

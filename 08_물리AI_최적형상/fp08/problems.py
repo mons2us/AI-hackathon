@@ -373,7 +373,7 @@ class TVFeet(_TVBase):
         n = self.load_nodes
         w = np.where(g.nxc[n] == 0.0, 0.5, 1.0); w = w / w.sum()
         sag = float(-(comb['gravity'][3 * n + 2] @ w))
-        ufb = self._tip(comb['push_fb'], g.nyc, 1)
+        ufb = abs(self._tip(comb['push_fb'], g.nyc, 1))
         slat = float(-(comb['push_lat'][3 * n + 2] @ w))
         on = (self.label == 1) | ((self.label == 0) & (np.asarray(res['occ']) > 0.5))
         vm = max(np.percentile(fem.von_mises(fem.element_stress(g, self.C, self.B0, u))[on], 99.5) for u in comb.values())
@@ -458,8 +458,8 @@ class TVPedestal(_TVBase):
         n = self.load_nodes
         w = np.where(g.nxc[n] == 0.0, 0.5, 1.0); w = w / w.sum()
         sag = float(-(comb['gravity'][3 * n + 2] @ w))
-        ufb = self._tip(comb['push_fb'], g.nyc, 1)
-        ulat = self._tip(comb['push_lat'], g.nxc, 0)
+        ufb = abs(self._tip(comb['push_fb'], g.nyc, 1))
+        ulat = abs(self._tip(comb['push_lat'], g.nxc, 0))
         on = (self.label == 1) | ((self.label == 0) & (np.asarray(res['occ']) > 0.5))
         vm = max(np.percentile(fem.von_mises(fem.element_stress(g, self.C, self.B0, u))[on], 99.5) for u in comb.values())
         self.loads_cache = self.loads(cond)

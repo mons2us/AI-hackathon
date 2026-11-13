@@ -213,7 +213,7 @@ class PINO(nn.Module):
         super().__init__()
         self.nb = n_basis
         self.fno = FNO3d(cin, 3 * n_basis, width, layers, modes)
-        self.scale_head = nn.Sequential(nn.Linear(2 * width + 2, 64), nn.GELU(), nn.Linear(64, n_basis))
+        self.scale_head = nn.Sequential(nn.Linear(3 * width + 2, 64), nn.GELU(), nn.Linear(64, n_basis))
         self.nf = n_freq_pairs                    # 진동 모드 쌍(S, A)마다 [첫 모드 보정비, 두 번째 모드 비율]
         if n_freq_pairs:
             self.freq_head = nn.Sequential(nn.Linear(2 * width + 2 + n_freq_pairs, 64), nn.GELU(),
@@ -226,13 +226,19 @@ class PINO(nn.Module):
         y, feat = self.fno(x, return_feat=True)
         B = y.shape[0]
         vf = occ_design[:, pt.design].mean(1, keepdim=True)
+        wl = pt.static_maps[2][None, None]                                 # 하중(질량) 절점 지도
+        at_load = (feat * wl).sum((2, 3, 4)) / (wl.sum() + 1e-12)         # 하중점 특징 = 처짐 크기와 직결
         pooled = torch.cat([feat.mean((2, 3, 4)), feat.amax((2, 3, 4)), vf, torch.log(vf + 1e-3)], 1)
-        logs = self.scale_head(pooled)                                    # (B, nb) 크기(로그)
+        logs = self.scale_head(torch.cat([pooled, at_load], 1))                                    # (B, nb) 크기(로그)
         shape = y.reshape(B, self.nb, 3, *y.shape[2:])                   # (B, nb, 3, NX, NY, NZ)
         u = pt.n_flat(shape).permute(0, 1, 3, 2).reshape(B, self.nb, -1)  # (B, nb, 3nn) 절점·xyz 순
-        un = u / (u.pow(2).mean(-1, keepdim=True).sqrt() + 1e-12)
-        u = un * pt.free[None] * (torch.exp(logs) * self.u_ref)[..., None]
-        out = dict(u=u, logs=logs)
+        # 재료가 하나도 안 닿은 절점은 FEM 에서 변위 0 (정답의 약 87%) → 마스크로 강제 (리허설: 학습 속도 개선 목적)
+        solid = (8 * pt.n_flat(pt.elem_to_node(pt.full_occ(occ_design))[:, 0])).clamp(0, 1)   # (B, nn)
+        u = u * solid.repeat_interleave(3, dim=1)[:, None]
+        un = u * pt.free[None]
+        un = un / (un.pow(2).mean(-1, keepdim=True).sqrt() + 1e-12)        # 모양 (rms 1)
+        u = un * (torch.exp(logs) * self.u_ref)[..., None]
+        out = dict(u=u, un=un, logs=logs)
         if self.nf and want_freq and node_mass is not None:
             out.update(self.freq(pt, occ_design, node_mass, u, pooled))
         return out

@@ -44,7 +44,7 @@ class Judge:
         uz = u.reshape(-1, 3)[n, 2]
         den = (w * d * d).sum()
         th = -(uz * w * d).sum() / den if float(den) > 0 else 0.0
-        return (u.reshape(-1, 3)[n, hor] * w).sum() + th * self.p.lever
+        return ((u.reshape(-1, 3)[n, hor] * w).sum() + th * self.p.lever).abs()   # 방향 무관 크기
 
     def __call__(self, out, occ):
         p = self.p
