@@ -6,8 +6,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from formproof_input import angle, thermal, text_rules
 from formproof_input import evidence as ev
 from formproof_input.compile import Problem
-from formproof_input.fem import connected, evaluate
-from formproof_input.requirements import adapt_free_angle, run_checks
 from formproof_input.templates.bike_mount import build_spec
 from formproof_input.templates.library import BY_ID
 
@@ -54,27 +52,24 @@ def test_tilt_vs_hand_calc():
     return dict(portrait_tilt_limit_deg=hand)
 
 
-def test_free_angle_adaptation():
-    p, table = adapt_free_angle(dict(BY_ID["T01"]["params"]), "T01")
-    s = build_spec(p, "T01")
-    P = Problem(s)
-    d = P.initial_density()
-    arm_on = P.design & (d > 0.5)
-    assert not (arm_on & P.region_masks["phone_sweep"]).any()                 # 1st design stays out of the phone's path
-    assert connected(P, P.solid | arm_on)[0]
-    chk = run_checks(s, P, d, evaluate(P, d))["free_angle"]
-    assert chk["pass_"] and chk["rotate_360_now"]
-    best = max((c for c in table if c["ok"]), key=lambda c: c["potential_f1_hz"])
-    f_min = next(c["value"] for c in s["constraints"] if c["id"] == "f1")
-    assert best["potential_f1_hz"] > f_min                                     # optimiser can still reach the limit
-    ids = {c["id"] for c in s["constraints"]}
-    assert {"pose_clearance", "joint_stiffness", "joint_hold"} <= ids
-    return dict(chosen=dict(reach_add=best["reach_add"], lift=best["lift"], arm=best["arm"]),
-                potential_f1_hz=best["potential_f1_hz"], tilt=chk["tilt_now"])
+def test_requirements_are_handoff_only():
+    """Requirements add conditions for the optimiser but never change the 1st design."""
+    base = build_spec(BY_ID["T01"]["params"], "T01")
+    req = build_spec(dict(BY_ID["T01"]["params"], requirements=["free_angle", "sun_heat"]), "T01")
+    P0, P1 = Problem(base), Problem(req)
+    assert np.array_equal(P0.label, P1.label)                                   # same roles
+    assert np.array_equal(P0.initial_density(), P1.initial_density())           # same 1st design
+    assert P0.keepout is None and P1.keepout is not None and P1.keepout.sum() > 0
+    ids = {c["id"] for c in req["constraints"]}
+    assert {"pose_clearance", "joint_stiffness", "joint_hold", "sun_heat"} <= ids
+    from formproof_input.requirements import handoff_summary
+    hs = {h["id"]: h for h in handoff_summary(req, P1)}
+    assert set(hs) == {"free_angle", "sun_heat"}
+    return dict(keepout_elements=int(P1.keepout.sum()), warnings=hs["free_angle"]["warnings"][:1])
 
 
 if __name__ == "__main__":
     test_text_detects_requirements()
     print(test_thermal_physics())
     print(test_tilt_vs_hand_calc())
-    print(test_free_angle_adaptation())
+    print(test_requirements_are_handoff_only())

@@ -8,7 +8,7 @@ import json
 import numpy as np
 from .geometry import eval_shape, element_bounds, _cyl_r
 
-LABEL = {"design": 0, "solid": 1, "void": 2, "rigid": 3}
+LABEL = {"design": 0, "solid": 1, "void": 2, "rigid": 3}     # role "keepout" -> separate mask P.keepout
 PRECEDENCE = ["void", "rigid", "solid"]          # earlier role wins on overlap
 
 
@@ -66,6 +66,9 @@ class Problem:
             lab[m] = LABEL[rl]
             taken |= m
         self.label = lab
+        # requirement keep-out spaces: handed to the optimiser, never cut the 1st design
+        ko = [masks[r["name"]] for r in spec["regions"] if r["role"] == "keepout"]
+        self.keepout = np.logical_or.reduce(ko) if ko else None
         self.design = lab == LABEL["design"]
         self.solid = lab == LABEL["solid"]
         self.void = lab == LABEL["void"]
@@ -178,6 +181,7 @@ class Problem:
                     elements=dict(design=int(self.design.sum()), solid=int(self.solid.sum()),
                                   void=int(self.void.sum()), rigid=int(self.rigid.sum())),
                     supports={k: int(len(v)) for k, v in self.supports.items()},
+                    keepout=int(self.keepout.sum()) if self.keepout is not None else 0,
                     point_mass_nodes={k: int(len(v[0])) for k, v in self.mass_sets.items()},
                     half_model_mass_kg=round(float(self.node_mass.sum() * 1e3), 4))
 
@@ -190,6 +194,8 @@ class Problem:
         if self.sym_axis is not None:
             d["sym_plane_nodes"] = self.sym_plane
             d["sym_axis"] = self.sym_axis
+        if self.keepout is not None:
+            d["keepout"] = self.keepout
         for c in self.spec.get("load_cases", []):
             if c["type"] == "inertial":
                 d["load__" + c["name"]] = self.load_vector(c)

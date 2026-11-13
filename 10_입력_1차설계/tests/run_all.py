@@ -18,7 +18,7 @@ CHECKS = [
     ("요구: 텍스트 감지", test_requirements.test_text_detects_requirements),
     ("요구: 땡볕 에너지 평형·HDT", test_requirements.test_thermal_physics),
     ("요구: 기울기 한계 = 손계산", test_requirements.test_tilt_vs_hand_calc),
-    ("요구: 각도 자유 1차 설계 보정", test_requirements.test_free_angle_adaptation),
+    ("요구: 1차 설계는 그대로, 조건만 넘김", test_requirements.test_requirements_are_handoff_only),
 ]
 
 if __name__ == "__main__":

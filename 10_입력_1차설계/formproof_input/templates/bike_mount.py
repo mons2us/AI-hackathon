@@ -199,12 +199,12 @@ def build_spec(params=None, template_id="custom", meta=None):
     if "free_angle" in p["requirements"]:
         e_j = p["phone_clamp_t"] + (dims_pre[2] / 2)
         regions.append(dict(
-            name="phone_sweep", role="void", minus=["post", "pad", "contact", "ears"],
+            name="phone_sweep", role="keepout", minus=["post"],
             shape=[{"phone_sweep": dict(joint=[(post_x0 + post_x1) / 2, Y_SYM, z_top - e_j], H=dims_pre[0], W=dims_pre[1],
                                         D=dims_pre[2], clamp_t=p["phone_clamp_t"], margin=p["angle_margin"],
                                         tilt_lo=p["angle_tilt"][0], tilt_hi=p["angle_tilt"][1], rot_deg=360.0, rot_step=15.0,
                                         tilt_step=4.0)}],
-            why="요구 '화면 각도 자유롭게': 폰이 360° 회전·기울기 범위에서 지나가는 공간(비울 곳)"))
+            why="요구 '화면 각도 자유롭게': 폰이 360° 회전·기울기 범위에서 지나가는 공간. 최적화 단계에서 비울 곳"))
 
     mat = ev.MATERIALS[p["material"]]
     road = ev.ROADS.get(p["road"])

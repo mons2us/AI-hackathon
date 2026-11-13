@@ -35,4 +35,5 @@ def opt3d_namespace(spec_or_path):
         nid=lambda i, j, k: (k * NY + j) * NX + i, en=en, edof=edof, nn=P.nn,
         gi=gi, gj=gj, gk=gk, nxc=nxc, nyc=nyc, nzc=nzc, used=P.used,
         fixn=P.supports[next(iter(P.supports))], plane=P.sym_plane, topn=topn, tipm=P.node_mass,
+        keepout=P.keepout if P.keepout is not None else np.zeros(len(P.label), bool),
     )

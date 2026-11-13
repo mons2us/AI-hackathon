@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FormProof · 1차 설계</title>
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/vendor/OrbitControls.js"></script>
+<style>
+:root{
+  --bg:#eef1f5; --card:#fff; --ink:#111827; --ink2:#4b5563; --ink3:#9aa3ae; --line:#e3e7ee; --soft:#f4f6f9;
+  --nav:#172033; --blue:#2563eb; --blue-d:#1d4ed8; --blue-s:#e8efff; --green:#0f9f6e; --green-s:#e3f6ee;
+  --red:#d33a4b; --red-s:#fdecee; --amber:#e8853a; --amber-s:#fff3e6; --dark:#141c2c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:1440px;margin:0 auto;padding:20px}
+header.top{background:var(--nav);color:#fff;border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--blue);display:grid;place-items:center}
+.brand b{font-size:19px;display:block;letter-spacing:-.2px}.brand span{font-size:12px;color:#aab4c4}
+.steps{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.step{border:1px solid #2c3850;background:#1f2a40;color:#c3cbd8;border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.step i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid currentColor;border-radius:50%;font-size:11px;margin-right:6px}
+.step.done{color:#fff;border-color:#3b4a66}.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr) 300px;gap:16px;margin-top:16px;align-items:start}
+@media (max-width:1180px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.wrap{padding:10px}.cands{grid-template-columns:1fr 1fr}.view{height:360px}.steps{margin-left:0}}
+.grid>section{min-width:0}
+.card{background:var(--card);border-radius:16px;border:1px solid #e6e9ef;padding:18px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 4px;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+.card h2 .tag{margin-left:auto}
+.sub{color:var(--ink2);font-size:12.5px;margin:0 0 12px}
+.tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.tag.green{background:var(--green-s);color:var(--green)}.tag.red{background:var(--red-s);color:var(--red)}
+.tag.blue{background:var(--blue-s);color:var(--blue)}.tag.amber{background:var(--amber-s);color:#b8601d}
+textarea{width:100%;min-height:96px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;resize:vertical;outline:none}
+textarea:focus{border-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font-size:12px;color:var(--ink2)}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.seg{display:flex;background:var(--soft);border-radius:10px;padding:3px;gap:3px;margin-bottom:10px}
+.seg button{flex:1;border:0;background:transparent;border-radius:8px;padding:7px 0;color:var(--ink2);font-weight:600;font-size:13px}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pad{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;touch-action:none}
+.pad canvas{display:block;width:100%;aspect-ratio:4/3;cursor:crosshair}
+.pad .hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--ink3);pointer-events:none}
+.pad .arrow{position:absolute;right:10px;top:8px;font-size:11.5px;color:var(--ink3);pointer-events:none}
+.tools{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 12px;font-size:13px;color:var(--ink)}
+.btn:hover{border-color:#c9d1dd}
+.btn.primary{width:100%;border:0;background:var(--blue);color:#fff;font-weight:700;padding:13px;border-radius:12px;font-size:15px;margin-top:12px}
+.btn.primary:hover{background:var(--blue-d)}.btn.primary:disabled{background:#9db5f0;cursor:wait}
+.btn.darkbig{width:100%;border:0;background:var(--dark);color:#fff;font-weight:700;padding:13px;border-radius:12px;margin-top:10px}
+select.btn{padding-right:8px}
+.drop{border:1.5px dashed #c9d1dd;border-radius:12px;padding:18px;text-align:center;color:var(--ink2);font-size:13px;background:var(--soft)}
+.drop.over{border-color:var(--blue);background:var(--blue-s)}
+.drop img{max-width:100%;max-height:220px;border-radius:8px;display:block;margin:0 auto 8px}
+.reqs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.req{background:var(--soft);border-radius:10px;padding:8px 10px}
+.req small{display:block;color:var(--ink2);font-size:11.5px}.req b{font-size:13.5px}
+.req.wide{grid-column:1/-1}
+.q{font-size:12.5px;color:#9a5a17;background:var(--amber-s);border-radius:10px;padding:8px 10px;margin-top:8px}
+.tabs{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13.5px;color:var(--ink2)}
+.tab.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.view{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(#f7f9fc,#e9edf3);border:1px solid var(--line);height:460px}
+.view canvas{display:block}
+.view .ovl{position:absolute;left:10px;top:10px;background:rgba(255,255,255,.88);border-radius:8px;padding:4px 8px;font-size:11.5px;color:var(--ink2)}
+.view .vt{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.view .vt button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:4px 9px;font-size:12px}
+.view .vt button.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.pane{display:none;height:100%}.pane.on{display:block}
+.pane img{width:100%;height:100%;object-fit:contain;background:#fff}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink3);font-size:13.5px;pointer-events:none}
+.cands{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.cand{border:1.5px solid var(--line);border-radius:12px;padding:8px;background:#fff;text-align:left}
+.cand img{width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border-radius:8px;display:block}
+.cand .t{font-size:12.5px;font-weight:700;margin-top:6px}.cand .s{font-size:11.5px;color:var(--ink2)}
+.cand.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}
+.cand.input{border-style:dashed;cursor:default}
+.flow{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.flow span{font-size:12px;background:var(--soft);border-radius:999px;padding:4px 10px;color:var(--ink2)}
+.flow span.ok{background:var(--green-s);color:var(--green)}
+.metric{margin-bottom:12px}
+.metric .row{display:flex;justify-content:space-between;font-size:13px}.metric .row b{font-size:14px}
+.bar{height:8px;background:#edf0f4;border-radius:99px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--green)}
+.bar i.bad{background:var(--red)}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi{background:var(--soft);border-radius:10px;padding:8px 10px}.kpi small{color:var(--ink2);font-size:11.5px;display:block}.kpi b{font-size:18px}
+.note{font-size:12px;color:var(--ink2);background:var(--soft);border-radius:10px;padding:8px 10px}
+table.vars{width:100%;border-collapse:collapse;font-size:13px}
+table.vars td{padding:7px 0;border-bottom:1px solid #f0f2f6}table.vars td:last-child{text-align:right;font-weight:700}
+.cons{display:flex;flex-direction:column;gap:6px}
+.con{background:var(--soft);border-radius:10px;padding:8px 10px;font-size:12.5px}
+.con b{display:block;font-size:13px}.con small{color:var(--ink2)}
+.con.req{background:var(--blue-s)}
+.warn{font-size:12px;color:#9a5a17;background:var(--amber-s);border-radius:10px;padding:8px 10px}
+.files{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.files a{display:block;text-align:center;border:1px solid var(--line);border-radius:10px;padding:10px 6px;color:var(--ink);text-decoration:none;font-size:13px;font-weight:600}
+.files a:hover{border-color:var(--blue);color:var(--blue)}
+.files a.off{pointer-events:none;color:var(--ink3)}
+details{margin-top:10px;font-size:12.5px;color:var(--ink2)}details li{margin:3px 0}
+.busy{position:absolute;inset:0;background:rgba(247,249,252,.92);display:none;place-items:center;z-index:5}
+.busy.on{display:grid}
+.busy .box{text-align:center}.busy .spin{width:34px;height:34px;border:3px solid #cfd8e6;border-top-color:var(--blue);border-radius:50%;animation:sp 0.9s linear infinite;margin:0 auto 10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.busy .stage{font-size:13px;color:var(--ink2)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b1720;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:none;z-index:20}
+footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
+    <div class="brand"><b>FormProof</b><span>말·스케치·사진 → 1차 설계 → 물리 최적화</span></div>
+    <nav class="steps" id="steps">
+      <span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>요구사양</span>
+      <span class="step"><i>3</i>1차 설계</span><span class="step"><i>4</i>최적화로 넘기기</span>
+    </nav>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: input -->
+    <section>
+      <div class="card">
+        <h2>아이디어 입력</h2>
+        <p class="sub">말로 쓰고, 옆에서 본 모양을 그리거나 사진을 올려 주세요</p>
+        <textarea id="text" placeholder="예) 자갈길에서도 폰이 안 흔들리게, 최대한 가볍게. 갤럭시 S25 울트라 쓰고 3D 프린터로 뽑을 거야."></textarea>
+        <div class="chips" id="chips"></div>
+        <div class="seg"><button id="mSketch" class="on">스케치</button><button id="mImage">이미지 첨부</button></div>
+        <div id="sketchBox">
+          <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
+            <span class="hint">옆에서 본 모습 · 원 = 핸들바 클램프</span><span class="arrow">진행 방향 →</span></div>
+          <div class="tools">
+            <button class="btn" id="undo">되돌리기</button><button class="btn" id="clear">지우기</button>
+            <select class="btn" id="example"><option value="">예시 스케치…</option></select>
+          </div>
+        </div>
+        <div id="imageBox" style="display:none">
+          <label class="drop" id="drop"><div id="dropInner">종이 스케치 사진이나 실물 사진을 끌어 놓거나 눌러서 선택<br><small>PNG · JPG</small></div>
+            <input type="file" id="file" accept="image/*" hidden></label>
+        </div>
+        <button class="btn primary" id="go">1차 설계 만들기</button>
+      </div>
+
+      <div class="card" id="reqCard">
+        <h2>AI가 정리한 요구사양 <span class="tag">자동 추출</span></h2>
+        <p class="sub" id="reqSub">입력하면 여기에 조건이 정리됩니다</p>
+        <div class="reqs" id="reqs"></div>
+        <div id="questions"></div>
+      </div>
+    </section>
+
+    <!-- CENTER: result -->
+    <section>
+      <div class="card">
+        <div class="tabs">
+          <button class="tab on" data-pane="p3d">3D 모델</button>
+          <button class="tab" data-pane="pside">측면도 · 설계 영역</button>
+          <button class="tab" data-pane="pdraw">2D 도면</button>
+          <span class="tag" id="tplTag" style="margin-left:auto">대기 중</span>
+        </div>
+        <div class="view" id="view">
+          <div class="pane on" id="p3d"><div id="three" style="width:100%;height:100%"></div>
+            <span class="ovl" id="ovl3d">자전거 핸들 위 1차 설계 · 드래그로 회전</span>
+            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button></div></div>
+          <div class="pane" id="pside"><img id="imgSide" alt=""></div>
+          <div class="pane" id="pdraw"><img id="imgDraw" alt=""></div>
+          <div class="empty" id="empty">왼쪽에서 입력하고 <b>&nbsp;1차 설계 만들기</b>를 누르세요</div>
+          <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">선 추출</div></div></div>
+        </div>
+        <div class="flow" id="flow"></div>
+      </div>
+
+      <div class="card">
+        <h2>입력과 비슷한 설계 후보 <span class="tag" id="matchTag">로컬 비전 엔진</span></h2>
+        <p class="sub">눌러서 다른 후보로 바꾸면 1차 설계를 다시 만듭니다</p>
+        <div class="cands" id="cands"><div class="note" style="grid-column:1/-1">스케치나 이미지를 넣으면 후보 3개가 나옵니다. 텍스트만 넣으면 문장에서 형태를 고릅니다.</div></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: performance, conditions, files -->
+    <section>
+      <div class="card">
+        <h2>1차 설계 성능 <span class="tag" id="perfTag">최적화 전</span></h2>
+        <p class="sub">스케치 형상 그대로의 성능. 기준 충족은 물리 최적화 단계에서</p>
+        <div class="kpis"><div class="kpi"><small>질량 (CAD)</small><b id="kMass">–</b></div><div class="kpi"><small>처리 시간 (CPU)</small><b id="kTime">–</b></div></div>
+        <div id="metrics"></div>
+      </div>
+      <div class="card">
+        <h2>설계 변수</h2>
+        <table class="vars" id="vars"><tr><td style="color:var(--ink3)">아직 없음</td><td></td></tr></table>
+      </div>
+      <div class="card">
+        <h2>최적화에 넘길 물리 조건</h2>
+        <p class="sub" id="loadsSub">하중·기준·사용자 요구</p>
+        <div class="cons" id="cons"></div>
+        <details id="assump"><summary>가정 보기</summary><ul id="assumpList"></ul></details>
+      </div>
+      <div class="card">
+        <h2>결과 파일</h2>
+        <div class="files" id="files">
+          <a class="off" data-f="design_1st.step">3D 설계 · STEP</a><a class="off" data-f="design_1st_drawing.pdf">2D 도면 · PDF</a>
+          <a class="off" data-f="design_1st_drawing.dxf">도면 · DXF</a><a class="off" data-f="design_1st.stl">3D 프린트 · STL</a>
+          <a class="off" data-f="spec.json">설계 명세 · JSON</a><a class="off" data-f="problem.npz">해석 문제 · NPZ</a>
+        </div>
+        <button class="btn darkbig" id="handoff" disabled>물리 최적화로 넘기기 (.zip)</button>
+      </div>
+    </section>
+  </div>
+  <footer>오프라인 · CPU 전용 · 로컬 비전 엔진 — 입력 → 1차 설계(STEP·도면) + 물리 조건 명세</footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const S = {mode:'sketch', strokes:[], cur:null, bgImg:null, image:null, last:null, rep:null, tpls:{}};
+const toast = m => {const t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',4200);};
+function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i===n);e.classList.toggle('done',i<n);});}
+
+/* ---------- text examples ---------- */
+const EX = ['자갈길에서도 폰이 안 흔들리게, 최대한 가볍게', 'S25 울트라, 로드 바이크, 튼튼하게', '앞으로 길게 뻗어서 보강대 넣어줘', '여름 땡볕에서도 변형 없고 화면 각도는 자유롭게'];
+EX.forEach(t=>{const b=document.createElement('button');b.className='chip';b.textContent=t;b.onclick=()=>{const a=$('#text');a.value=a.value?a.value.replace(/\s*$/,', ')+t:t;};$('#chips').appendChild(b);});
+
+/* ---------- sketch pad ---------- */
+const pad = $('#pad'), ctx = pad.getContext('2d');
+function redraw(){
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,pad.width,pad.height);
+  if(S.bgImg){const r=Math.min(pad.width/S.bgImg.width,pad.height/S.bgImg.height)*0.92, w=S.bgImg.width*r, h=S.bgImg.height*r;
+    ctx.drawImage(S.bgImg,(pad.width-w)/2,(pad.height-h)/2,w,h);}
+  ctx.strokeStyle='#111'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const s of S.strokes){ctx.beginPath();s.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));if(s.length===1)ctx.lineTo(s[0][0]+0.1,s[0][1]);ctx.stroke();}
+}
+const pt = e => {const r=pad.getBoundingClientRect();return [(e.clientX-r.left)*pad.width/r.width,(e.clientY-r.top)*pad.height/r.height];};
+pad.addEventListener('pointerdown',e=>{pad.setPointerCapture(e.pointerId);S.cur=[pt(e)];S.strokes.push(S.cur);redraw();});
+pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.cur.length-1];if(Math.hypot(p[0]-q[0],p[1]-q[1])>1.5){S.cur.push(p);redraw();}});
+['pointerup','pointercancel','pointerleave'].forEach(n=>pad.addEventListener(n,()=>{S.cur=null;}));
+$('#undo').onclick=()=>{if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();};
+$('#clear').onclick=()=>{S.strokes=[];S.bgImg=null;$('#example').value='';redraw();};
+fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent='예시 '+u.match(/T\d+/)[0];$('#example').appendChild(o);}));
+$('#example').onchange=e=>{if(!e.target.value)return;const im=new Image();im.onload=()=>{S.bgImg=im;S.strokes=[];redraw();};im.src=e.target.value;};
+redraw();
+const hasSketch = () => S.strokes.length>0 || !!S.bgImg;
+
+/* ---------- image attach ---------- */
+$('#mSketch').onclick=()=>{S.mode='sketch';$('#mSketch').classList.add('on');$('#mImage').classList.remove('on');$('#sketchBox').style.display='';$('#imageBox').style.display='none';};
+$('#mImage').onclick=()=>{S.mode='image';$('#mImage').classList.add('on');$('#mSketch').classList.remove('on');$('#imageBox').style.display='';$('#sketchBox').style.display='none';};
+function loadFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>{S.image=rd.result;$('#dropInner').innerHTML=`<img src="${S.image}"><small>${f.name} · 다시 눌러 바꾸기</small>`;};rd.readAsDataURL(f);}
+$('#file').onchange=e=>loadFile(e.target.files[0]);
+const drop=$('#drop');['dragover','dragenter'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+
+/* ---------- 3D viewer (bike scene from master 06_발표/scene/scene.html) ---------- */
+const V3 = {};
+function init3d(){
+  const host=$('#three');
+  THREE.Object3D.DefaultUp.set(0,0,1);
+  const R=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+  R.setPixelRatio(Math.min(window.devicePixelRatio,2)); R.shadowMap.enabled=true; R.shadowMap.type=THREE.PCFSoftShadowMap;
+  R.outputEncoding=THREE.sRGBEncoding; host.appendChild(R.domElement);
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(25,1,5,20000); cam.up.set(0,0,1);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8a9399,0.75));
+  const sun=new THREE.DirectionalLight(0xffffff,1.15);sun.position.set(400,700,2600);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+  Object.assign(sun.shadow.camera,{left:-1600,right:1600,top:1600,bottom:-1600,near:100,far:6000});sun.shadow.bias=-0.0005;scene.add(sun);
+  const fill=new THREE.DirectionalLight(0xdfe9ff,0.35);fill.position.set(-1200,900,600);scene.add(fill);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(20000,20000),new THREE.ShadowMaterial({opacity:0.18}));ground.position.z=-903;ground.receiveShadow=true;scene.add(ground);
+  const M=(c,r=0.5,m=0.1)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+  const frameMat=M(0x1f2a33,0.35,0.35), darkMat=M(0x15191d,0.8,0), alMat=M(0x9aa3ab,0.3,0.8), tireMat=M(0x202326,0.9,0);
+  const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+  function tube(a,b,r,mat,seg=24){const d=new THREE.Vector3().subVectors(b,a);const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),seg),mat);
+    m.position.copy(a).addScaledVector(d,0.5);m.quaternion.setFromUnitVectors(V(0,1,0),d.clone().normalize());m.castShadow=m.receiveShadow=true;return m;}
+  const bike=new THREE.Group();scene.add(bike);
+  const S0=V(-90,0,-40), dH=V(0.309,0,-0.951), Hb=S0.clone().addScaledVector(dH,150), A=V(125,0,-563), Rr=V(-875,0,-563), BB=V(-455,0,-633), ST=V(-607,0,-136), SAD=V(-650,0,-40);
+  const TT=S0.clone().addScaledVector(dH,25);
+  [[ST,TT,16],[BB,Hb,20],[BB,ST,16],[S0,Hb,19]].forEach(p=>bike.add(tube(p[0],p[1],p[2],frameMat)));
+  for(const s of [-38,38]){bike.add(tube(V(BB.x,s*0.6,BB.z),V(Rr.x,s,Rr.z),9,frameMat));bike.add(tube(V(ST.x,s*0.4,ST.z-20),V(Rr.x,s,Rr.z),8,frameMat));bike.add(tube(V(Hb.x,s*0.8,Hb.z),V(A.x,s*1.2,A.z),11,frameMat));}
+  bike.add(tube(ST,SAD,13,alMat));
+  const saddle=new THREE.Mesh(new THREE.BoxGeometry(260,70,40),darkMat);saddle.position.set(SAD.x-10,0,SAD.z+18);saddle.castShadow=true;bike.add(saddle);
+  bike.add(tube(S0,V(0,0,0),17,frameMat));bike.add(tube(V(0,-30,0),V(0,30,0),22,frameMat));
+  bike.add(tube(V(0,-360,0),V(0,-230,0),17.5,darkMat));bike.add(tube(V(0,230,0),V(0,360,0),17.5,darkMat));
+  for(const s of [-1,1])bike.add(tube(V(0,s*215,0),V(70,s*235,-40),7,darkMat));
+  function wheel(c){const g=new THREE.Group();const t=new THREE.Mesh(new THREE.TorusGeometry(326,15,20,120),tireMat);t.rotation.x=Math.PI/2;t.castShadow=true;g.add(t);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(305,8,12,120),alMat);rim.rotation.x=Math.PI/2;g.add(rim);g.add(tube(V(0,-35,0),V(0,35,0),18,alMat));
+    for(let i=0;i<24;i++){const a=i/24*Math.PI*2,s=i%2?35:-35;g.add(tube(V(0,s,0),V(300*Math.cos(a),0,300*Math.sin(a)),1.2,alMat,6));}g.position.copy(c);return g;}
+  bike.add(wheel(A));bike.add(wheel(Rr));
+  const ring=new THREE.Mesh(new THREE.CylinderGeometry(95,95,6,48),alMat);ring.position.set(BB.x,-60,BB.z);bike.add(ring);
+  bike.add(tube(V(BB.x,-66,BB.z),V(BB.x+60,-70,BB.z-160),9,alMat));bike.add(tube(V(BB.x,66,BB.z),V(BB.x-60,70,BB.z+160),9,alMat));
+  const handlebar=new THREE.Group();scene.add(handlebar);               // bar stays visible in close-up
+  V3.barMesh=tube(V(0,-360,0),V(0,360,0),15.9,alMat,48);handlebar.add(V3.barMesh);
+  const ctl=new THREE.OrbitControls(cam,R.domElement);ctl.enableDamping=true;ctl.dampingFactor=0.12;
+  Object.assign(V3,{R,scene,cam,ctl,bike,ground,M,tube,V,darkMat,mount:null,holder:null});
+  const fit=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;R.setSize(w,h,false);R.domElement.style.width=w+'px';R.domElement.style.height=h+'px';cam.aspect=w/h;cam.updateProjectionMatrix();};
+  new ResizeObserver(fit).observe(host);fit();
+  view('full');
+  (function loop(){requestAnimationFrame(loop);ctl.update();R.render(scene,cam);})();
+}
+function view(kind){
+  const {cam,ctl}=V3, close=kind==='close';
+  if(close){cam.fov=20;cam.position.set(420,560,-60);ctl.target.set(70,50,5);}
+  else{cam.fov=25;cam.position.set(1500,2600,700);ctl.target.set(-380,0,-420);}
+  cam.updateProjectionMatrix();ctl.update();$('#vClose').classList.toggle('on',close);V3.kind=kind;
+}
+function showMount(rep){
+  const {scene,M,V}=V3;
+  if(V3.mount){scene.remove(V3.mount);V3.mount.geometry.dispose();}
+  if(V3.holder){scene.remove(V3.holder);}
+  const b=atob(rep.mesh.pos),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();
+  V3.mount=new THREE.Mesh(g,M(0x2aa3a6,0.45,0.05));V3.mount.castShadow=V3.mount.receiveShadow=true;scene.add(V3.mount);
+  // phone + commercial clamp stand-in at the spec's phone centre of gravity
+  const ph=rep.phone, ys=rep.geometry.y_sym, padTop=rep.geometry.pad.z[1], e=ph.clamp_t+ph.D/2, jz=ph.cog[1]-e;
+  const hold=new THREE.Group();scene.add(hold);V3.holder=hold;
+  const post=new THREE.Mesh(new THREE.BoxGeometry(10,12,Math.max(jz-padTop,2)),V3.darkMat);post.position.set(ph.cog[0],ys,(padTop+jz)/2);post.castShadow=true;hold.add(post);
+  const pg=new THREE.Group();pg.position.set(ph.cog[0],ys,ph.cog[1]);pg.rotation.y=-0.28;hold.add(pg);
+  const cradle=new THREE.Mesh(new THREE.BoxGeometry(ph.H*0.68,ph.W*0.76,5),V3.darkMat);cradle.position.z=-ph.D/2-3;cradle.castShadow=true;pg.add(cradle);
+  for(const s of [-1,1]){const j=new THREE.Mesh(new THREE.BoxGeometry(14,10,ph.D+10),V3.darkMat);j.position.set(0,s*(ph.W/2+4),0);pg.add(j);}
+  const body=new THREE.Mesh(new THREE.BoxGeometry(ph.H,ph.W,ph.D),M(0x2b2f36,0.35,0.6));body.castShadow=true;pg.add(body);
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(ph.H-10,ph.W-8),new THREE.MeshStandardMaterial({color:0x0b2540,emissive:0x05182b,emissiveIntensity:0.4,roughness:0.2}));scr.position.z=ph.D/2+0.1;pg.add(scr);
+  hold.visible=$('#vPhone').classList.contains('on');
+  view('close');
+}
+$('#vBike').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);V3.bike.visible=on;V3.ground.visible=on;};
+$('#vPhone').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);if(V3.holder)V3.holder.visible=on;};
+$('#vClose').onclick=()=>view(V3.kind==='close'?'full':'close');
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.toggle('on',x===t));$$('.pane').forEach(p=>p.classList.toggle('on',p.id===t.dataset.pane));});
+init3d();
+fetch('/api/templates').then(r=>r.json()).then(l=>l.forEach(t=>S.tpls[t.id]=t));
+
+/* ---------- run ---------- */
+const STAGES=['선 추출','핸들 원 찾기 · 축척','템플릿 비교','설계 명세 · 물리 조건','CAD · 도면 생성','1차 성능 계산'];
+async function run(template){
+  const text=$('#text').value.trim();
+  const req={text};
+  if(template&&S.last){Object.assign(req,S.last);req.template=template;}
+  else{
+    if(S.mode==='sketch'&&hasSketch())req.sketch=pad.toDataURL('image/png');
+    if(S.mode==='image'&&S.image)req.image=S.image;
+    if(!req.sketch&&!req.image&&!text){toast('문장을 쓰거나, 스케치를 그리거나, 이미지를 올려 주세요.');return;}
+    S.last={...req};
+  }
+  setStep(1);$('#go').disabled=true;$('#empty').style.display='none';$('#busy').classList.add('on');
+  let k=0;$('#stage').textContent=STAGES[0];const tick=setInterval(()=>{k=Math.min(k+1,STAGES.length-1);$('#stage').textContent=STAGES[k];},450);
+  try{
+    const r=await fetch('/api/design',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
+    const rep=await r.json(); if(!r.ok)throw new Error(rep.error||r.statusText);
+    S.rep=rep; render(rep, req);
+    setStep(2);
+  }catch(err){toast(err.message);setStep(0);if(!S.rep)$('#empty').style.display='';}
+  finally{clearInterval(tick);$('#busy').classList.remove('on');$('#go').disabled=false;}
+}
+$('#go').onclick=()=>run();
+
+const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
+const QN={natural_frequency_hz:['1차 고유진동수','Hz'],von_mises_max_mpa:['충격 최대 응력','MPa'],layer_normal_tension_mpa:['층간 인장 응력','MPa'],
+  min_member_thickness_mm:['최소 부재 두께','mm'],phone_clearance_mm:['폰 회전·기울기 간격','mm'],joint_rot_stiffness_Nm_per_rad:['관절 회전 강성','N·m/rad'],
+  joint_hold_torque_Nm:['관절 유지 토크','N·m'],parked_surface_temp_c:['주차 표면온도','°C']};
+function render(rep, req){
+  const s=rep.summary, t=rep.template, c=rep.first_design_check;
+  // requirements card
+  const items=[['제품',s.product],['노면',s.road],['진동 · 충격',`${s.vib} · ${s.shock_g} g`],['폰',`${s.phone} (+클램프 ${s.point_mass_g} g)`],
+    ['핸들바',`Ø${s.bar_d} mm`],['목표',s.objective],['안전율',s.safety_factor],['재료',s.material]];
+  if(s.requirements.length)items.push(['추가 요구',s.requirements.join(' · '),'wide']);
+  $('#reqs').innerHTML=items.map(([k,v,w])=>`<div class="req ${w||''}"><small>${k}</small><b>${v}</b></div>`).join('');
+  $('#reqSub').textContent=rep.text.fired.length?`문장에서 ${rep.text.fired.length}개 조건을 읽었습니다`:'문장 조건 없음 → 기본값 사용';
+  $('#questions').innerHTML=rep.text.questions.map(q=>`<div class="q">${q}</div>`).join('');
+  // template tag + flow
+  const m=t.match, conf=m?m.candidates[0].confidence:null;
+  $('#tplTag').className='tag blue';$('#tplTag').textContent=`${t.id} ${t.name} · ${t.chosen_by}`;
+  const fl=m?[`입력: ${m.source}`, m.frame==='ring'?`핸들 원 기준 축척 (원 검출 ${Math.round(m.ring_score*100)}%)`:'윤곽 상자 기준 (원 미검출)', `후보 ${m.candidates.length}개 비교`]:['입력: 문장'];
+  fl.push(`명세 · 해석 격자 ${rep.problem.elements.design.toLocaleString()} 요소`,`STEP ${rep.cad.mass_g} g`,`도면 ${rep.drawing.sheet} ${rep.drawing.scale}`);
+  $('#flow').innerHTML=fl.map(x=>`<span class="ok">✓ ${x}</span>`).join('');
+  // candidates
+  if(m){
+    const thumb=req.sketch||req.image;
+    $('#cands').innerHTML=`<div class="cand input"><img src="${thumb}"><div class="t">입력</div><div class="s">${m.source}</div></div>`+
+      m.candidates.map((x,i)=>`<button class="cand ${x.id===t.id?'on':''}" data-id="${x.id}"><img src="${(S.tpls[x.id]||{}).thumb||''}"><div class="t">${x.id} ${x.name}</div><div class="s">${i===0?'가장 비슷함':'유사도 '+Math.round(x.confidence*100)+'%'}</div></button>`).join('');
+    $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
+  }else{
+    $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">문장에서 형태를 골랐습니다: <b>${t.id} ${t.name}</b> — ${t.desc}. 스케치나 이미지를 넣으면 비슷한 후보를 비교합니다.</div>`;
+  }
+  // 3D + images
+  showMount(rep);
+  $('#imgSide').src=rep.files['side_view.png'];$('#imgDraw').src=rep.files['design_1st_drawing.png'];
+  // performance
+  $('#kMass').textContent=`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
+  const ck=c.checks, rows=[];
+  if(ck.f1){const v=ck.f1.value,l=+ck.f1.limit.split(' ')[1];rows.push(['1차 고유진동수',`${fmt(v)} Hz`,`기준 ≥ ${l}`,Math.min(v/l,1),ck.f1.pass]);}
+  if(ck.stress){const v=ck.stress.value,l=+ck.stress.limit.split(' ')[1];rows.push(['충격 최대 응력',`${fmt(v)} MPa`,`기준 ≤ ${l}`,Math.min(l/v,1),ck.stress.pass]);}
+  if(ck.interlayer){const v=ck.interlayer.value,l=+ck.interlayer.limit.split(' ')[1];rows.push(['층간 인장 응력',`${fmt(v)} MPa`,`기준 ≤ ${l}`,Math.min(l/Math.max(v,1e-6),1),ck.interlayer.pass]);}
+  $('#metrics').innerHTML=rows.map(([n,v,l,r,ok])=>`<div class="metric"><div class="row"><span>${n}</span><b style="color:${ok?'var(--green)':'var(--red)'}">${v}</b></div>
+    <div class="bar"><i class="${ok?'':'bad'}" style="width:${Math.max(r*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>${l}</span><span>${ok?'충족':'최적화 대상'}</span></div></div>`).join('')+
+    `<div class="note">1차 설계는 스케치 형상(팔 두께 ${rep.design_vars.arm_t} mm)을 그대로 옮긴 것입니다. 기준을 맞추는 일은 다음 단계(물리 최적화)가 합니다.</div>`;
+  $('#perfTag').className='tag '+(c.pass?'green':'amber');$('#perfTag').textContent=c.pass?'기준 충족':'최적화 전 · 미충족';
+  // variables
+  const dv=rep.design_vars, ARM={straight:'곧은 팔',L:'L자 팔',truss:'트러스',low:'낮은 팔',stalk:'기둥형',under:'아래 우회'};
+  $('#vars').innerHTML=[['핸들바 직경',`Ø${dv.bar_d} mm`],['클램프 폭',`${dv.width} mm`],['도달 거리 (핸들 중심 → 받침)',`${dv.reach} mm`],['받침 높이 (핸들 중심 기준)',`${dv.pad_top} mm`],
+    ['팔 형식',ARM[dv.arm]||dv.arm],['팔 두께',`${dv.arm_t} mm`],['폰 + 클램프',`${dv.point_mass_g} g`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  // hand-off conditions
+  $('#loadsSub').textContent=`하중: 노면 진동 ${s.vib}, 위아래·옆 충격 ${s.shock_g} g, 폰 ${s.point_mass_g} g`;
+  const reqWarn=rep.handoff_requirements.flatMap(h=>h.warnings);
+  $('#cons').innerHTML=rep.criteria.map(x=>{const [q,op,...v]=x.rule.split(' ');const nm=QN[q]||[q,''];return `<div class="con ${x.requirement?'req':''}"><b>${nm[0]} ${op} ${v.join(' ')} ${nm[1]}</b><small>${x.why||''}${x.requirement?' · 사용자 요구':''}</small></div>`;}).join('')+
+    reqWarn.map(w=>`<div class="warn">${w}</div>`).join('');
+  $('#assumpList').innerHTML=rep.assumptions.map(a=>`<li>${a}</li>`).join('');
+  // files
+  $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f){a.href=f+'?dl=1';}});
+  const h=$('#handoff');h.disabled=false;h.onclick=()=>{location.href=rep.files['handoff.zip']+'?dl=1';setStep(3);};
+}
+</script>
+</body>
+</html>
