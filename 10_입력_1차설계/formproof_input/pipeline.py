@@ -26,8 +26,9 @@ _MATCHER = None
 def matcher():
     global _MATCHER
     if _MATCHER is None:
+        from . import skeleton_db
         from .sketch import Matcher
-        _MATCHER = Matcher(TEMPLATES)
+        _MATCHER = Matcher(TEMPLATES, refs=skeleton_db.load(TEMPLATES))      # stored skeleton DB if it matches the library
     return _MATCHER
 
 

@@ -30,6 +30,11 @@ SHAPE_HINTS = [
     ("low", r"낮게|핸들\s*높이", dict(pad_z0=0.0)),
     ("truss", r"보강|지지대|삼각", dict(arm="truss")),
     ("bent", r"꺾|ㄱ자|L자", dict(arm="L")),
+    ("outfront", r"아웃\s*프론트|컴퓨터\s*마운트|속도계\s*자리", dict(arm="step")),
+    ("gooseneck", r"구스넥|거위\s*목|비스듬히\s*올", dict(arm="dogleg", pad_z0=40.0)),
+    ("bartop", r"핸들\s*(바로\s*)?위|바\s*위|직결|스템\s*위", dict(arm="riser", pad_x0=-10.0, pad_z0=28.0)),
+    ("vee", r"V자|브이자|두\s*팔|양쪽\s*팔", dict(arm="vee")),
+    ("under", r"아래로\s*돌|밑으로|아래쪽으로\s*우회", dict(arm="under", pad_z0=30.0)),
 ]
 
 

@@ -30,7 +30,8 @@ DEFAULT = dict(
     above_margin=4.0,     # design space allowed above pad top (behind the phone)
     holder_gap=2.0,       # keep this much clear in front of pad start above the pad
     design_w=40.0,        # full width of the design space
-    arm="straight",       # initial (1st) design arm: straight | L | truss | low | stalk | under
+    arm="straight",       # 1st-design arm: straight | L | truss | low | stalk | under | riser | dogleg | step | vee
+    knee_frac=0.4,        # 'dogleg' arm: knee position as a fraction of the reach
     stalk_base_z=-10.0,   # 'stalk' arm: height where the low arm meets the vertical stalk
     domain_z_min=None,    # extend the design space downward (mm); None = just below the bolt ears
     arm_t=6.0,            # arm thickness in the side view
@@ -117,6 +118,18 @@ def _arm_segments_raw(p, ro):
         a = math.radians(-60.0)
         s0 = ((ro - p["arm_t"] / 2) * math.cos(a), (ro - p["arm_t"] / 2) * math.sin(a))
         return [(s0, (s0[0], zb)), ((s0[0], zb), (xc, zb)), ((xc, zb), (xc, zp + p["pad_t"] / 2))]
+    tgt_pad = (xp + 2.0, zp + p["pad_t"] / 2)
+    if style == "riser":                              # bar-top clamp: short vertical stub, pad centred over the bar
+        return [(start, (0.0, zp + p["pad_t"] / 2))]
+    if style == "dogleg":                             # gooseneck: rises diagonally to pad height, then runs forward
+        knee = (xp * p["knee_frac"], zp + p["pad_t"] / 2)
+        return [(start, knee), (knee, tgt_pad)]
+    if style == "step":                               # out-front: forward at bar height from the ring front, then up to the pad
+        s0 = (ro - p["arm_t"] / 2, 0.0)
+        foot = (xp + p["pad_len"] / 2, 0.0)
+        return [(s0, foot), (foot, (foot[0], zp + p["pad_t"] / 2))]
+    if style == "vee":                                # two arms (ring top and ring front) meeting at the pad
+        return [(start, tgt_pad), ((ro - p["arm_t"] / 2, 0.0), tgt_pad)]
     if style == "low":                                # leaves the ring front, straight toward a low pad
         tgt = (xp + 2.0, zp + p["pad_t"] / 2)
         n = math.hypot(*tgt)
@@ -150,7 +163,7 @@ def build_spec(params=None, template_id="custom", meta=None):
     post_x1 = _snap(pad_x0 + p["post_x"][1], 0.0, h)
     z_above = max(pad_z1 + p["above_margin"], _snap(ro + 2.0, 0.0, h, outward=1))   # never cut the ring
     z_top = max(_snap(pad_z1 + p["post_h"], 0.0, h), z_above + 2 * h)
-    x_max = pad_x1
+    x_max = max(pad_x1, _snap(ro + 2.0, 0.0, h, outward=1))      # pad over the bar (riser): keep the whole ring in the grid
     ny = int(round(p["design_w"] / 2 / h))
     nx = int(round((x_max - x_min) / h))
     nz = int(round((z_top - z_min) / h))

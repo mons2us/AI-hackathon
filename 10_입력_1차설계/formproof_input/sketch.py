@@ -65,6 +65,29 @@ def template_strokes(params, phone=True):
     return strokes
 
 
+def template_skeleton(params, phone=True):
+    """Centre-line skeleton of the side view in mm: what a quick one-line sketch looks like.
+    Returns named polylines: ring (closed), ears, arm members, pad, and optionally the phone."""
+    p = dict(DEFAULT)
+    p.update(params)
+    bore = p["bar_d"] / 2 + p["bore_gap"]
+    ro = bore + p["ring_t"]
+    ear_top, ear_bot = -bore + 2.0, -bore + 2.0 - p["ear_len"]
+    xe = (p["ear_x"][0] + p["ear_x"][1]) / 2
+    out = [("ring", _circle(bore + p["ring_t"] / 2))]
+    out += [("ear", np.array([[sx * xe, ear_top], [sx * xe, ear_bot]], float)) for sx in (-1, 1)]
+    out += [("arm", np.array([a, b], float)) for a, b in _arm_segments(p, ro)]
+    x0, x1 = p["pad_x0"], p["pad_x0"] + p["pad_len"]
+    zm = p["pad_z0"] + p["pad_t"] / 2
+    out.append(("pad", np.array([[x0, zm], [x1, zm]], float)))
+    if phone:
+        L = ev.PHONES.get(p["phone"], {}).get("dims", (160.0,))[0]
+        xc, z1 = (x0 + x1) / 2, p["pad_z0"] + p["pad_t"]
+        out.append(("stem", np.array([[xc, z1], [xc, z1 + 12.0]], float)))
+        out.append(("phone", np.array([[xc - L / 2, z1 + 12.0], [xc + L / 2, z1 + 12.0]], float)))
+    return out
+
+
 # ------------------------------------------------------------------ geometry helpers
 def _resample(poly, step):
     poly = np.asarray(poly, float)
@@ -195,16 +218,26 @@ class Matcher:
 
     ROTATIONS = (-8, -4, 0, 4, 8)  # hand sketches are rarely level; search small tilts about the ring
 
-    def __init__(self, templates, w_hist=2.0):
+    def __init__(self, templates, w_hist=2.0, refs=None):
         self.templates = templates
         self.w_hist = w_hist           # tuned on synthetic sketches (README: matcher accuracy)
-        self.refs = {"ring": [], "bbox": []}
+        self.refs = refs or self.build_refs(templates)
+
+    @staticmethod
+    def build_refs(templates):
+        """Reference maps per template: outline and centre-line skeleton, each with / without the phone,
+        in the ring frame and in the bounding-box frame."""
+        refs = {"ring": [], "bbox": []}
         for i, t in enumerate(templates):
             ro = ring_radius(t["params"])
-            for ph in (False, True):
-                pts = strokes_to_points(template_strokes(t["params"], phone=ph), ro / 20)
-                self.refs["ring"].append(dict(t=i, phone=ph, **_feat(canonical_map(pts, np.zeros(2), ro))))
-                self.refs["bbox"].append(dict(t=i, phone=ph, **_feat(bbox_map(pts))))
+            for style in ("outline", "skeleton"):
+                for ph in (False, True):
+                    strokes = (template_strokes(t["params"], phone=ph) if style == "outline"
+                               else [s for _, s in template_skeleton(t["params"], phone=ph)])
+                    pts = strokes_to_points(strokes, ro / 20)
+                    refs["ring"].append(dict(t=i, phone=ph, style=style, **_feat(canonical_map(pts, np.zeros(2), ro))))
+                    refs["bbox"].append(dict(t=i, phone=ph, style=style, **_feat(bbox_map(pts))))
+        return refs
 
     def query_maps(self, pts):
         """Candidate query canvases: ring frame (both mirrors) if a ring is found, else bbox frame."""
