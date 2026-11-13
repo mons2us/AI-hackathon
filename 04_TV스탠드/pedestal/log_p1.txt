@@ -1,0 +1,16 @@
+{"it": 0, "beta": 1, "mass_kg": 2.409, "sag": 0.1894, "utop_fb": 2.916, "utop_lat": 1.367, "t": 16}
+{"it": 10, "beta": 1, "mass_kg": 2.384, "sag": 0.0775, "utop_fb": 0.992, "utop_lat": 0.718, "t": 170}
+{"it": 20, "beta": 1, "mass_kg": 2.093, "sag": 0.0804, "utop_fb": 0.999, "utop_lat": 0.723, "t": 321}
+{"it": 30, "beta": 2, "mass_kg": 2.028, "sag": 0.0795, "utop_fb": 0.996, "utop_lat": 0.709, "t": 472}
+{"it": 40, "beta": 2, "mass_kg": 2.007, "sag": 0.081, "utop_fb": 1.0, "utop_lat": 0.728, "t": 629}
+{"it": 50, "beta": 2, "mass_kg": 2.005, "sag": 0.0816, "utop_fb": 1.0, "utop_lat": 0.734, "t": 783}
+{"it": 60, "beta": 4, "mass_kg": 1.997, "sag": 0.0805, "utop_fb": 0.988, "utop_lat": 0.725, "t": 935}
+{"it": 70, "beta": 4, "mass_kg": 1.981, "sag": 0.0831, "utop_fb": 1.0, "utop_lat": 0.754, "t": 1083}
+{"it": 80, "beta": 4, "mass_kg": 1.98, "sag": 0.0841, "utop_fb": 1.0, "utop_lat": 0.766, "t": 1231}
+{"it": 90, "beta": 8, "mass_kg": 1.979, "sag": 0.0821, "utop_fb": 0.981, "utop_lat": 0.746, "t": 1380}
+{"it": 100, "beta": 8, "mass_kg": 1.954, "sag": 0.0854, "utop_fb": 1.0, "utop_lat": 0.786, "t": 1535}
+{"it": 110, "beta": 8, "mass_kg": 1.954, "sag": 0.0855, "utop_fb": 1.0, "utop_lat": 0.787, "t": 1690}
+{"it": 120, "beta": 16, "mass_kg": 1.956, "sag": 0.0838, "utop_fb": 0.988, "utop_lat": 0.769, "t": 1844}
+{"it": 130, "beta": 16, "mass_kg": 1.939, "sag": 0.0858, "utop_fb": 1.001, "utop_lat": 0.796, "t": 1998}
+{"it": 140, "beta": 16, "mass_kg": 1.939, "sag": 0.0859, "utop_fb": 1.0, "utop_lat": 0.798, "t": 2149}
+{"it": 149, "beta": 16, "mass_kg": 1.939, "sag": 0.0859, "utop_fb": 1.0, "utop_lat": 0.798, "t": 2287}

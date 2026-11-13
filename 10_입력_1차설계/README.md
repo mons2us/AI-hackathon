@@ -1,4 +1,4 @@
-# 07_입력_1차설계 — 요청(텍스트·스케치·사진) → 1차 설계 + 물리 조건 명세
+# 10_입력_1차설계 — 요청(텍스트·스케치·사진) → 1차 설계 + 물리 조건 명세
 
 물리 단계(최적화·수치해석) **앞의 모든 것**을 담당합니다. 사내 환경을 고려해 LLM·GPU 없이 CPU만으로 동작합니다.
 
@@ -33,7 +33,7 @@ python tests/run_all.py                                                   # 전�
 **최적화 코드 연결**: `opt3d.py` 앞부분(문제 정의)을 아래 한 줄로 바꾸면 같은 변수(`design, solid, post, fixn, plane, topn, tipm, edof, FT …`)가 명세에서 만들어집니다. 기본 템플릿은 현재 `opt3d.py`와 **요소·절점 단위로 동일**합니다(테스트로 확인).
 
 ```python
-sys.path.insert(0, "../../07_입력_1차설계")
+sys.path.insert(0, "../../10_입력_1차설계")
 from formproof_input.adapter import opt3d_namespace
 globals().update(opt3d_namespace("out/spec.json"))
 ```
