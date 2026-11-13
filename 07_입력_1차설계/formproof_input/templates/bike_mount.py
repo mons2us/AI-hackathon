@@ -30,7 +30,9 @@ DEFAULT = dict(
     above_margin=4.0,     # design space allowed above pad top (behind the phone)
     holder_gap=2.0,       # keep this much clear in front of pad start above the pad
     design_w=40.0,        # full width of the design space
-    arm="straight",       # initial (1st) design arm: straight | L | truss | low
+    arm="straight",       # initial (1st) design arm: straight | L | truss | low | stalk | under
+    stalk_base_z=-10.0,   # 'stalk' arm: height where the low arm meets the vertical stalk
+    domain_z_min=None,    # extend the design space downward (mm); None = just below the bolt ears
     arm_t=6.0,            # arm thickness in the side view
     bolt_d=4.5,           # M4 clearance holes through the ears (axis x), team v7
     bolt_z=7.0,           # bolt axis height above the ear bottom
@@ -43,6 +45,11 @@ DEFAULT = dict(
     objective="min_mass",
     safety_factor=None,   # None -> evidence.FACTORS
     include_self_inertia=False,   # team v7 ignores bracket self-inertia in shock cases
+    phone_clamp_t=8.0,    # phone back face above the joint axis (clamp body), assumed
+    colour="black",       # print colour -> solar absorptance (sun requirement)
+    requirements=(),      # user requirement ids (formproof_input.requirements)
+    angle_tilt=(-30.0, 60.0),   # free_angle: tilt range kept clear (deg, + = toward the rider)
+    angle_margin=3.0,     # free_angle: clearance around the moving phone (mm)
 )
 
 
@@ -97,6 +104,18 @@ def _arm_segments_raw(p, ro):
         lower = (ro - p["arm_t"] / 2, 0.0)
         mid = (xp * 0.6, zp + p["pad_t"] / 2)
         return [(start, (xp + 2.0, zp + p["pad_t"] / 2)), (lower, mid)]
+    if style == "stalk":                              # under the phone: low arm to a vertical stalk below the joint
+        xc = xp + p["pad_len"] / 2
+        zb = p["stalk_base_z"]
+        n = math.hypot(xc, zb)
+        s2 = ((ro - p["arm_t"] / 2) * xc / n, (ro - p["arm_t"] / 2) * zb / n)
+        return [(s2, (xc, zb)), ((xc, zb), (xc, zp + p["pad_t"] / 2))]
+    if style == "under":                              # down from the ring, forward under the phone's space, up a stalk
+        xc = xp + p["pad_len"] / 2
+        zb = p["stalk_base_z"]
+        a = math.radians(-60.0)
+        s0 = ((ro - p["arm_t"] / 2) * math.cos(a), (ro - p["arm_t"] / 2) * math.sin(a))
+        return [(s0, (s0[0], zb)), ((s0[0], zb), (xc, zb)), ((xc, zb), (xc, zp + p["pad_t"] / 2))]
     if style == "low":                                # leaves the ring front, straight toward a low pad
         tgt = (xp + 2.0, zp + p["pad_t"] / 2)
         n = math.hypot(*tgt)
@@ -112,14 +131,16 @@ def build_spec(params=None, template_id="custom", meta=None):
     R = p["bar_d"] / 2
     bore = R + p["bore_gap"]
     ro = bore + p["ring_t"]
-    yw = Y_SYM + p["clamp_w"] / 2
-    ypost = Y_SYM + p["post_w"] / 2
+    yw = _snap(Y_SYM + p["clamp_w"] / 2, Y_SYM, p["h"], outward=1)        # y bounds on grid lines too
+    ypost = _snap(Y_SYM + p["post_w"] / 2, Y_SYM, p["h"], outward=1)
 
     # grid origin on the frame: x lines on multiples of h, y lines from Y_SYM, z lines on multiples of h
     ear_top = _snap(-bore + 2.0, 0.0, h)
     ear_bot = _snap(ear_top - p["ear_len"], 0.0, h)
     x_min = _snap(-(ro + 2.0), 0.0, h, outward=-1)
     z_min = _snap(min(ear_bot, -ro) - 2.0, 0.0, h, outward=-1)
+    if p["domain_z_min"] is not None:
+        z_min = min(z_min, _snap(p["domain_z_min"], 0.0, h, outward=-1))
     pad_x0 = _snap(p["pad_x0"], 0.0, h)
     pad_x1 = _snap(p["pad_x0"] + p["pad_len"], 0.0, h)
     pad_z0 = _snap(p["pad_z0"], 0.0, h)
@@ -144,7 +165,7 @@ def build_spec(params=None, template_id="custom", meta=None):
         dict(name="post", role="rigid", stiffness_scale=20.0, mass_scale=0.0,
              shape=[box(x=[post_x0, post_x1], z=[pad_z1, None], y=[None, ypost])],
              why="시판 폰 클램프(강체 가정, 질량은 point_masses에 포함)"),
-        dict(name="holder", role="void", shape=[box(x=[pad_x0 - p["holder_gap"], None], z=[pad_z1, None])],
+        dict(name="holder", role="void", shape=[box(x=[_snap(pad_x0 - p["holder_gap"], 0.0, h), None], z=[pad_z1, None])],
              minus=["post"], why="폰이 놓이는 공간"),
         dict(name="above", role="void", shape=[box(z=[z_above, None])], minus=["post"],
              why="폰 뒤 공간은 받침판 위 일정 높이까지만 허용"),
@@ -160,6 +181,7 @@ def build_spec(params=None, template_id="custom", meta=None):
     arm = [{"seg": dict(plane="xz", p0=list(a), p1=list(b), t=p["arm_t"], y=[None, yw])}
            for a, b in _arm_segments(p, ro)]
 
+    dims_pre = ev.PHONES[p["phone"]]["dims"] if p["phone"] in ev.PHONES else ev.PHONE_DEFAULT_DIMS
     # resolved CAD geometry (mm, same snapped values the analysis grid uses) — single source for STEP / drawing
     geometry = dict(
         frame="x 앞(진행 방향), z 위, y 핸들바 축. 핸들바 중심 (x=0, z=0), 대칭면 y=%.1f" % Y_SYM,
@@ -170,9 +192,19 @@ def build_spec(params=None, template_id="custom", meta=None):
         pad=dict(x=[pad_x0, pad_x1], z=[pad_z0, pad_z1]),
         mount_hole=dict(d=p["mount_hole_d"], x=(pad_x0 + pad_x1) / 2, y=Y_SYM),
         arm=dict(style=p["arm"], t=p["arm_t"], segments=[[list(a), list(b)] for a, b in _arm_segments(p, ro)]),
-        clip=dict(holder_x=pad_x0 - p["holder_gap"], holder_z=pad_z1, z_above=z_above),
+        clip=dict(holder_x=_snap(pad_x0 - p["holder_gap"], 0.0, h), holder_z=pad_z1, z_above=z_above),
         holes_in_analysis=False,
     )
+
+    if "free_angle" in p["requirements"]:
+        e_j = p["phone_clamp_t"] + (dims_pre[2] / 2)
+        regions.append(dict(
+            name="phone_sweep", role="void", minus=["post", "pad", "contact", "ears"],
+            shape=[{"phone_sweep": dict(joint=[(post_x0 + post_x1) / 2, Y_SYM, z_top - e_j], H=dims_pre[0], W=dims_pre[1],
+                                        D=dims_pre[2], clamp_t=p["phone_clamp_t"], margin=p["angle_margin"],
+                                        tilt_lo=p["angle_tilt"][0], tilt_hi=p["angle_tilt"][1], rot_deg=360.0, rot_step=15.0,
+                                        tilt_step=4.0)}],
+            why="요구 '화면 각도 자유롭게': 폰이 360° 회전·기울기 범위에서 지나가는 공간(비울 곳)"))
 
     mat = ev.MATERIALS[p["material"]]
     road = ev.ROADS.get(p["road"])
@@ -190,6 +222,10 @@ def build_spec(params=None, template_id="custom", meta=None):
     if p["phone_mass_kg"]:
         m_phone, phone_src, phone_name = p["phone_mass_kg"], "user", "사용자 입력 폰"
     m_total = m_phone + ev.PHONE_CLAMP_MASS
+    dims = ev.PHONES[p["phone"]]["dims"] if p["phone"] in ev.PHONES else ev.PHONE_DEFAULT_DIMS
+    geometry["phone"] = dict(name=phone_name, H=dims[0], W=dims[1], D=dims[2], mass_kg=round(m_total, 4),
+                             cog=[(post_x0 + post_x1) / 2, z_top], clamp_t=p["phone_clamp_t"],
+                             dims_source=phone_src if p["phone"] in ev.PHONES else "assumed")
 
     spec = {
         "schema": "formproof.spec/0.1",
@@ -221,6 +257,8 @@ def build_spec(params=None, template_id="custom", meta=None):
              "source": "assumed:lateral_equals_vertical"},
         ],
         "objective": {"type": p["objective"]},
+        "finish": {"colour": p["colour"]},
+        "requirements": list(p["requirements"]),
         "constraints": [
             {"id": "f1", "quantity": "natural_frequency_hz", "op": ">=", "value": round(f_min, 1),
              "load_case": "road_vibration",
@@ -247,4 +285,38 @@ def build_spec(params=None, template_id="custom", meta=None):
         ] + ([f"요청한 노면('{p['road']}')은 측정 근거가 없어 자갈길 값으로 대체(보수적)"] if road_status == "fallback" else [])
           + ([] if p["include_self_inertia"] else ["충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장"]),
     }
+    _add_requirement_conditions(spec, p, f_min, road)
     return spec
+
+
+def _add_requirement_conditions(spec, p, f_min, road):
+    """Constraints that user requirements add (formproof_input.requirements); values derived here, judged later."""
+    req = set(p["requirements"])
+    ph = spec["geometry"]["phone"]
+    if "free_angle" in req:
+        m = ph["mass_kg"]
+        e = (ph["clamp_t"] + ph["D"] / 2) / 1000
+        lo, hi = p["angle_tilt"]
+        I_p = m * ((ph["H"] / 1000) ** 2 + (ph["D"] / 1000) ** 2) / 12 + m * e ** 2      # portrait pitch about joint
+        k_req = (2 * math.pi * f_min) ** 2 * I_p
+        torque = m * road["peak_g"] * 9.81 * e * math.sin(math.radians(max(abs(lo), abs(hi))))
+        spec["constraints"] += [
+            {"id": "pose_clearance", "quantity": "phone_clearance_mm", "op": ">=", "value": p["angle_margin"],
+             "poses": {"rotate_deg": 360, "tilt_deg": [lo, hi]}, "keep_out_region": "phone_sweep",
+             "requirement": "free_angle", "source": ["assumed:target_range"]},
+            {"id": "joint_stiffness", "quantity": "joint_rot_stiffness_Nm_per_rad", "op": ">=", "value": round(k_req, 1),
+             "derivation": f"(2π·{f_min})² × I_joint, I_joint = m(H²+D²)/12 + m·e² = {I_p:.2e} kg·m² (세로, 관절이 폰 뒤 {e*1000:.0f} mm)",
+             "requirement": "free_angle", "source": ["sdof"]},
+            {"id": "joint_hold", "quantity": "joint_hold_torque_Nm", "op": ">=", "value": round(torque, 2),
+             "derivation": f"m·{road['peak_g']} g·e·sin{max(abs(lo), abs(hi)):.0f}°; 관절축이 폰 무게중심을 지나면 0",
+             "requirement": "free_angle", "source": [road["source"]]},
+        ]
+        spec["assumptions"].append(f"각도 자유: 360° 회전 + 기울기 {lo:+.0f}~{hi:+.0f}°, 간격 {p['angle_margin']:g} mm (목표 선택값)")
+    if "sun_heat" in req:
+        mat = ev.MATERIALS[p["material"]]
+        spec["constraints"].append(
+            {"id": "sun_heat", "quantity": "parked_surface_temp_c", "op": "<=",
+             "value": f"HDT(σ_1g) − {ev.SUN['margin_k']:.0f}", "hdt_table": mat["hdt"], "colour": p["colour"],
+             "derivation": "햇빛 아래 주차 표면온도(에너지 평형) ≤ 정하중(폰 무게) 응력에서의 열변형온도 − 여유",
+             "requirement": "sun_heat", "source": [mat["source"], "energy_balance", ev.ABSORPTANCE_SOURCE]})
+        spec["evidence"].update({k: ev.SOURCES[k] for k in ("energy_balance", ev.ABSORPTANCE_SOURCE, "prusa_asa_blog")})

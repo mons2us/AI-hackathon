@@ -54,6 +54,12 @@ def parse(text):
         params["phone_mass_kg"] = int(m.group(1)) / 1000
         fired.append(dict(rule="phone_mass_explicit", effect={"phone_mass_kg": params["phone_mass_kg"]},
                           why="폰 무게 직접 입력"))
+    from .requirements import LIBRARY, detect
+    reqs = detect(t)
+    if reqs:
+        params["requirements"] = reqs
+        for r in reqs:
+            fired.append(dict(rule="req_" + r, effect={"requirement": r}, why=LIBRARY[r]["name"] + " → " + LIBRARY[r]["physics"]))
     hint = {}
     for hid, rx, eff in SHAPE_HINTS:
         if re.search(rx, t):

@@ -53,7 +53,33 @@ def eval_prim(prim, pts, closed):
             if p.get(ax) is not None:
                 m &= eval_prim({"box": {ax: p[ax]}}, pts, closed)
         return m
+    if kind == "phone_sweep":
+        return phone_sweep(p, pts)
     raise ValueError(f"unknown primitive '{kind}'")
+
+
+def _pose_rot(phi, theta):
+    pr, tr = np.radians(phi), np.radians(theta)
+    Rz = np.array([[np.cos(pr), -np.sin(pr), 0], [np.sin(pr), np.cos(pr), 0], [0, 0, 1]])
+    Ry = np.array([[np.cos(tr), 0, -np.sin(tr)], [0, 1, 0], [np.sin(tr), 0, np.cos(tr)]])   # front edge up
+    return Ry @ Rz
+
+
+def phone_sweep(p, pts):
+    """Points swept by the phone (box H x W x D whose back face sits clamp_t above the joint) over all poses:
+    in-plane rotation phi in [0, rot_deg) and tilt theta in [tilt_lo, tilt_hi], inflated by `margin`."""
+    J = np.asarray(p["joint"], float)
+    q = pts - J
+    m = np.zeros(len(pts), bool)
+    hu, hv, mg = p["H"] / 2 + p["margin"], p["W"] / 2 + p["margin"], p["margin"]
+    n0, n1 = p["clamp_t"] - mg, p["clamp_t"] + p["D"] + mg
+    phis = np.arange(0.0, p.get("rot_deg", 360.0), p.get("rot_step", 15.0))
+    thetas = np.arange(p["tilt_lo"], p["tilt_hi"] + 1e-9, p.get("tilt_step", 4.0))
+    for th in thetas:
+        for ph in phis:
+            loc = q @ _pose_rot(ph, th)                  # world -> phone frame (R orthonormal: q @ R = R^T q)
+            m |= (np.abs(loc[:, 0]) <= hu) & (np.abs(loc[:, 1]) <= hv) & (loc[:, 2] >= n0) & (loc[:, 2] <= n1)
+    return m
 
 
 def eval_seg_dist(p, pts):

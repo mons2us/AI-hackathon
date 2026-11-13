@@ -112,7 +112,7 @@ class Sheet:
         d.render()
 
 
-def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass_g=None):
+def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass_g=None, req=None):
     """body = CadQuery Workplane of the 1st design (with holes)."""
     font = "malgun.ttf"                       # Windows (사내 PC) font for the DXF
     g = spec["geometry"]
@@ -247,8 +247,18 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
         (f"재료 {spec['material']['name']} (E {spec['material']['E'] / 1000:.1f} GPa, 항복 {spec['material']['yield_mpa']:g} MPa)", 2.2),
         (f"질량 {mass_g:.1f} g (CAD)" if mass_g else "질량 -", 2.2),
         (f"핸들바 Ø{g['bar_d']} · 폭 {w:g} · M4 볼트 2개", 2.2),
-        (f"폰+클램프 {pm['mass_kg'] * 1e3:.0f} g", 2.2),
+        (f"폰+클램프 {pm['mass_kg'] * 1e3:.0f} g · 출력 색 {'흰색' if spec.get('finish', {}).get('colour') == 'white' else '검정'}", 2.2),
     ]
+    req = req or {}
+    if "sun_heat" in req:
+        r = req["sun_heat"]
+        mine = next(x for x in r["rows"] if x["colour"] == r["colour"])
+        lines_b.append((f"땡볕: 주차 {mine['parked_c']} °C ≤ {mine['limit_c']} °C {'충족' if r['pass_'] else '미충족'}", 2.2))
+    if "free_angle" in req:
+        r = req["free_angle"]
+        t = r["tilt_now"]
+        lines_b.append((f"각도: 360° 회전, 기울기 세로 {t['portrait']['down_deg']}~+{t['portrait']['up_deg']}° "
+                        f"{'충족' if r['pass_'] else '미충족'}", 2.2))
     lines_c = [
         ("설계 조건 (물리 최적화 기준)", 2.4),
         (f"노면 {road['excitation_hz'][0]}–{road['excitation_hz'][1]} Hz, 충격 {shock['accel_g']} g", 2.2),

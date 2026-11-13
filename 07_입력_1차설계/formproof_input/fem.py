@@ -114,7 +114,7 @@ def judge_constraints(spec, r):
         elif c["quantity"] == "layer_normal_tension_mpa":
             v = max(r[n]["s_yy_tension_mpa"] for n in c["load_cases"])
         else:
-            continue                                   # min_feature: checked by the physics stage
+            continue          # min_feature / requirement constraints: judged by their own checks
         ok = v >= c["value"] if c["op"] == ">=" else v <= c["value"]
         ck[c["id"]] = dict(value=v, limit=f'{c["op"]} {c["value"]}', **{"pass": bool(ok)})
     return ck

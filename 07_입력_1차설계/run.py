@@ -22,7 +22,7 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from formproof_input import text_rules
+from formproof_input import requirements, text_rules, thermal
 from formproof_input.compile import Problem
 from formproof_input.export import side_preview, write_stl
 from formproof_input.fem import evaluate
@@ -57,13 +57,30 @@ def run(text="", sketch=None, photo=None, template=None, out="out", evaluate_1st
 
     params = dict(tpl["params"])
     params.update(parsed["params"])
+    reqs = params.get("requirements", [])
+    report["requirements"] = {}
+
+    # requirement-driven adaptation of the 1st design (before anything is written)
+    if "free_angle" in reqs:
+        params, table = requirements.adapt_free_angle(params, tid)
+        report["requirements"]["free_angle_options"] = table
     spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
+    P = Problem(spec)
+    dens = P.initial_density()
+    check = evaluate(P, dens) if (evaluate_1st or reqs) else None
+    if "sun_heat" in reqs:
+        th = thermal.check(spec, check)
+        if not th["pass_"] and th["rows"][1]["parked_ok"] and params.get("colour", "black") != "white":
+            report["requirements"]["sun_heat_before"] = th                  # black fails -> print white
+            params["colour"] = "white"
+            spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
+            P = Problem(spec)
+            dens = P.initial_density()
+    report["requirements"].update(requirements.run_checks(spec, P, dens, check) if reqs else {})
+
     with open(os.path.join(out, "spec.json"), "w", encoding="utf-8") as f:
         json.dump(spec, f, ensure_ascii=False, indent=1)
-
-    P = Problem(spec)
     P.to_npz(os.path.join(out, "problem.npz"))
-    dens = P.initial_density()
     np.save(os.path.join(out, "initial_design.npy"), dens.astype(np.uint8))
     report["problem"] = P.summary()
     report["stl"] = write_stl(P, dens, os.path.join(out, "design_1st.stl"))
@@ -71,14 +88,14 @@ def run(text="", sketch=None, photo=None, template=None, out="out", evaluate_1st
     report["criteria"] = [dict(id=c["id"], rule=f'{c["quantity"]} {c["op"]} {c["value"]}',
                                why=c.get("derivation", ""), source=c.get("source")) for c in spec["constraints"]]
     report["assumptions"] = spec["assumptions"]
-    if evaluate_1st:
-        report["first_design_check"] = evaluate(P, dens)
+    if check is not None:
+        report["first_design_check"] = check
     body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
     report["cad"] = dict(step="design_1st.step", **cad_info)
     report["drawing"] = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
                                      os.path.join(out, "design_1st_drawing.pdf"),
                                      title=f"자전거 폰 거치대 — 1차 설계",
-                                     check=report.get("first_design_check"), mass_g=cad_info["mass_g"])
+                                     check=check, mass_g=cad_info["mass_g"], req=report["requirements"])
     report["seconds"] = round(time.time() - t0, 2)
     with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=1)
@@ -100,5 +117,7 @@ if __name__ == "__main__":
                           rules=[x["rule"] for x in r["text"]["fired"]], questions=r["text"]["questions"],
                           problem=r["problem"]["elements"], cad_mass_g=r["cad"]["mass_g"], drawing=r["drawing"],
                           mass_g=c.get("mass_g"), f1_hz=c.get("f1_hz"),
-                          checks={k: v["pass"] for k, v in c.get("checks", {}).items()}, seconds=r["seconds"]),
+                          checks={k: v["pass"] for k, v in c.get("checks", {}).items()},
+                          requirements={k: v.get("pass_") for k, v in r["requirements"].items() if isinstance(v, dict)},
+                          seconds=r["seconds"]),
                      ensure_ascii=False, indent=1))
