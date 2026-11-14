@@ -1,0 +1,188 @@
+<title>범용 폰 받침대 설계 명세</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: 엔지니어링 명세서 — 좁은 본문 폭, 번호 매긴 절, 항목 · 값 · 근거 · 상태 표 */
+:root{
+  --bg:#f7f9f9; --paper:#ffffff; --ink:#14323a; --mute:#5b6b78; --line:#d5e2e0; --accent:#0f7c80;
+  --ok:#2e7d4f; --ok-bg:#e4f2ea; --as:#9a6a12; --as-bg:#fbf0d9; --tbd:#b03a2e; --tbd-bg:#f9e3e0; --dec:#3e5aa8; --dec-bg:#e5eaf8;
+  --f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1719; --paper:#152024; --ink:#e3eeee; --mute:#9db0b6; --line:#2a3b40; --accent:#4fc1c4;
+  --ok:#7fd1a0; --ok-bg:#163326; --as:#e6bd6a; --as-bg:#3a2e14; --tbd:#f09a8f; --tbd-bg:#3d1d19; --dec:#9fb5f5; --dec-bg:#1d2747; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1719; --paper:#152024; --ink:#e3eeee; --mute:#9db0b6; --line:#2a3b40; --accent:#4fc1c4;
+  --ok:#7fd1a0; --ok-bg:#163326; --as:#e6bd6a; --as-bg:#3a2e14; --tbd:#f09a8f; --tbd-bg:#3d1d19; --dec:#9fb5f5; --dec-bg:#1d2747; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 56px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:6px;border-bottom:2px solid var(--ink);padding-bottom:16px}
+.doc-id{font-family:var(--f-mono);font-size:12px;color:var(--mute);letter-spacing:.04em}
+h1{font-size:28px;line-height:1.25;margin:0;text-wrap:balance}
+.lede{color:var(--mute);margin:0;max-width:70ch}
+section{display:flex;flex-direction:column;gap:12px}
+h2{font-size:18px;margin:0;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .n{font-family:var(--f-mono);color:var(--accent);font-size:14px}
+p{margin:0;max-width:72ch}
+.quote{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:14px 16px;font-size:15px}
+.quote b{color:var(--accent)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:500;letter-spacing:.03em;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.v{font-family:var(--f-mono);font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.src{color:var(--mute);font-size:12.5px}
+.st{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.ok{color:var(--ok);background:var(--ok-bg)} .as{color:var(--as);background:var(--as-bg)} .tbd{color:var(--tbd);background:var(--tbd-bg)} .dec{color:var(--dec);background:var(--dec-bg)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute)}
+.parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.part{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.part .k{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
+.part .t{font-weight:700}
+.part .d{font-size:13px;color:var(--mute)}
+.qs{display:flex;flex-direction:column;gap:10px}
+.q{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--dec);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.q .t{font-weight:700}
+.q .o{font-size:13.5px;color:var(--mute)}
+ol.plan{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.note{font-size:12.5px;color:var(--mute)}
+a{color:var(--accent)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="doc-id">FormProof · 설계 명세 · 범용 폰 받침대 + 핸들바 거치대 · v1 · 2026-11-14</div>
+  <h1>범용 폰 받침대 + 핸들바 거치대 설계 명세</h1>
+  <p class="lede">요청을 계산 가능한 문제로 바꾼 문서입니다. 이 명세가 확정되면 그 뒤의 최적화 · 검증 · 도면은 모두 이 표의 값과 기준을 따릅니다.</p>
+  <div class="legend">
+    <span><span class="st ok">근거 확인</span> 출처로 확인한 값</span>
+    <span><span class="st as">가정</span> 합리적 기본값, 근거 보강 예정</span>
+    <span><span class="st tbd">확인 필요</span> 값이 없어 조사 · 측정 필요</span>
+    <span><span class="st dec">사용자 결정</span> 선택이 필요한 항목</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="n">01</span>요청</h2>
+  <div class="quote">폰 받침대도 직접 설계한다. <b>모든 폰</b>을 잘 잡아야 하고, 게임 · 영상처럼 오래 쓸 때 <b>방열</b>이 되며, 자전거에서 <b>빼서 들고 다니며</b> 책상 거치대로도 쓸 수 있어야 한다. 기존 핸들바 거치대와 함께 쓴다.</div>
+</section>
+
+<section>
+  <h2><span class="n">02</span>시스템 구성</h2>
+  <div class="parts">
+    <div class="part"><span class="k">A</span><span class="t">핸들바 거치대</span><span class="d">기존 3D 최적화 설계. 하중이 커져 재최적화</span></div>
+    <div class="part"><span class="k">B</span><span class="t">받침대 본체</span><span class="d">폰 뒷면을 받치고 모서리를 거는 턱</span></div>
+    <div class="part"><span class="k">C</span><span class="t">범용 집게</span><span class="d">폭 범위를 맞추는 미닫이 집게 + 복원 부품</span></div>
+    <div class="part"><span class="k">D</span><span class="t">퀵 릴리즈</span><span class="d">A와 B를 손으로 붙였다 떼는 체결부</span></div>
+    <div class="part"><span class="k">E</span><span class="t">접이식 다리</span><span class="d">책상에 세우는 받침, 자전거에서는 접힘</span></div>
+    <div class="part"><span class="k">F</span><span class="t">방열 구조</span><span class="d">뒷판 바람길 또는 알루미늄 판</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">03</span>대상 폰 범위</h2>
+  <div class="tw"><table>
+    <tr><th>항목</th><th>값</th><th>근거</th><th>상태</th></tr>
+    <tr><td>가로 (케이스 없음)</td><td class="v">70.5 – 78.1 mm</td><td class="src">갤럭시 S25 70.5 · S26 울트라 78.1 · 아이폰 17 Pro Max 78.0 (공식 사양)</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>두께 (케이스 없음)</td><td class="v">5.64 – 13.27 mm</td><td class="src">아이폰 Air 5.64 · Z Flip7 접힘 13.27</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>세로</td><td class="v">85.5 – 166.7 mm</td><td class="src">Z Flip7 접힘 85.5 · 펼침 166.7</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>무게 (케이스 없음)</td><td class="v">162 – 233 g</td><td class="src">갤럭시 S25 162 · 아이폰 17 Pro Max 233</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>케이스 여유</td><td class="v">한쪽 +2–3 mm, +50 g</td><td class="src">대표 케이스 조사 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+    <tr><td>설계 범위 (케이스 포함)</td><td class="v">폭 64–90 · 두께 6–14 mm · ≤ 290 g</td><td class="src">위 값 + 소형 구형 폰 여유</td><td><span class="st as">가정</span></td></tr>
+    <tr><td>폴더블 펼친 상태 (Fold 계열)</td><td class="v">제외</td><td class="src">폭이 크게 늘어 별도 사양</td><td><span class="st dec">사용자 결정</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">04</span>사용 조건과 하중</h2>
+  <div class="tw"><table>
+    <tr><th>상황</th><th>조건</th><th>근거</th><th>상태</th></tr>
+    <tr><td>주행 진동</td><td class="v">34.6 – 45.6 Hz</td><td class="src">ISBS 2020 자갈길 실측</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>주행 충격</td><td class="v">48.5 g</td><td class="src">ISBS 2020 실측 최대값</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>거치대 탑재 하중</td><td class="v">≤ 350 g</td><td class="src">폰 + 케이스 290 g + 받침대 목표 60 g</td><td><span class="st as">가정</span></td></tr>
+    <tr><td>충격 시 폰에 걸리는 힘</td><td class="v">≈ 138 N</td><td class="src">0.29 kg × 48.5 × 9.81 (계산)</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>끼우기 · 빼기</td><td class="v">한 손, ≤ 20 N</td><td class="src">손 조작 힘 근거 조사 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+    <tr><td>퀵 릴리즈 탈착</td><td class="v">≤ 30 N, 공구 없이</td><td class="src">손 조작 힘 근거 조사 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+    <tr><td>책상 거치</td><td class="v">화면 60–70°, 터치 5 N</td><td class="src">사용 자세 기본값</td><td><span class="st as">가정</span></td></tr>
+    <tr><td>폰 발열 (게임 · 영상)</td><td class="v">— W</td><td class="src">측정 자료 조사 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+    <tr><td>냉각 조건</td><td class="v">주행 15–25 km/h · 정지 자연대류</td><td class="src">풍속 → 대류 계수 근거 조사 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">05</span>판정 기준</h2>
+  <div class="tw"><table>
+    <tr><th>부품</th><th>기준</th><th>근거</th><th>판정 케이스</th></tr>
+    <tr><td>A 거치대</td><td class="v">1차 진동 ≥ 91 Hz</td><td class="src">최대 노면 진동 45.6 Hz × 2 (증폭 ≤ 1.33배)</td><td>최대 하중 350 g</td></tr>
+    <tr><td>A · B · D 강도</td><td class="v">응력 ≤ 26 MPa</td><td class="src">PETG 39 MPa ÷ 안전계수 1.5</td><td>충격 48.5 g, 세 방향</td></tr>
+    <tr><td>층간 강도</td><td class="v">층 수직 응력 ≤ 10.9 MPa</td><td class="src">PETG 층간 16.4 MPa ÷ 1.5</td><td>출력 방향 기준</td></tr>
+    <tr><td>C 집게 고정</td><td class="v">충격에서 이탈 없음</td><td class="src">걸림 턱이 모서리를 기하학적으로 잡음 (마찰만으로 판정하지 않음)</td><td>가장 작은 폰 · 가장 큰 폰</td></tr>
+    <tr><td>C 집게 조작</td><td class="v">끼우는 힘 ≤ 20 N</td><td class="src">04의 조작 힘 (확인 필요)</td><td>가장 큰 폰</td></tr>
+    <tr><td>C 접촉 위치</td><td class="v">측면 · 모서리만, 화면 · 카메라 · 버튼 회피</td><td class="src">설계 규칙</td><td>대표 폰 5종 배치 검사</td></tr>
+    <tr><td>D 퀵 릴리즈</td><td class="v">진동 · 충격에 안 풀림</td><td class="src">구조 해석 + 잠금 기구</td><td>최대 하중</td></tr>
+    <tr><td>E 책상 거치</td><td class="v">터치 5 N에 안 넘어짐</td><td class="src">정역학 (무게중심 · 받침 폭)</td><td>가장 무거운 폰</td></tr>
+    <tr><td>F 방열</td><td class="v">평판 받침대 대비 폰 뒷면 온도 상승 감소</td><td class="src">상대 비교로 판정 (절대 온도는 입력 확인 전)</td><td>주행 · 정지</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">06</span>재료</h2>
+  <div class="tw"><table>
+    <tr><th>재료</th><th>값</th><th>근거</th><th>상태</th></tr>
+    <tr><td>PETG (FDM 출력)</td><td class="v">E 1.7 GPa · ρ 1.27 g/cm³</td><td class="src">Prusament PETG 데이터시트 (기존 사례와 동일)</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>PETG 열전도율</td><td class="v">약 0.2 W/m·K</td><td class="src">데이터시트 값 확인 전</td><td><span class="st tbd">확인 필요</span></td></tr>
+    <tr><td>알루미늄 판 (선택)</td><td class="v">6061, k ≈ 167 W/m·K</td><td class="src">일반 물성, 출처 보강 예정</td><td><span class="st as">가정</span></td></tr>
+    <tr><td>집게 복원 부품</td><td class="v">고무줄 · 금속 스프링 · 없음(톱니)</td><td class="src">구매품, 선택에 따라 강성값 필요</td><td><span class="st dec">사용자 결정</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">07</span>물리와 계산 방법</h2>
+  <div class="tw"><table>
+    <tr><th>물리</th><th>방법</th><th>쓰는 곳</th><th>상태</th></tr>
+    <tr><td>구조 · 충격</td><td>선형 탄성 FEM</td><td>A · B · C · D 강도</td><td><span class="st ok">근거 확인</span> 기존 사례 검증</td></tr>
+    <tr><td>진동</td><td>모달 해석 (고유진동수)</td><td>A 거치대</td><td><span class="st ok">근거 확인</span> 기존 사례 검증</td></tr>
+    <tr><td>열</td><td>3D 열전도 + 면 대류 FEM</td><td>F 방열 구조</td><td><span class="st ok">근거 확인</span> 해석해 대비 오차 1.4×10⁻⁵</td></tr>
+    <tr><td>넘어짐</td><td>정역학 (무게중심 · 받침 폭)</td><td>E 다리</td><td><span class="st ok">근거 확인</span> 손계산</td></tr>
+    <tr><td>폭 범위 맞춤</td><td>기구 (미닫이 + 복원 부품), 기하 검사</td><td>C 집게</td><td><span class="st as">가정</span> 비선형 해석 대신 단순화</td></tr>
+    <tr><td>최적화</td><td>3D 위상 최적화 + 출력 방향 제약 · 물리 AI 탐색</td><td>A 재최적화, B · F 형상</td><td><span class="st ok">근거 확인</span> 기존 사례 검증</td></tr>
+    <tr><td>큰 변형 · 접촉 (휘는 집게)</td><td>비선형 해석</td><td>—</td><td><span class="st tbd">확인 필요</span> 엔진 미보유, 한계로 명시</td></tr>
+    <tr><td>피로 · 크리프</td><td>반복 하중 · 장기 변형</td><td>—</td><td><span class="st tbd">확인 필요</span> 엔진 미보유, 실측으로 보완</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">08</span>제조 조건</h2>
+  <div class="tw"><table>
+    <tr><th>항목</th><th>값</th><th>근거</th><th>상태</th></tr>
+    <tr><td>공정</td><td class="v">FDM · PETG · 노즐 0.4 · 층 0.2 mm</td><td class="src">팀 보유 3D 프린터</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>최소 두께</td><td class="v">≥ 2 mm</td><td class="src">노즐 폭 × 5줄 기본값</td><td><span class="st as">가정</span></td></tr>
+    <tr><td>돌출 각도</td><td class="v">≤ 45°, 받침대 없이 출력</td><td class="src">FDM 일반 규칙, 거치대에 이미 적용</td><td><span class="st ok">근거 확인</span></td></tr>
+    <tr><td>부품 수</td><td class="v">출력품 3–4개 + 구매품</td><td class="src">B · C · E 출력, 스프링 · 알루미늄 판 구매</td><td><span class="st as">가정</span></td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">09</span>결정이 필요한 항목</h2>
+  <div class="qs">
+    <div class="q"><span class="t">① 집게 복원 방식</span><span class="o">고무줄(저렴, 교체 쉬움) · 금속 스프링(힘 일정) · 톱니 수동 고정(부품 없음, 조작 1단계 추가)</span></div>
+    <div class="q"><span class="t">② 방열 방식</span><span class="o">바람길만(PETG만, 효과는 주행 중 위주) · 알루미늄 판 삽입(정지 중에도 효과, 부품 추가)</span></div>
+    <div class="q"><span class="t">③ 퀵 릴리즈 방식</span><span class="o">1/4 회전 잠금(시판 방식과 유사) · 슬라이드 레일 + 잠금 버튼</span></div>
+    <div class="q"><span class="t">④ 범위와 무게 목표</span><span class="o">폴더블 펼친 상태 제외 여부 · 받침대 무게 목표 60 g 유지 여부</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">10</span>진행 순서와 산출물</h2>
+  <ol class="plan">
+    <li>확인 필요 항목 조사: 케이스 치수, 조작 힘, 폰 발열, 대류 계수, PETG 열전도율. 못 찾으면 가정값과 근거 부족을 그대로 표시</li>
+    <li>받침대 B · C · D 설계와 판정 (작은 폰 · 큰 폰 · 무거운 폰 3케이스)</li>
+    <li>거치대 A 재최적화 (350 g) · 출력 형상 재검증 · 도면 갱신</li>
+    <li>방열 F: 평판 대비 상대 비교, 접이식 다리 E 넘어짐 판정</li>
+    <li>산출물: 출력용 STL 각 부품, 구매품 목록, 도면, 검증 리포트, 발표 장</li>
+  </ol>
+  <p class="note">출처: 폰 치수 — yesviz(갤럭시 S26 울트라), PhoneArena 비교(아이폰 17 Pro Max · 아이폰 Air, 갤럭시 S25 · Z Flip7). 노면 진동 · 충격 — ISBS 2020 자갈길 측정. PETG 물성 — Prusament PETG 데이터시트.</p>
+</section>
+</div>
