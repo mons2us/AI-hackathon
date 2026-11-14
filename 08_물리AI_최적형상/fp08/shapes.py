@@ -100,20 +100,28 @@ def gen_A(cv, rng):
 
 
 def gen_B(cv, rng):
-    """트러스: 무작위 경유점(1~4개)을 거치는 나무형 + 삼각 보강선"""
+    """트러스: 무작위 경유점(1~4개)을 거치는 나무형 + 삼각 보강선.
+    (11-14 수정) 고정부와 연결되지 않은 사슬 끝 경유점은 버림 → 끝이 허공에 뜬 가지가 생기지 않음"""
     P, h = cv.P, cv.h
     m = np.zeros(len(P), bool)
     hubs = [cv.rand_design_pt(rng) for _ in range(rng.integers(1, 5))]
-    nodes = list(hubs)
+    links, has_anchor, nodes = [], [False] * len(hubs), []
     for c in range(len(cv.anchor)):
         for _ in range(rng.integers(1, 3)):
             a = cv.rand_anchor(rng, c)
-            hb = hubs[int(np.argmin([np.linalg.norm(a - q) for q in hubs]))] if rng.random() < .7 else hubs[rng.integers(len(hubs))]
-            m |= capsule(P, a, hb, _radius(rng, h))
-            nodes.append(a)
-    for i in range(1, len(hubs)):
+            j = int(np.argmin([np.linalg.norm(a - q) for q in hubs])) if rng.random() < .7 else int(rng.integers(len(hubs)))
+            links.append((a, j)); has_anchor[j] = True; nodes.append(a)
+    lo, hi = 0, len(hubs) - 1
+    while lo < hi and not has_anchor[lo]:
+        lo += 1
+    while hi > lo and not has_anchor[hi]:
+        hi -= 1
+    for a, j in links:
+        m |= capsule(P, a, hubs[j], _radius(rng, h))
+    for i in range(lo + 1, hi + 1):
         m |= capsule(P, hubs[i - 1], hubs[i], _radius(rng, h))
-    for _ in range(rng.integers(0, 4)):            # 대각 보강선
+    nodes += [hubs[i] for i in range(lo, hi + 1) if has_anchor[i] or lo < i < hi]
+    for _ in range(rng.integers(0, 4)):            # 대각 보강선 (양 끝 모두 기존 마디)
         a, b = nodes[rng.integers(len(nodes))], nodes[rng.integers(len(nodes))]
         if np.linalg.norm(a - b) > 3 * h:
             m |= capsule(P, a, b, _radius(rng, h, 1.0, 2.0))
@@ -141,7 +149,10 @@ def gen_C(cv, rng, kind):
     if nf >= 2:
         for c in range(nf):
             if rng.random() < .5:
-                m |= capsule(P, cv.rand_anchor(rng, c), cv.rand_design_pt(rng), _radius(rng, h))
+                # (11-14 수정) 막대의 다른 끝은 판 위의 점 → 끝이 허공에 뜬 막대가 생기지 않음
+                idx = np.where(m)[0]
+                b = P[rng.choice(idx)] if len(idx) else cv.rand_anchor(rng, (c + 1) % nf)
+                m |= capsule(P, cv.rand_anchor(rng, c), b, _radius(rng, h))
     return m
 
 
@@ -238,6 +249,43 @@ def repair(cv, rng, m):
     return full & cv.design, ok
 
 
+# ---------------------------------------------------------------- 군더더기 정리 (2026-11-14 추가)
+CLEAN = [True]      # False 로 두면 정리 전(이전 버전) 형상
+
+
+def drop_dead_blobs(cv, occ):
+    """고정부 두 곳 이상과 닿지 않는 설계 덩어리 삭제 (한 곳에만 붙은 덩어리 = 힘을 안 받는 군더더기)"""
+    g, p = cv.g, cv.p
+    lab, n = ndimage.label(g.eshape(occ & cv.design))
+    lab = lab.ravel()
+    keep = np.zeros_like(occ)
+    for c in range(1, n + 1):
+        m = lab == c
+        near = ndimage.binary_dilation(g.eshape(m)).ravel()
+        touch = set(np.unique(p.fixed_comp[near & cv.fixed])) - {0}
+        if len(touch) >= 2:
+            keep |= m
+    return keep
+
+
+def smooth(cv, occ, sigma=0.6):
+    """칸 단위 울퉁불퉁함을 한 번 다듬음 (가우시안 → 0.5 자르기). 연결이 끊기면 다듬기 전으로"""
+    g = cv.g
+    A = g.eshape(((occ & cv.design) | cv.fixed).astype(float))
+    S = ndimage.gaussian_filter(A, sigma) > 0.5
+    out = S.ravel() & cv.design
+    if connected_groups(cv, out | cv.fixed)[0] and out.sum() > 0.5 * occ.sum():
+        return out
+    return occ
+
+
+def clean_shape(cv, occ):
+    occ = drop_dead_blobs(cv, occ)
+    occ = smooth(cv, occ)
+    occ = drop_dead_blobs(cv, occ)
+    return fill_cavities(cv, occ | cv.fixed) & cv.design
+
+
 def make_shape(p, group, idx, cv=None, max_try=12):
     """반환: occ_design (ne,) bool, meta dict"""
     cv = cv or Canvas(p)
@@ -264,6 +312,8 @@ def make_shape(p, group, idx, cv=None, max_try=12):
         else:
             occ, ok = repair(cv, rng, m)
         occ = fill_cavities(cv, occ | cv.fixed) & cv.design
+        if CLEAN[0] and not want_broken:
+            occ = clean_shape(cv, occ)
         vf = occ.sum() / cv.design.sum()
         if 0.05 <= vf <= 0.50 and (ok or want_broken):
             return occ, dict(group=group, idx=int(idx), family=fam, reinforced=bool(reinf), vf=float(vf), tscale=_TS[0],

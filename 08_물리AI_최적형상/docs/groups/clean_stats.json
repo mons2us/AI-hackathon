@@ -1,0 +1,44 @@
+{
+ "bike_pad50": {
+  "n": 24,
+  "idle_before": 0.08186680055889922,
+  "idle_after": 0.024683373233538485,
+  "dead_shapes_before": 21,
+  "dead_mass_before": 0.08012117483725806
+ },
+ "bike_pad80": {
+  "n": 24,
+  "idle_before": 0.07309578003319962,
+  "idle_after": 0.0069226045163783825,
+  "dead_shapes_before": 18,
+  "dead_mass_before": 0.05256112738118071
+ },
+ "bike_pad120": {
+  "n": 24,
+  "idle_before": 0.06815187192812787,
+  "idle_after": 0.004607193444139546,
+  "dead_shapes_before": 17,
+  "dead_mass_before": 0.04233966345205595
+ },
+ "tvfeet_L300": {
+  "n": 24,
+  "idle_before": 0.04435918271411141,
+  "idle_after": 0.02067182060259274,
+  "dead_shapes_before": 1,
+  "dead_mass_before": 0.005162015741592558
+ },
+ "tvfeet_L220": {
+  "n": 24,
+  "idle_before": 0.0037123409851161165,
+  "idle_after": 0.00397865330362471,
+  "dead_shapes_before": 0,
+  "dead_mass_before": 0.0
+ },
+ "tvped": {
+  "n": 24,
+  "idle_before": 0.022996249560646508,
+  "idle_after": 9.615424518487489e-05,
+  "dead_shapes_before": 0,
+  "dead_mass_before": 0.0
+ }
+}
