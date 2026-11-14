@@ -12,7 +12,7 @@ x=np.arange(-26,102+1e-9,res); y=np.arange(33,77+1e-9,res); z=np.arange(-38,26+1
 X,Y,Z=np.meshgrid(x,y,z,indexing='ij')
 ci=(X-x0-1)/2; cj=(Y-y0-1)/2; ck=(Z-z0-1)/2
 f=ndimage.map_coordinates(F3,[np.round(ck.ravel()),np.round(cj.ravel()),np.round(ci.ravel())],order=0,mode='constant',cval=0.).reshape(X.shape)
-f=ndimage.gaussian_filter(f,0.5/res)
+f=ndimage.gaussian_filter(f,float(__import__('os').environ.get('SIG','0.5'))/res)
 rr=np.sqrt(X**2+Z**2)
 cut=(rr<16.1)|((np.abs(X)<=1.0)&(Z<0)&(rr>=15))
 for yb in (55-5,55+5): cut|=((Y-yb)**2+(Z+27)**2<=2.25**2)&(np.abs(X)<=10)
