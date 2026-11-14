@@ -136,6 +136,56 @@ ol.ref{font-size:13px;padding-left:20px}
 </section>
 
 <section>
+  <h2><span class="n">4+</span>z는 어떻게 정해지나 · 무엇을 학습하나 · 구조는 MLP</h2>
+  <div class="grid">
+    <div class="box"><h3>z = 규칙 없이 "학습되는 변수"</h3><p>처음엔 형상마다 0 근처 작은 무작위 숫자 32개(평균 0, 표준편차 0.01). 학습하면서 그 형상의 거리 s를 잘 맞추는 쪽으로 z 자체를 기울기로 고침. ‖z‖² 벌점(×0.0001)으로 0 근처 유지. 비슷한 형상끼리 z가 가까워지는 것은 학습 결과로 생김(사람이 정하지 않음).</p></div>
+    <div class="box"><h3>새 형상의 z = 작은 최적화</h3><p>신경망 θ는 고정하고, 그 형상의 점·거리에 맞도록 z만 200~300번 고침. 최적화 단계에서도 같은 원리로 z를 움직임 (목표만 "거리 맞추기" → "가볍고 기준 통과"로 바뀜).</p></div>
+  </div>
+  <table style="margin-top:10px">
+    <tr><th>학습되는 파라미터</th><th>크기 (그룹 하나, 형상 5,000개)</th><th>역할</th></tr>
+    <tr><td>신경망 가중치·편향 θ</td><td>54,273개 <span class="tag m">실측</span></td><td>모든 형상이 공유하는 "z·좌표 → 거리" 규칙</td></tr>
+    <tr><td>z 표</td><td>5,000 × 32 = 160,000개</td><td>형상마다 하나 — 형상을 외우는 부분</td></tr>
+  </table>
+  <svg viewBox="0 0 680 400" role="img" aria-label="그룹 하나의 구성: θ 1세트, 형상마다 z, 형상마다 좌표 4,000개" style="margin-top:12px">
+    <g font-size="13" text-anchor="middle">
+      <rect x="190" y="20" width="300" height="56" rx="8" fill="#FAECE7" stroke="#D85A30" stroke-width=".8"/><text x="340" y="43" font-weight="700" fill="#712B13">신경망 가중치 θ · 1세트</text><text x="340" y="63" font-size="12" fill="#993C1D">숫자 54,273개 · 모든 형상이 공유</text>
+      <g stroke="#D85A30" stroke-dasharray="4 3" fill="none"><path d="M300 76 L105 140"/><path d="M325 76 L250 140"/><path d="M355 76 L395 140"/><path d="M390 76 L575 140"/></g>
+      <g fill="#EEEDFE" stroke="#534AB7" stroke-width=".8"><rect x="40" y="140" width="130" height="56" rx="8"/><rect x="185" y="140" width="130" height="56" rx="8"/><rect x="330" y="140" width="130" height="56" rx="8"/><rect x="510" y="140" width="130" height="56" rx="8"/></g>
+      <g fill="#3C3489"><text x="105" y="163" font-weight="700">형상 #0</text><text x="250" y="163" font-weight="700">형상 #1</text><text x="395" y="163" font-weight="700">형상 #2</text><text x="575" y="163" font-weight="700">형상 #4999</text></g>
+      <g fill="#534AB7" font-size="12"><text x="105" y="183">z₀ · 숫자 32개</text><text x="250" y="183">z₁ · 숫자 32개</text><text x="395" y="183">z₂ · 숫자 32개</text><text x="575" y="183">z₄₉₉₉ · 32개</text></g>
+      <text x="485" y="172" font-size="18">…</text><text x="485" y="256" font-size="18">…</text>
+      <g stroke="#5b6475" marker-end="url(#ar)"><line x1="105" y1="196" x2="105" y2="220"/><line x1="250" y1="196" x2="250" y2="220"/><line x1="395" y1="196" x2="395" y2="220"/><line x1="575" y1="196" x2="575" y2="220"/></g>
+      <g fill="#E1F5EE" stroke="#0F6E56" stroke-width=".8"><rect x="40" y="224" width="130" height="56" rx="8"/><rect x="185" y="224" width="130" height="56" rx="8"/><rect x="330" y="224" width="130" height="56" rx="8"/><rect x="510" y="224" width="130" height="56" rx="8"/></g>
+      <g fill="#085041"><text x="105" y="247" font-weight="700">좌표 4,000개</text><text x="250" y="247" font-weight="700">좌표 4,000개</text><text x="395" y="247" font-weight="700">좌표 4,000개</text><text x="575" y="247" font-weight="700">좌표 4,000개</text></g>
+      <g fill="#0F6E56" font-size="12"><text x="105" y="267">→ s 4,000개</text><text x="250" y="267">→ s 4,000개</text><text x="395" y="267">→ s 4,000개</text><text x="575" y="267">→ s 4,000개</text></g>
+      <rect x="40" y="305" width="600" height="76" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width=".8"/>
+      <text x="340" y="328" font-weight="700" fill="#2C2C2A">그룹 하나 = 형상 5,000개 × 좌표 4,000개 = (z, x, s) 2,000만 쌍</text>
+      <text x="340" y="349" font-size="12" fill="#444441">학습할 숫자: θ 54,273개 + z 5,000 × 32 = 160,000개</text>
+      <text x="340" y="368" font-size="12" fill="#444441">6그룹이면 이 묶음이 6개 (신경망 6개, z 3만 개)</text>
+    </g>
+  </svg>
+  <svg viewBox="0 0 900 150" role="img" aria-label="MLP 구조" style="margin-top:10px">
+    <g font-size="12.5" text-anchor="middle">
+      <rect x="10" y="40" width="130" height="70" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="75" y="70" font-weight="700" fill="#5b37b8">[z 32 + x 3]</text><text x="75" y="90" fill="#5b6475">입력 35개</text>
+      <rect x="180" y="40" width="120" height="70" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="240" y="72" font-weight="700">128</text><text x="240" y="92" fill="#5b6475">Softplus</text>
+      <rect x="330" y="40" width="120" height="70" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="390" y="72" font-weight="700">128</text><text x="390" y="92" fill="#5b6475">Softplus</text>
+      <rect x="480" y="40" width="120" height="70" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="540" y="72" font-weight="700">128</text><text x="540" y="92" fill="#5b6475">Softplus</text>
+      <rect x="630" y="40" width="120" height="70" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="690" y="72" font-weight="700">128</text><text x="690" y="92" fill="#5b6475">Softplus</text>
+      <rect x="780" y="40" width="110" height="70" rx="10" fill="#e7f7f1" stroke="#12a37f"/><text x="835" y="72" font-weight="700" fill="#0d7a5f">s (1개)</text><text x="835" y="92" fill="#5b6475">거리 mm</text>
+    </g>
+    <g stroke="#5b6475" stroke-width="2" marker-end="url(#ar)"><line x1="140" y1="75" x2="177" y2="75"/><line x1="300" y1="75" x2="327" y2="75"/><line x1="450" y1="75" x2="477" y2="75"/><line x1="600" y1="75" x2="627" y2="75"/><line x1="750" y1="75" x2="777" y2="75"/></g>
+    <text x="450" y="140" text-anchor="middle" font-size="12" fill="#5b6475">평범한 MLP(완전연결). 원 논문: 8층 × 512 + 중간에 입력 다시 넣기(skip) + ReLU. 우리: Softplus — 매끈해서 z 최적화 기울기가 부드러움</text>
+  </svg>
+  <div class="callout green"><b>Q. 가중치 θ와 z가 둘 다 바뀌는데 어떻게 풀리나? (하나는 고정돼야 하지 않나?)</b><br>
+  고정되는 것은 <b>데이터</b>(좌표 x와 정답 거리 s)이고, 그 양이 미지수보다 압도적으로 많아서 둘 다 풀림.
+  1차식 비유 s = a·z<sub>i</sub> + b·x: 아는 값 = 형상 5,000개 × 점 4,000개 = <b>식 2,000만 개</b>, 모르는 값 = a, b + z 5,000개 = <b>5,002개</b>.
+  남는 모호함은 a·z = (2a)·(z/2) 같은 크기 주고받기뿐이고 s에는 영향 없음 (z 크기 벌점이 하나로 정해 줌). 추천 시스템(사용자 벡터·영화 벡터 동시 학습)과 같은 원리.<br>
+  <b>z를 무작위로 고정하고 θ만 학습</b>해도 외우기는 되지만, 비슷한 형상끼리 z가 가깝다는 보장이 없어 z 공간이 뒤죽박죽 → z를 움직이는 최적화가 안 됨.
+  z도 학습시키면 신경망이 비슷한 형상을 가까운 z에 스스로 배치 → 매끄러운 z 공간. 학습은 한 번에 형상 32개·점 1,024개씩 뽑아 θ와 그 형상들의 z를 동시에 조금씩 고침.</div>
+  <div class="callout">핵심은 특별한 구조가 아니라 <b>z도 학습 변수로 둔다(인코더 없음)</b>는 학습 방식. 원래 칸 1.5만~4만 개였던 형상이 숫자 32개로 줄어듦 = "형상을 압축해서 외우는 모델".</div>
+</section>
+
+<section>
   <h2><span class="n">5</span>우리 파이프라인에서 쓰는 방법</h2>
   <svg viewBox="0 0 900 200" role="img" aria-label="z에서 PINO와 판정까지 연결">
     <g font-size="12.5" text-anchor="middle">
