@@ -32,7 +32,7 @@ fi
 #           시간이 모자라면 --sweep 을 지우면 기존처럼 1개 설정(8층×256, PINO 폭 24)만 학습
 SWEEP=${SWEEP---sweep --sweep-topk 1}
 python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $(nproc) $SWEEP \
-  --n-shapes ${N_SHAPES:-5000} --n-cand 12000 --eso --n-fem ${N_FEM:-1000} \
+  --n-shapes ${N_SHAPES:-5000} --n-cand 12000 --eso --topdown 100 --n-fem ${N_FEM:-1000} \
   --sdf-steps ${SDF_STEPS:-20000} --sdf-width 256 --sdf-depth 8 --pino-steps ${PINO_STEPS:-30000} \
   --al-n 200 --max-rounds 3 2>&1 | tee -a runs_main.out
 python -m fp08.pack check data

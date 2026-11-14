@@ -251,9 +251,19 @@ def gen_D(cv, rng):
         f += np.exp(-0.5 * (((P - c) / s) ** 2).sum(1))
     solid = f > rng.uniform(0.35, 0.7) * f.max()
     sh = cv.g.eshape(solid)
-    th = int(rng.integers(2, 4))
-    shell = (sh & ~ndimage.binary_erosion(sh, iterations=th)).ravel()
-    nrm = rng.normal(size=3); nrm /= np.linalg.norm(nrm)
+    th = int(rng.integers(3, 5))                 # 11-15: 껍데기 두께 2~3 → 3~4칸 (얇은 껍데기가 칸 단위로 깎여 구멍·홈이 생기던 것)
+    sa = 2 - cv.p.sym_axis if cv.p.sym_axis is not None else None     # 배열 축 (z, y, x)
+    if sa is not None:                           # 11-15: 대칭면은 경계가 아님 → 거울로 붙여 깎아야 대칭면에 가짜 벽이 안 생김
+        n = sh.shape[sa]
+        er = ndimage.binary_erosion(np.concatenate([np.flip(sh, sa), sh], sa), iterations=th)
+        er = np.take(er, np.arange(n, 2 * n), axis=sa)
+    else:
+        er = ndimage.binary_erosion(sh, iterations=th)
+    shell = (sh & ~er).ravel()
+    nrm = rng.normal(size=3)
+    if cv.p.sym_axis is not None:                # 11-15: 자르는 면이 대칭 방향을 보지 않게 → 거울로 붙인 양쪽이 같은 방향으로 열림
+        nrm[cv.p.sym_axis] = 0.0                 #        (전에는 한쪽은 카메라 쪽, 반대쪽은 반대 방향으로 열려 앞만 뚫려 보였음)
+    nrm /= np.linalg.norm(nrm) + 1e-12
     c0 = P[solid].mean(0) if solid.any() else C[0]
     shell &= ((P - c0) @ nrm) < rng.uniform(0, 0.4) * np.abs(span @ nrm)   # 한쪽 잘라 엶
     m = shell

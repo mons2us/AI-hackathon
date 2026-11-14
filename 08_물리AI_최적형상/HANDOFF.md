@@ -80,7 +80,8 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | `HANDOFF.md` | **이 문서** |
 | `handoff/step1_pc_datagen.bat` | [회사 PC] 데이터 생성 (계획 B) |
 | `handoff/step2_pack_upload.bat` | [회사 PC] 업로드용 zip |
-| `handoff/step3_server_train.sh` | [서버] 학습 전체 (GPU 자동 감지) |
+| `handoff/step3_server_train.sh` | [서버, Linux] 학습 전체 (GPU 자동 감지) |
+| `handoff/step3_server_train.bat` | [서버, Windows] 같은 내용의 Windows 판 (11-15 추가) |
 | `handoff/step4_pc_demo.bat` | [회사 PC] 결과 풀기 + 시연 |
 | `handoff/step4b_pc_demo_fem.bat` | [회사 PC] **학습 모델 없이** 시연: 수식 형상 + FEM 직접 최적화 → `results/app.html` |
 | `fp08/fem_opt.py` | 경로 A: 수식 형상 생성 → FEM → ESO 다듬기 (DeepSDF·PINO 대체용 임시 경로) |
@@ -126,6 +127,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 - 서버로 업로드 (회사 규정에 맞는 방법으로).
 
 ### ③ [GPU 서버] 학습
+서버가 **Windows** 면 코드 폴더에서 `handoff\step3_server_train.bat` (계획 B 는 `handoff\step3_server_train.bat B`). 아래는 Linux 기준.
 ```bash
 mkdir fp08run && cd fp08run && unzip ../upload_code.zip
 pip install -r requirements.txt            # CUDA 판 torch 는 서버에 이미 있는 것 사용 권장

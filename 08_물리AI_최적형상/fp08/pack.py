@@ -5,6 +5,7 @@ python -m fp08.pack data  data  upload_data.zip      # 데이터 폴더 통째 (
 python -m fp08.pack runs  runs/main  results.zip     # 학습 결과: 체크포인트·state.json·report.html·로그·demo 결과
 python -m fp08.pack unpack results.zip  .            # 풀기 (zip 안의 폴더 구조 그대로)
 python -m fp08.pack check data                       # 데이터 폴더 점검: 그룹별 형상·FEM 개수
+python -m fp08.pack devices                          # GPU 장치 목록 (bat 에서 사용)
 python -m fp08.pack report runs/main                 # 학습 결과 한눈에: DeepSDF IoU·표면오차, PINO 관문, 시연
 """
 import os, sys, json, zipfile
@@ -148,6 +149,11 @@ if __name__ == '__main__':
         pack_dir(a[1], a[2])
     elif a[0] == 'unpack':
         unpack(a[1], a[2] if len(a) > 2 else '.')
+    elif a[0] == 'devices':                          # bat 용: GPU 장치 목록 (1~2장이면 한 장에 3개씩 겹쳐 씀). GPU 없으면 빈 줄
+        import torch
+        n = torch.cuda.device_count()
+        d = [f'cuda:{i}' for i in range(n)]
+        print(','.join(d * 3 if 0 < n < 3 else d))
     elif a[0] == 'report':
         report(a[1])
     elif a[0] == 'check':
