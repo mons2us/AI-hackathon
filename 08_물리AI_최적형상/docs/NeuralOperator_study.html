@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>신경 연산자 정리 (FNO · PINO · GNO · PI-GNO) — FormProof 08</title>
+<style>
+:root{--ink:#1d2330;--sub:#5b6475;--line:#e3e6ec;--a:#2f6fed;--b:#12a37f;--c:#e8833a;--d:#8b5cf6;--r:#d9455f}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f7f8fa;color:var(--ink);line-height:1.65}
+.wrap{max-width:940px;margin:0 auto;padding:22px 16px 60px}
+header{padding:24px 20px;border-radius:16px;background:linear-gradient(135deg,#0f5d4c,#12a37f 50%,#2f6fed);color:#fff}
+header h1{margin:4px 0 8px;font-size:24px}header p{margin:0;opacity:.95}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
+h2{font-size:18px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+h2 .n{display:inline-grid;place-items:center;min-width:26px;height:26px;border-radius:8px;background:var(--b);color:#fff;font-size:13px}
+h3{font-size:15px;margin:14px 0 6px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}th{background:#f3f5f9}
+.formula{font-size:22px;text-align:center;margin:10px 0 14px;font-family:Georgia,serif}
+.callout{border-left:4px solid var(--c);background:#fff8f1;padding:10px 14px;font-size:14px;margin-top:10px}
+.callout.red{border-left-color:var(--r);background:#fdf1f3}.callout.green{border-left-color:var(--b);background:#effaf6}.callout.blue{border-left-color:var(--a);background:#f0f5ff}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.box{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfe}.box h3{margin:0 0 6px;font-size:15px}.box p{margin:0;font-size:14px;color:var(--sub)}
+svg{width:100%;height:auto;display:block} canvas{max-width:100%;border-radius:10px;border:1px solid var(--line);display:block}
+.note{font-size:12.5px;color:var(--sub)} code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:13px}
+ol.ref{font-size:13px;padding-left:20px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eef3ff;color:#1f3b8a;margin-left:6px}
+.tag.m{background:#e7f7f1;color:#0d7a5f}.tag.e{background:#fff1e6;color:#b35a17}
+.ctrl{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px;margin:8px 0}
+input[type=range]{width:200px}
+details{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-top:8px;background:#fbfcfe}summary{cursor:pointer;font-weight:bold;font-size:14px}
+.toc a{color:var(--a);text-decoration:none;margin-right:10px;font-size:14px}
+</style>
+</head>
+<body><div class="wrap">
+
+<header>
+  <div style="font-size:12px;opacity:.85">FormProof · 08_물리AI · 공부 노트</div>
+  <h1>신경 연산자 — FNO · PINO · GNO · PI-GNO</h1>
+  <p>"함수 → 함수"를 배우는 신경망 4종: 무엇이 같고 무엇이 다른가, 우리 파이프라인은 왜 FNO/PINO를 쓰나</p>
+  <div style="font-size:12px;margin-top:10px;opacity:.9">2026-11-14 작성 · 표시: <span class="tag">논문</span> 원 논문 값 <span class="tag m">실측</span> 우리 리허설에서 잰 값 <span class="tag e">추정·가정</span> 아직 확인 안 됨</div>
+</header>
+
+<section class="toc">
+  <a href="#s1">1 한 줄 요약</a><a href="#s2">2 공통 뼈대</a><a href="#s3">3 FNO</a><a href="#s4">4 PINO</a><a href="#s5">5 GNO·GINO</a><a href="#s6">6 PI-GNO</a><a href="#s7">7 4종 비교</a><a href="#s8">8 우리 선택</a><a href="#s9">9 흔한 오해</a><a href="#ref">출처</a>
+</section>
+
+<!-- 1 -->
+<section id="s1">
+  <h2><span class="n">1</span>한 줄 요약 — "문제 하나"가 아니라 "문제 가족"을 푼다</h2>
+  <div class="formula">u = 𝒢<sub>θ</sub>( a )</div>
+  <p style="text-align:center;margin-top:-6px"><b>입력 함수 a</b>(형상·재료·하중 지도) 를 넣으면 <b>출력 함수 u</b>(변위장) 를 내는 <b>연산자 𝒢</b>를 신경망으로 학습</p>
+  <svg viewBox="0 0 900 210">
+    <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b6475"/></marker></defs>
+    <!-- PINN -->
+    <rect x="10" y="10" width="420" height="190" rx="12" fill="#fdf1f3" stroke="#d9455f"/>
+    <text x="220" y="34" text-anchor="middle" font-size="15" font-weight="bold" fill="#d9455f">PINN — 문제 1개를 푸는 신경망</text>
+    <text x="40" y="70" font-size="13">입력: 좌표 x 하나</text>
+    <rect x="40" y="85" width="120" height="44" rx="8" fill="#fff" stroke="#d9455f"/><text x="100" y="112" text-anchor="middle" font-size="13">x = (x,y,z)</text>
+    <line x1="160" y1="107" x2="230" y2="107" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="235" y="85" width="80" height="44" rx="8" fill="#d9455f"/><text x="275" y="112" text-anchor="middle" font-size="13" fill="#fff">MLP</text>
+    <line x1="315" y1="107" x2="350" y2="107" stroke="#5b6475" marker-end="url(#ar)"/>
+    <text x="355" y="112" font-size="13">u(x)</text>
+    <text x="40" y="160" font-size="13" fill="#5b6475">형상이 바뀌면 → <tspan font-weight="bold">처음부터 다시 학습</tspan></text>
+    <text x="40" y="182" font-size="13" fill="#5b6475">(형상 = 신경망 안에 녹아 있음)</text>
+    <!-- NO -->
+    <rect x="470" y="10" width="420" height="190" rx="12" fill="#effaf6" stroke="#12a37f"/>
+    <text x="680" y="34" text-anchor="middle" font-size="15" font-weight="bold" fill="#0d7a5f">신경 연산자 — 문제 가족 전체</text>
+    <text x="500" y="70" font-size="13">입력: 함수 a 전체 (예: 밀도 격자)</text>
+    <g transform="translate(500,82)">
+      <rect width="56" height="56" fill="#fff" stroke="#12a37f"/>
+      <rect x="6" y="30" width="44" height="8" fill="#12a37f"/><rect x="8" y="10" width="8" height="24" fill="#12a37f"/><rect x="38" y="14" width="8" height="20" fill="#12a37f"/>
+    </g>
+    <line x1="560" y1="110" x2="610" y2="110" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="615" y="88" width="90" height="44" rx="8" fill="#12a37f"/><text x="660" y="115" text-anchor="middle" font-size="13" fill="#fff">𝒢θ</text>
+    <line x1="705" y1="110" x2="745" y2="110" stroke="#5b6475" marker-end="url(#ar)"/>
+    <g transform="translate(750,82)"><rect width="56" height="56" fill="url(#gr)" stroke="#12a37f"/></g>
+    <defs><linearGradient id="gr"><stop offset="0" stop-color="#2f6fed"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#d9455f"/></linearGradient></defs>
+    <text x="815" y="114" font-size="13">u 전체</text>
+    <text x="500" y="160" font-size="13" fill="#5b6475">형상이 바뀌면 → <tspan font-weight="bold">앞으로 한 번 계산(수 ms)</tspan></text>
+    <text x="500" y="182" font-size="13" fill="#5b6475">(형상 = 입력. 학습은 제품군당 1회)</text>
+  </svg>
+  <table style="margin-top:10px">
+    <tr><th>이름</th><th>한 마디</th><th>우리와의 관계</th></tr>
+    <tr><td><b>FNO</b></td><td>격자 위 함수를 <b>FFT로 주파수 공간</b>에 보내서 섞는 연산자</td><td>PINO의 몸통 (<code>FNO3d</code>)</td></tr>
+    <tr><td><b>PINO</b></td><td>FNO + <b>물리 손실</b>(방정식 잔차). 모델 구조가 아니라 <b>학습 방법</b></td><td>✅ 우리 본 모델 (제품마다 1개)</td></tr>
+    <tr><td><b>GNO</b></td><td>점·요소를 <b>그래프</b>로 보고 이웃끼리 메시지를 주고받는 연산자 (불규칙 메시용)</td><td>로드맵 (STEP·곡면 입력 시)</td></tr>
+    <tr><td><b>PI-GNO</b></td><td>GNO + 물리 손실. <b>표준 모델 하나가 아니라</b> 여러 논문이 쓰는 이름 (6절)</td><td>참고만</td></tr>
+  </table>
+</section>
+
+<!-- 2 -->
+<section id="s2">
+  <h2><span class="n">2</span>공통 뼈대 — 넷 다 "들어 올리기 → 적분층 × L → 내리기"</h2>
+  <svg viewBox="0 0 900 190">
+    <rect x="10" y="60" width="80" height="60" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="50" y="88" text-anchor="middle" font-size="13">입력 a(x)</text><text x="50" y="106" text-anchor="middle" font-size="11" fill="#5b6475">채널 9</text>
+    <line x1="90" y1="90" x2="120" y2="90" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="125" y="60" width="90" height="60" rx="8" fill="#eef3ff" stroke="#2f6fed"/><text x="170" y="86" text-anchor="middle" font-size="13">들어 올리기 P</text><text x="170" y="104" text-anchor="middle" font-size="11" fill="#5b6475">점마다 9 → 24</text>
+    <line x1="215" y1="90" x2="245" y2="90" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="250" y="20" width="440" height="140" rx="12" fill="#fff" stroke="#12a37f" stroke-dasharray="5 4"/>
+    <text x="470" y="40" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d7a5f">적분층 × L (우리: 4층)</text>
+    <text x="300" y="95" font-size="16">v</text>
+    <line x1="315" y1="90" x2="360" y2="65" stroke="#5b6475"/><line x1="315" y1="90" x2="360" y2="120" stroke="#5b6475"/>
+    <rect x="360" y="48" width="200" height="34" rx="6" fill="#12a37f"/><text x="460" y="70" text-anchor="middle" font-size="13" fill="#fff">𝒦v = ∫ κ(x,y) v(y) dy  (멀리 섞기)</text>
+    <rect x="360" y="104" width="200" height="34" rx="6" fill="#e8833a"/><text x="460" y="126" text-anchor="middle" font-size="13" fill="#fff">W v  (점마다·가까이)</text>
+    <line x1="560" y1="65" x2="600" y2="90" stroke="#5b6475"/><line x1="560" y1="121" x2="600" y2="90" stroke="#5b6475"/>
+    <circle cx="612" cy="90" r="12" fill="#fff" stroke="#5b6475"/><text x="612" y="95" text-anchor="middle" font-size="14">+</text>
+    <text x="635" y="95" font-size="14">σ</text><text x="652" y="95" font-size="12" fill="#5b6475">(GELU)</text>
+    <line x1="690" y1="90" x2="720" y2="90" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="725" y="60" width="80" height="60" rx="8" fill="#eef3ff" stroke="#2f6fed"/><text x="765" y="86" text-anchor="middle" font-size="13">내리기 Q</text><text x="765" y="104" text-anchor="middle" font-size="11" fill="#5b6475">24 → 출력</text>
+    <line x1="805" y1="90" x2="830" y2="90" stroke="#5b6475" marker-end="url(#ar)"/>
+    <text x="835" y="95" font-size="14">u(x)</text>
+    <text x="470" y="182" text-anchor="middle" font-size="12" fill="#5b6475">네 모델의 차이 = 초록 상자(𝒦, 적분)를 <tspan font-weight="bold">어떻게 계산하느냐</tspan> + 손실에 물리를 넣느냐</text>
+  </svg>
+  <div class="grid">
+    <div class="box"><h3>FNO의 𝒦</h3><p>κ가 "거리만의 함수"(합성곱)라고 가정 → FFT 후 낮은 주파수에 가중치 곱. 전 영역을 한 번에 섞음.</p></div>
+    <div class="box"><h3>GNO의 𝒦</h3><p>반지름 r 안의 이웃 점만 더함. κ(x,y)는 작은 MLP. 메시 모양이 자유롭지만 국소적.</p></div>
+    <div class="box"><h3>PINO / PI-GNO</h3><p>𝒦는 위 둘 중 하나 그대로. <b>손실에 물리 방정식 잔차를 더하는 것</b>만 다름.</p></div>
+  </div>
+  <div class="callout blue">근거: 신경 연산자 = "선형 적분 연산자 + 점별 비선형 활성화"를 층층이 쌓은 구조로 정의 <span class="tag">논문</span> [1][3]. "격자가 달라도 같은 가중치"(이산화 불변)가 일반 CNN과의 핵심 차이.</div>
+</section>
+
+<!-- 3 -->
+<section id="s3">
+  <h2><span class="n">3</span>FNO — 주파수 공간에서 섞기</h2>
+  <svg viewBox="0 0 900 150">
+    <rect x="10" y="45" width="90" height="60" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="55" y="80" text-anchor="middle" font-size="13">v (격자)</text>
+    <line x1="100" y1="75" x2="135" y2="75" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="140" y="45" width="90" height="60" rx="8" fill="#2f6fed"/><text x="185" y="80" text-anchor="middle" font-size="14" fill="#fff">FFT</text>
+    <line x1="230" y1="75" x2="265" y2="75" stroke="#5b6475" marker-end="url(#ar)"/>
+    <g transform="translate(270,30)">
+      <rect width="190" height="90" rx="8" fill="#fff" stroke="#2f6fed"/>
+      <g fill="#2f6fed"><rect x="10" y="20" width="14" height="60"/><rect x="28" y="35" width="14" height="45"/><rect x="46" y="48" width="14" height="32"/><rect x="64" y="58" width="14" height="22"/></g>
+      <g fill="#cfd6e3"><rect x="82" y="64" width="14" height="16"/><rect x="100" y="68" width="14" height="12"/><rect x="118" y="71" width="14" height="9"/><rect x="136" y="73" width="14" height="7"/><rect x="154" y="75" width="14" height="5"/></g>
+      <line x1="79" y1="8" x2="79" y2="84" stroke="#d9455f" stroke-dasharray="4 3"/>
+      <text x="40" y="14" font-size="11" fill="#2f6fed" text-anchor="middle">낮은 k개 유지</text><text x="130" y="14" font-size="11" fill="#5b6475" text-anchor="middle">버림(0)</text>
+    </g>
+    <line x1="460" y1="75" x2="495" y2="75" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="500" y="45" width="120" height="60" rx="8" fill="#12a37f"/><text x="560" y="72" text-anchor="middle" font-size="13" fill="#fff">× R (학습 가중치)</text><text x="560" y="90" text-anchor="middle" font-size="11" fill="#fff">복소수, 모드마다</text>
+    <line x1="620" y1="75" x2="655" y2="75" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="660" y="45" width="90" height="60" rx="8" fill="#2f6fed"/><text x="705" y="80" text-anchor="middle" font-size="14" fill="#fff">역 FFT</text>
+    <line x1="750" y1="75" x2="785" y2="75" stroke="#5b6475" marker-end="url(#ar)"/>
+    <text x="790" y="80" font-size="13">𝒦v (격자)</text>
+  </svg>
+  <h3>직접 해 보기 — 남기는 주파수 개수(modes)에 따라 무엇이 사라지나</h3>
+  <div class="ctrl">modes = <input type="range" id="mk" min="1" max="40" value="8"><b id="mkv">8</b> <span class="note">회색 = 원래 신호(얇은 막대 + 덩어리 = 우리 형상의 단면 느낌), 초록 = 낮은 modes개만 남겨 복원</span></div>
+  <canvas id="fnoc" width="880" height="200"></canvas>
+  <p class="note" id="mkn"></p>
+  <table style="margin-top:8px">
+    <tr><th></th><th>내용</th></tr>
+    <tr><td>장점</td><td>FFT라 계산량 약 N log N, 한 층에서 영역 전체가 섞임 → 하중이 멀리 전달되는 탄성 문제에 맞음. 원 논문: 256×256 Navier–Stokes 추론 0.005 s vs 의사 스펙트럴 풀이 2.2 s <span class="tag">논문</span> [2]</td></tr>
+    <tr><td>단점 ①</td><td><b>규칙 격자 전용</b>. 곡면·불규칙 메시는 격자로 바꾸거나 Geo-FNO처럼 좌표 변환 필요 [5]</td></tr>
+    <tr><td>단점 ②</td><td>FFT는 <b>주기 경계</b>를 가정 → 끝이 이어진 것처럼 섞임. 그래서 우리 코드는 4칸 <code>pad</code> 후 잘라냄</td></tr>
+    <tr><td>단점 ③</td><td>낮은 modes만 쓰니 <b>날카로운 경계·얇은 부재</b>를 놓치기 쉬움 → 우리 코드는 3×3×3 합성곱(<code>loc</code>)을 나란히 붙여 국소 정보 보완</td></tr>
+  </table>
+  <div class="callout green"><b>우리 코드</b> (<code>fp08/models.py</code> <code>FNO3d</code>): 입력 9채널 → 폭 24 → 스펙트럴 합성곱(modes 8×8×8) + 3×3×3 합성곱 × 4층 → 출력 = 하중 케이스마다 변위 3성분. 격자 크기가 그룹마다 달라도 <b>같은 가중치</b>(그래서 PINO가 그룹이 아니라 제품마다 1개)</div>
+</section>
+
+<!-- 4 -->
+<section id="s4">
+  <h2><span class="n">4</span>PINO — FNO에 "물리 채점"을 더한 학습법</h2>
+  <svg viewBox="0 0 900 230">
+    <rect x="10" y="85" width="110" height="60" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="65" y="112" text-anchor="middle" font-size="13">형상 ρ</text><text x="65" y="130" text-anchor="middle" font-size="11" fill="#5b6475">+ 하중·고정</text>
+    <line x1="120" y1="115" x2="160" y2="115" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="165" y="85" width="110" height="60" rx="8" fill="#2f6fed"/><text x="220" y="120" text-anchor="middle" font-size="14" fill="#fff">FNO</text>
+    <line x1="275" y1="115" x2="315" y2="115" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="320" y="85" width="90" height="60" rx="8" fill="#fff" stroke="#2f6fed"/><text x="365" y="120" text-anchor="middle" font-size="14">û</text>
+    <line x1="410" y1="105" x2="480" y2="55" stroke="#5b6475" marker-end="url(#ar)"/>
+    <line x1="410" y1="125" x2="480" y2="175" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="485" y="20" width="270" height="70" rx="10" fill="#fff1e6" stroke="#e8833a"/>
+    <text x="620" y="45" text-anchor="middle" font-size="14" font-weight="bold" fill="#b35a17">데이터 손실</text>
+    <text x="620" y="70" text-anchor="middle" font-size="13">‖û − u<tspan font-size="10" dy="3">FEM</tspan><tspan dy="-3">‖ — FEM 정답이 있을 때만</tspan></text>
+    <rect x="485" y="140" width="270" height="70" rx="10" fill="#effaf6" stroke="#12a37f"/>
+    <text x="620" y="165" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d7a5f">물리 손실</text>
+    <text x="620" y="190" text-anchor="middle" font-size="13">‖K û − f‖ — 정답 없이도 계산 가능</text>
+    <line x1="755" y1="55" x2="800" y2="110" stroke="#5b6475"/><line x1="755" y1="175" x2="800" y2="120" stroke="#5b6475"/>
+    <circle cx="815" cy="115" r="14" fill="#fff" stroke="#5b6475"/><text x="815" y="120" text-anchor="middle" font-size="15">+</text>
+    <text x="840" y="120" font-size="13">손실</text>
+  </svg>
+  <h3>원 논문의 두 단계 <span class="tag">논문</span> [4]</h3>
+  <table>
+    <tr><th>단계</th><th>하는 일</th><th>우리 사용</th></tr>
+    <tr><td>① 연산자 학습</td><td>여러 문제(형상)로 데이터 + 물리 손실을 함께 학습. 데이터는 <b>거친 해상도</b>, 물리는 <b>고운 해상도</b>에 걸 수 있음</td><td>✅ 사용 (그룹 6개 × 형상 수천 개)</td></tr>
+    <tr><td>② 문제별 미세 조정</td><td>시험 시 그 문제 하나에 대해 <b>물리 손실만으로</b> 가중치를 더 조정 → 오차 더 감소</td><td>⏳ 선택 사항 (최적화 중 요청마다 하면 속도 이점이 줄어듦 <span class="tag e">추정</span>)</td></tr>
+  </table>
+  <h3>"물리 손실"의 미분을 어떻게 구하나 — 여기서 모델들이 갈린다</h3>
+  <table>
+    <tr><th>방법</th><th>원리</th><th>문제점</th></tr>
+    <tr><td>푸리에 미분</td><td>FFT에서 ik를 곱하면 미분</td><td>주기·매끈함 가정. 우리 형상(재료/빈칸 경계)에는 부적합 → <b>사용 안 함</b></td></tr>
+    <tr><td>유한 차분</td><td>이웃 칸 값의 차</td><td>격자 오차, 경계에서 부정확</td></tr>
+    <tr><td>자동 미분</td><td>신경망을 좌표로 미분</td><td>FNO는 출력이 격자값이라 좌표 미분이 바로 안 됨 (GNO도 원래는 안 됨 → 6절 mGNO)</td></tr>
+    <tr><td><b>FEM 강성행렬 K</b> (우리)</td><td>신경망 미분 없이 <b>잔차 r = Kû − f</b>를 FEM과 같은 행렬로 계산</td><td>K 조립 비용. 하지만 FEM 코드(<code>fem.py</code>) 재사용 → 정답 FEM과 <b>같은 이산화</b>라 일관됨</td></tr>
+  </table>
+  <div class="callout green"><b>리허설에서 배운 것</b> <span class="tag m">실측</span> — 원래 쓰려던 에너지 손실 ½ûᵀKû − fᵀû는 학습 초기 값이 수천 배로 커져 데이터 손실을 덮음 → <b>야코비 전처리 잔차 + 크기 오차(log)</b>로 교체 (정답이면 0). 또 float32 물리 계산은 폰 기둥(강체) 부분에서 에너지 오차 약 5% → float64로.</div>
+  <div class="callout red"><b>냉정하게</b>: 원 논문은 PINO가 데이터 없이 물리만으로도 학습된다고 보고 <span class="tag">논문</span>했지만, 우리 리허설에서 형상 100개로는 검증 오차가 오히려 나빠짐(과적합), 1,000개에서도 변위장 L2 0.38~0.74로 관문(10%) 미달 <span class="tag m">실측</span>. "물리 손실을 넣으면 데이터가 적어도 된다"는 <b>우리 문제에서 아직 증명 안 됨</b> — 월요일 PINO vs FNO 비교 실험이 이걸 확인하는 실험.</div>
+</section>
+
+<!-- 5 -->
+<section id="s5">
+  <h2><span class="n">5</span>GNO — 점을 그래프로 잇고 이웃끼리 섞기 (+ GINO)</h2>
+  <div class="formula" style="font-size:19px">(𝒦v)(x) = Σ<sub>y ∈ B<sub>r</sub>(x)</sub> κ<sub>θ</sub>(x, y, a(x), a(y)) · v(y)</div>
+  <p style="text-align:center;margin-top:-6px" class="note">반지름 r 공 안의 이웃 y만 더함 · κ는 작은 MLP · 점이 어디 있든(불규칙 메시) 상관없음 [1]</p>
+  <h3>직접 해 보기 — 점을 클릭하면 그 점이 섞는 이웃이 보임</h3>
+  <div class="ctrl">반지름 r = <input type="range" id="gnr" min="15" max="120" value="45"><b id="grv">45</b> px <span class="note" id="grn"></span></div>
+  <canvas id="gnoc" width="880" height="260"></canvas>
+  <table style="margin-top:8px">
+    <tr><th></th><th>내용</th></tr>
+    <tr><td>장점</td><td><b>FEM 메시·점구름 그대로</b> 입력. 곡면·구멍·두께 변화가 격자 계단 없이 표현됨. 학습 해상도 16×16 → 시험 241×241로 옮겨도 동작 <span class="tag">논문</span> [1]</td></tr>
+    <tr><td>단점 ①</td><td>이웃만 더하니 <b>멀리 전달</b>(지지점 ↔ 하중점)에 층이 많이 필요. r을 키우면 이웃 수 폭증 → 메모리 증가</td></tr>
+    <tr><td>단점 ②</td><td>원 논문 저자들도 난류(Navier–Stokes)에서 그래프 연산자는 수렴하지 못했고 FNO가 처음 성공했다고 기술 <span class="tag">논문</span> [2]</td></tr>
+  </table>
+  <h3>GINO = GNO(입·출구) + FNO(가운데) — 둘의 장점을 합친 구조</h3>
+  <svg viewBox="0 0 900 140">
+    <g transform="translate(10,30)"><rect width="140" height="80" rx="10" fill="#f3f5f9" stroke="#5b6475"/><text x="70" y="35" text-anchor="middle" font-size="13">표면 점구름</text><text x="70" y="55" text-anchor="middle" font-size="13">+ <tspan font-weight="bold">SDF</tspan></text></g>
+    <line x1="150" y1="70" x2="185" y2="70" stroke="#5b6475" marker-end="url(#ar)"/>
+    <g transform="translate(190,30)"><rect width="160" height="80" rx="10" fill="#8b5cf6"/><text x="80" y="35" text-anchor="middle" font-size="13" fill="#fff">GNO 인코더</text><text x="80" y="55" text-anchor="middle" font-size="11" fill="#fff">불규칙 점 → 규칙 격자</text></g>
+    <line x1="350" y1="70" x2="385" y2="70" stroke="#5b6475" marker-end="url(#ar)"/>
+    <g transform="translate(390,30)"><rect width="140" height="80" rx="10" fill="#2f6fed"/><text x="70" y="35" text-anchor="middle" font-size="13" fill="#fff">FNO</text><text x="70" y="55" text-anchor="middle" font-size="11" fill="#fff">격자에서 멀리 섞기</text></g>
+    <line x1="530" y1="70" x2="565" y2="70" stroke="#5b6475" marker-end="url(#ar)"/>
+    <g transform="translate(570,30)"><rect width="160" height="80" rx="10" fill="#8b5cf6"/><text x="80" y="35" text-anchor="middle" font-size="13" fill="#fff">GNO 디코더</text><text x="80" y="55" text-anchor="middle" font-size="11" fill="#fff">격자 → 원하는 점</text></g>
+    <line x1="730" y1="70" x2="765" y2="70" stroke="#5b6475" marker-end="url(#ar)"/>
+    <text x="770" y="75" font-size="13">표면 압력 등</text>
+  </svg>
+  <div class="callout blue">근거 <span class="tag">논문</span> [6]: GINO는 SDF + 점구름으로 형상을 받고, GNO가 불규칙 점 ↔ 규칙 잠재 격자를 바꾸며 그 위에서 FNO를 돌림. 3D 자동차 표면 압력을 <b>데이터 500개</b>로 학습, 항력 계산에서 GPU CFD 대비 <b>26,000배</b> 속도. → <b>우리 구조(DeepSDF → 격자 → FNO)와 생각이 같음</b>: 우리는 SDF를 복셀 점유도로 바꿔 바로 FNO에 넣고, GINO는 그 변환을 GNO로 학습.</div>
+</section>
+
+<!-- 6 -->
+<section id="s6">
+  <h2><span class="n">6</span>PI-GNO — "GNO + 물리 손실". 단, 정해진 모델 하나가 아님</h2>
+  <div class="callout red"><b>먼저 바로잡을 점</b>: "PINO"는 Li et al. 2021의 특정 방법이지만, <b>"PI-GNO"는 표준 모델명이 아님</b>. 여러 그룹이 비슷한 이름을 각자 다른 구조에 붙임. 발표·대화에서 "PI-GNO를 쓴다"고 하면 어느 것인지 같이 말해야 함.</div>
+  <table style="margin-top:10px">
+    <tr><th>이름 (출처)</th><th>무엇</th><th>우리 관점</th></tr>
+    <tr><td><b>mGNO / mGINO</b> [7]<br><span class="note">Lin et al., TMLR 2025 (Caltech·NVIDIA)</span></td><td>GNO의 "반지름 안이면 1, 밖이면 0" 지시 함수는 미분이 안 됨 → <b>부드러운 가중치(mollifier)</b>로 바꿔 <b>자동 미분으로 정확한 도함수</b> 계산. GINO에 넣으면 불규칙 형상에서 물리 손실 학습 + 형상 최적화 가능</td><td>"PI-GNO"의 가장 정석적인 형태. 형상 최적화까지 보여 줘서 우리 목표와 가장 가까움</td></tr>
+    <tr><td><b>PI-GANO</b> [8]<br><span class="note">Zhong &amp; Meidani, CMAME 2024</span></td><td>형상 인코더 + DCON(DeepONet 계열). <b>FEM 데이터 없이</b> PDE 파라미터와 형상을 동시에 일반화한다고 주장</td><td>이름은 비슷하지만 <b>GNO 기반 아님</b>(DeepONet 계열)</td></tr>
+    <tr><td><b>πG-Sp²GNO</b> [9]<br><span class="note">Sarkar &amp; Chakraborty, 2025 arXiv</span></td><td>공간 + 스펙트럴 그래프 연산자에 물리 손실. 도함수는 확률적 투영(stochastic projection)으로 계산</td><td>프리프린트(심사 전)</td></tr>
+    <tr><td><b>PIGNO</b> [10]<br><span class="note">Chen et al., Games 2024</span></td><td>도로망 그래프 위 평균장 게임</td><td>이름만 같고 <b>분야가 다름</b> (구조역학 아님)</td></tr>
+  </table>
+  <h3>핵심 난제 하나: 불규칙 점에서 "물리 손실의 미분"</h3>
+  <svg viewBox="0 0 900 150">
+    <g transform="translate(20,20)"><rect width="250" height="110" rx="10" fill="#fdf1f3" stroke="#d9455f"/><text x="125" y="25" text-anchor="middle" font-size="13" font-weight="bold" fill="#d9455f">원래 GNO</text>
+      <line x1="30" y1="80" x2="110" y2="80" stroke="#d9455f" stroke-width="3"/><line x1="110" y1="80" x2="110" y2="45" stroke="#d9455f" stroke-width="3"/><line x1="110" y1="45" x2="160" y2="45" stroke="#d9455f" stroke-width="3"/><line x1="160" y1="45" x2="160" y2="80" stroke="#d9455f" stroke-width="3"/><line x1="160" y1="80" x2="230" y2="80" stroke="#d9455f" stroke-width="3"/>
+      <text x="125" y="100" text-anchor="middle" font-size="12">계단 가중치 → 미분 불가</text></g>
+    <text x="300" y="80" font-size="22">→</text>
+    <g transform="translate(330,20)"><rect width="250" height="110" rx="10" fill="#effaf6" stroke="#12a37f"/><text x="125" y="25" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d7a5f">mGNO</text>
+      <path d="M30,80 C90,80 100,45 135,45 C170,45 180,80 230,80" fill="none" stroke="#12a37f" stroke-width="3"/>
+      <text x="125" y="100" text-anchor="middle" font-size="12">부드러운 가중치 → 자동 미분 가능</text></g>
+    <text x="610" y="80" font-size="22">또는</text>
+    <g transform="translate(660,20)"><rect width="220" height="110" rx="10" fill="#f0f5ff" stroke="#2f6fed"/><text x="110" y="25" text-anchor="middle" font-size="13" font-weight="bold" fill="#1f3b8a">우리 방식</text>
+      <text x="110" y="58" text-anchor="middle" font-size="13">r = K û − f</text>
+      <text x="110" y="82" text-anchor="middle" font-size="12">FEM 행렬로 잔차 계산</text><text x="110" y="100" text-anchor="middle" font-size="12">→ 신경망 미분 자체가 불필요</text></g>
+  </svg>
+  <p class="note">mGNO 논문 표: 같은 문제에서 물리 손실을 자동 미분으로 구한 경우 1.62e-6, 유한 차분 4.89e-3, 푸리에 미분 4.77e-3 <span class="tag">논문</span> [7]. 즉 "어떻게 미분하느냐"가 정확도를 크게 바꿈.</p>
+  <div class="callout green"><b>우리에게 의미</b> <span class="tag e">추정</span>: 나중에 GNO로 바꾸더라도 노드가 FEM 메시 절점이면 <b>지금의 Kû − f 잔차를 그대로 쓸 수 있음</b> → mGNO 같은 미분 장치 없이도 "PI-GNO"가 됨. (이건 우리 추론이며 실험으로 확인한 것은 아님)</div>
+</section>
+
+<!-- 7 -->
+<section id="s7">
+  <h2><span class="n">7</span>4종 한눈 비교</h2>
+  <table>
+    <tr><th></th><th>FNO</th><th>PINO</th><th>GNO</th><th>PI-GNO (mGNO류)</th></tr>
+    <tr><td>입력 형태</td><td>규칙 격자</td><td>규칙 격자</td><td>메시·점구름</td><td>메시·점구름</td></tr>
+    <tr><td>적분 𝒦</td><td>FFT 전역</td><td>FFT 전역</td><td>반지름 r 이웃</td><td>부드러운 이웃</td></tr>
+    <tr><td>학습 신호</td><td>데이터만</td><td>데이터 + 물리</td><td>데이터만</td><td>데이터 + 물리</td></tr>
+    <tr><td>FEM 정답 필요량</td><td>많음</td><td>적을 수 있음 (우리 문제 미확인)</td><td>많음</td><td>적을 수 있음</td></tr>
+    <tr><td>속도</td><td>매우 빠름</td><td>추론은 FNO와 같음, 학습은 느림</td><td>이웃 수에 비례</td><td>GNO보다 조금 느림</td></tr>
+    <tr><td>형상 표현</td><td>계단(복셀)</td><td>계단(복셀)</td><td>정확</td><td>정확</td></tr>
+    <tr><td>성숙도·코드</td><td>높음 (neuraloperator 라이브러리)</td><td>높음</td><td>중간</td><td>낮음 (2025 연구)</td></tr>
+    <tr><td>우리</td><td>비교 실험(GPU 3~5)</td><td>✅ 본 모델(GPU 0~2)</td><td>로드맵</td><td>로드맵</td></tr>
+  </table>
+</section>
+
+<!-- 8 -->
+<section id="s8">
+  <h2><span class="n">8</span>우리는 왜 FNO 기반 PINO인가</h2>
+  <div class="grid">
+    <div class="box"><h3>① 데이터가 이미 격자</h3><p><code>problem.npz</code>·FEM이 2~5 mm 육면체(hex8) 격자. 형상 = 칸 밀도 → FNO 입력과 1:1. 변환 손실 없음.</p></div>
+    <div class="box"><h3>② 물리 손실이 공짜에 가까움</h3><p>FEM 코드의 K를 그대로 써서 잔차 계산. 정답 FEM과 같은 이산화 → 모델과 심판(FEM)이 같은 기준.</p></div>
+    <div class="box"><h3>③ 기울기가 최적화에 바로 쓰임</h3><p>z → DeepSDF → 격자 → PINO 전체가 미분 가능 → Adam으로 z 갱신 (설계 결정 8번).</p></div>
+    <div class="box"><h3>④ 해커톤 일정</h3><p>2일. 검증된 구조(FNO)를 쓰고 새 위험은 물리 손실 하나로 제한.</p></div>
+  </div>
+  <h3>GNO/GINO가 더 나아지는 때 <span class="tag e">추정</span></h3>
+  <table>
+    <tr><th>상황</th><th>이유</th></tr>
+    <tr><td>입력이 STEP·곡면 메시 (주제의 "STEP 입력")</td><td>복셀화 계단 없이 표면 그대로</td></tr>
+    <tr><td>최종 1 mm 검증 수준의 정밀 응력</td><td>FNO 격자를 8배로 키우는 대신 필요한 곳만 점 밀도↑</td></tr>
+    <tr><td>TV 전체(약 140만 칸) 같은 큰 영역</td><td>GINO처럼 잠재 격자는 작게, 입·출력만 원 해상도</td></tr>
+  </table>
+</section>
+
+<!-- 9 -->
+<section id="s9">
+  <h2><span class="n">9</span>흔한 오해 — 냉정 평가</h2>
+  <details open><summary>✕ "FNO는 해상도 무관이니 2 mm로 학습하고 1 mm에 바로 쓰면 된다"</summary>
+    <p>논문의 "제로샷 초해상도"는 매끈한 유동장에서 보인 결과 <span class="tag">논문</span>[2][4]. 우리는 <b>형상 경계 자체가 해상도에 따라 바뀜</b>(얇은 막대가 2 mm에선 1칸, 1 mm에선 2칸). 같은 형상이라도 입력이 다름 → <b>보장 안 됨, 미검증</b>. 그래서 1 mm는 FEM(<code>verify5.py</code>)으로만 판정.</p></details>
+  <details><summary>✕ "PINO = 새로운 신경망 구조"</summary><p>구조는 FNO 그대로. 바뀐 것은 <b>손실 함수(학습법)</b>. 추론 속도도 FNO와 같음.</p></details>
+  <details><summary>✕ "PI-GNO가 PINO보다 최신이라 더 좋다"</summary><p>"PI-GNO"는 여러 논문의 서로 다른 모델(6절). 규칙 격자 문제에서 FNO 계열보다 낫다는 일반 근거는 찾지 못함. 장점은 <b>불규칙 형상</b>에 한정.</p></details>
+  <details><summary>✕ "물리 손실이 0이면 정답이다"</summary><p>잔차 Kû − f = 0은 <b>그 격자·그 K에서의</b> FEM 해와 같다는 뜻. 경계조건·하중 모델이 틀렸으면(예: TV 패드 들림을 고정으로 가정) 물리 손실 0이어도 현실과 다름. 최종 심판은 여전히 FEM + 가정 검토.</p></details>
+  <details><summary>✕ "FNO의 modes를 키우면 무조건 정확해진다"</summary><p>modes 상한은 격자 절반(나이퀴스트). 파라미터가 modes³로 늘어 데이터가 적으면 과적합. 우리 리허설의 병목은 모양이 아니라 <b>크기(강성) 예측</b>이었음 <span class="tag m">실측</span> → modes보다 크기 머리·데이터 양이 먼저.</p></details>
+</section>
+
+<section id="ref">
+  <h2><span class="n">R</span>출처</h2>
+  <ol class="ref">
+    <li>Z. Li et al., “Neural Operator: Graph Kernel Network for Partial Differential Equations,” 2020. <a href="https://arxiv.org/abs/2003.03485">arXiv:2003.03485</a> (GNO 원 논문)</li>
+    <li>Z. Li et al., “Fourier Neural Operator for Parametric Partial Differential Equations,” ICLR 2021. <a href="https://arxiv.org/abs/2010.08895">arXiv:2010.08895</a></li>
+    <li>N. Kovachki et al., “Neural Operator: Learning Maps Between Function Spaces,” JMLR 24 (2023). <a href="https://arxiv.org/abs/2108.08481">arXiv:2108.08481</a></li>
+    <li>Z. Li et al., “Physics-Informed Neural Operator for Learning Partial Differential Equations,” 2021 (v4 2023). <a href="https://arxiv.org/abs/2111.03794">arXiv:2111.03794</a></li>
+    <li>Z. Li et al., “Fourier Neural Operator with Learned Deformations for PDEs on General Geometries (Geo-FNO),” JMLR 2023. <a href="https://arxiv.org/abs/2207.05209">arXiv:2207.05209</a></li>
+    <li>Z. Li et al., “Geometry-Informed Neural Operator for Large-Scale 3D PDEs (GINO),” NeurIPS 2023. <a href="https://arxiv.org/abs/2309.00583">arXiv:2309.00583</a></li>
+    <li>R. Y. Lin et al., “Enabling Automatic Differentiation with Mollified Graph Neural Operators,” TMLR 2025. <a href="https://arxiv.org/abs/2504.08277">arXiv:2504.08277</a></li>
+    <li>W. Zhong, H. Meidani, “Physics-Informed Geometry-Aware Neural Operator (PI-GANO),” CMAME 2024, doi:10.1016/j.cma.2024.117540. <a href="https://arxiv.org/abs/2408.01600">arXiv:2408.01600</a></li>
+    <li>S. Sarkar, S. Chakraborty, “Physics- and geometry-aware spatio-spectral graph neural operator,” 2025 (프리프린트). <a href="https://arxiv.org/abs/2508.09627">arXiv:2508.09627</a></li>
+    <li>X. Chen, S. Liu, X. Di, “Physics-Informed Graph Neural Operator for Mean Field Games on Graph,” Games 15(2), 2024. doi:10.3390/g15020012</li>
+    <li>우리 코드: <code>08_물리AI_최적형상/fp08/models.py</code>(<code>SpectralConv3d</code>·<code>FNO3d</code>·<code>PINO</code>), <code>train_pino.py</code>(손실), <code>fem.py</code>(K) — sosopapa 브랜치. 실측값은 <code>README.md</code> 10-1절</li>
+  </ol>
+  <p class="note">[3]·[5]는 서지 정보만 기재(이번에 본문 수치는 인용하지 않음). 논문 수치는 각 논문 초록·본문 기준이며 우리 문제에서 재현된 값이 아닙니다.</p>
+</section>
+</div>
+
+<script>
+// FNO: 1D 모드 자르기
+(function(){
+ const cv=document.getElementById('fnoc'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height,N=256;
+ const sig=new Float64Array(N);
+ for(let i=0;i<N;i++){let v=0; if(i>30&&i<38)v=1; if(i>90&&i<150)v=1; if(i>200&&i<204)v=1; if(i>215&&i<240)v=0.6; sig[i]=v;}
+ const re=[],im=[];
+ for(let k=0;k<=N/2;k++){let a=0,b=0;for(let n=0;n<N;n++){const t=2*Math.PI*k*n/N;a+=sig[n]*Math.cos(t);b-=sig[n]*Math.sin(t);}re.push(a);im.push(b);}
+ function rec(m){const out=new Float64Array(N);for(let n=0;n<N;n++){let v=re[0]/N;for(let k=1;k<m&&k<=N/2;k++){const t=2*Math.PI*k*n/N;v+=2*(re[k]*Math.cos(t)-im[k]*Math.sin(t))/N;}out[n]=v;}return out;}
+ const X=i=>20+i*(W-40)/(N-1), Y=v=>H-30-v*(H-60);
+ function draw(m){ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#e3e6ec';ctx.beginPath();ctx.moveTo(20,Y(0));ctx.lineTo(W-20,Y(0));ctx.stroke();
+  ctx.fillStyle='#cfd6e3';for(let i=0;i<N;i++){if(sig[i]>0){ctx.fillRect(X(i)-1.7,Y(sig[i]),3.4,Y(0)-Y(sig[i]));}}
+  const r=rec(m);ctx.strokeStyle='#12a37f';ctx.lineWidth=2.5;ctx.beginPath();for(let i=0;i<N;i++){i?ctx.lineTo(X(i),Y(r[i])):ctx.moveTo(X(i),Y(r[i]));}ctx.stroke();ctx.lineWidth=1;
+  ctx.fillStyle='#5b6475';ctx.font='12px sans-serif';ctx.fillText('얇은 막대(4칸)',X(196),Y(1)-6);ctx.fillText('굵은 덩어리',X(105),Y(1)-6);
+  let e=0,s=0;for(let i=0;i<N;i++){e+=(r[i]-sig[i])**2;s+=sig[i]**2;}
+  document.getElementById('mkv').textContent=m;
+  document.getElementById('mkn').innerHTML=`상대 L2 오차 = <b>${(Math.sqrt(e/s)*100).toFixed(0)}%</b> · modes가 작으면 굵은 덩어리는 대충 맞아도 <b>얇은 막대가 뭉개짐</b>(우리 트러스형 형상의 약점). 우리 FNO는 축마다 8개 + 3×3×3 합성곱으로 보완.`;}
+ const s=document.getElementById('mk');s.oninput=()=>draw(+s.value);draw(8);
+})();
+// GNO: 반지름 이웃
+(function(){
+ const cv=document.getElementById('gnoc'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+ let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ const P=[];
+ // 거치대 느낌: 링 + 팔 + 받침 (불규칙 점, 경계에 촘촘)
+ for(let i=0;i<70;i++){const t=rnd()*Math.PI*2,rr=55+rnd()*16;P.push([150+rr*Math.cos(t),130+rr*Math.sin(t)]);}
+ for(let i=0;i<110;i++){const u=rnd();P.push([215+u*450,130-u*60+(rnd()-.5)*22]);}
+ for(let i=0;i<50;i++){P.push([660+rnd()*130,55+rnd()*30]);}
+ let sel=110;
+ function draw(){const r=+document.getElementById('gnr').value;document.getElementById('grv').textContent=r;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  const c=P[sel];let cnt=0;
+  ctx.strokeStyle='rgba(139,92,246,.35)';
+  for(const p of P){const d=Math.hypot(p[0]-c[0],p[1]-c[1]);if(d<r&&p!==c){cnt++;ctx.beginPath();ctx.moveTo(c[0],c[1]);ctx.lineTo(p[0],p[1]);ctx.stroke();}}
+  ctx.beginPath();ctx.arc(c[0],c[1],r,0,7);ctx.strokeStyle='#8b5cf6';ctx.setLineDash([5,4]);ctx.stroke();ctx.setLineDash([]);
+  for(const p of P){const d=Math.hypot(p[0]-c[0],p[1]-c[1]);ctx.beginPath();ctx.arc(p[0],p[1],3,0,7);ctx.fillStyle=d<r?'#8b5cf6':'#9aa3b2';ctx.fill();}
+  ctx.beginPath();ctx.arc(c[0],c[1],6,0,7);ctx.fillStyle='#d9455f';ctx.fill();
+  ctx.fillStyle='#5b6475';ctx.font='12px sans-serif';ctx.fillText('클램프 링',120,225);ctx.fillText('팔',430,120);ctx.fillText('폰 받침',690,110);
+  document.getElementById('grn').innerHTML=`· 이웃 <b>${cnt}</b>개 · 한 층에서 정보는 r만큼만 이동 → 링에서 받침까지(약 600 px) 전달하려면 약 <b>${Math.ceil(600/r)}</b>층 필요`;}
+ cv.onclick=e=>{const b=cv.getBoundingClientRect(),x=(e.clientX-b.left)*W/b.width,y=(e.clientY-b.top)*H/b.height;let best=0,bd=1e9;P.forEach((p,i)=>{const d=Math.hypot(p[0]-x,p[1]-y);if(d<bd){bd=d;best=i;}});sel=best;draw();};
+ document.getElementById('gnr').oninput=draw;draw();
+})();
+</script>
+</body></html>
