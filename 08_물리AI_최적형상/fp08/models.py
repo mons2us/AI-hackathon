@@ -19,21 +19,32 @@ PI2 = 2 * math.pi
 
 # ============================================================================ DeepSDF
 class DeepSDF(nn.Module):
-    def __init__(self, n_shapes, lo, hi, zdim=32, width=128, depth=4):
+    """width·depth: MLP 크기, nfreq: 좌표에 사인·코사인 특징(Fourier features) 개수(0이면 끔) — 11-14 비교 실험용"""
+
+    def __init__(self, n_shapes, lo, hi, zdim=32, width=128, depth=4, nfreq=0):
         super().__init__()
         self.lat = nn.Embedding(n_shapes, zdim)
         nn.init.normal_(self.lat.weight, 0, 0.01)
         self.register_buffer('lo', torch.tensor(lo, dtype=torch.float32))
         self.register_buffer('hi', torch.tensor(hi, dtype=torch.float32))
-        layers, d = [], zdim + 3
+        self.nfreq = nfreq
+        layers, d = [], zdim + 3 + 6 * nfreq
         for i in range(depth):
             layers += [nn.Linear(d, width), nn.Softplus(beta=50)]
             d = width
         self.net = nn.Sequential(*layers, nn.Linear(d, 1))
         self.zdim = zdim
+        self.cfg = dict(zdim=zdim, width=width, depth=depth, nfreq=nfreq)
 
     def norm(self, x):
         return 2 * (x - self.lo) / (self.hi - self.lo) - 1
+
+    def encode(self, xn):
+        if not self.nfreq:
+            return xn
+        f = (2.0 ** torch.arange(self.nfreq, device=xn.device, dtype=xn.dtype)) * math.pi   # 1, 2, 4, … 배 주파수
+        a = xn[..., None] * f                                                           # (..., 3, nfreq)
+        return torch.cat([xn, torch.sin(a).flatten(-2), torch.cos(a).flatten(-2)], -1)
 
     def forward(self, z, x):
         """z (B, zdim) 또는 (zdim,), x (B, N, 3) mm → (B, N) mm"""
@@ -43,7 +54,15 @@ class DeepSDF(nn.Module):
             x = x[None].expand(z.shape[0], -1, -1)
         zz = z[:, None, :].expand(-1, x.shape[1], -1)
         scale = float((self.hi - self.lo).max()) / 2
-        return self.net(torch.cat([zz, self.norm(x)], -1))[..., 0] * scale
+        return self.net(torch.cat([zz, self.encode(self.norm(x))], -1))[..., 0] * scale
+
+
+def load_sdf(ckpt, device='cpu'):
+    """체크포인트에서 DeepSDF 복원 (크기 설정 포함)"""
+    c = torch.load(ckpt, map_location=device, weights_only=False)
+    m = DeepSDF(c['n'], c['lo'], c['hi'], **c.get('cfg', {})).to(device)
+    m.load_state_dict(c['model']); m.eval()
+    return m, c
 
 
 # ============================================================================ 문제별 고정 텐서

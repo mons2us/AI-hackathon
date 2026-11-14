@@ -33,7 +33,7 @@ if __name__ == '__main__':
     torch.set_num_threads(1)
     p = problems.get(group)
     c = torch.load(os.path.join(runs, 'sdf', group, 'ckpt.pt'), map_location='cpu', weights_only=False)
-    model = models.DeepSDF(c['n'], c['lo'], c['hi']); model.load_state_dict(c['model']); model.eval()
+    model, _ = models.load_sdf(os.path.join(runs, 'sdf', group, 'ckpt.pt'))
     idx, X, S, meta = train_sdf.load_group(data, group)
     _, occ, _ = datagen.load_shapes(data, group)
     tr, va = train_sdf.split(idx)

@@ -102,9 +102,7 @@ def optimize(group, cond, sdf_ckpt, pino_net, data, margins=None, n_starts=10, s
     t0 = time.time()
     p = problems.get(group)
     pt = models.ProblemTensors(p, device)
-    c = torch.load(sdf_ckpt, map_location=device, weights_only=False)
-    sdf = models.DeepSDF(c['n'], c['lo'], c['hi']).to(device)
-    sdf.load_state_dict(c['model']); sdf.eval()
+    sdf, c = models.load_sdf(sdf_ckpt, device)
     for q in sdf.parameters():
         q.requires_grad_(False)
     for q in pino_net.parameters():

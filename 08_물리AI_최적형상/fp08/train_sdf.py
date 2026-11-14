@@ -49,18 +49,20 @@ def infer_z(model, X, S, steps=200, lr=5e-3, device='cpu', n0=None):
 
 
 def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu', time_limit=None, log=print,
-          eval_every=2000):
+          eval_every=2000, width=128, depth=4, nfreq=0, subset=None, tag='sdf', n_eval=8):
     t0 = time.time()
     p = problems.get(group)
     idx, X, S, meta = load_group(data, group)
+    if subset:                                     # 비교 실험: 앞에서부터 subset 개만
+        idx, X, S, meta = idx[:subset], X[:subset], S[:subset], meta[:subset]
     tr, va = split(idx)
-    od = os.path.join(out, 'sdf', group); os.makedirs(od, exist_ok=True)
+    od = os.path.join(out, tag, group); os.makedirs(od, exist_ok=True)
     ck = os.path.join(od, 'ckpt.pt')
     g = p.grid
     reg = p.label != 2
     lo = np.array([g.xc[reg].min(), g.yc[reg].min(), g.zc[reg].min()]) - g.h
     hi = np.array([g.xc[reg].max(), g.yc[reg].max(), g.zc[reg].max()]) + g.h
-    model = models.DeepSDF(len(idx), lo, hi).to(device)
+    model = models.DeepSDF(len(idx), lo, hi, width=width, depth=depth, nfreq=nfreq).to(device)
     opt = torch.optim.Adam([{'params': model.net.parameters(), 'lr': lr},
                             {'params': model.lat.parameters(), 'lr': lr * 2}])
     step, hist = 0, []
@@ -88,15 +90,19 @@ def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu'
             # 학습 형상 IoU (z 저장값) / 검증 형상 IoU (z 추론)
             p_occ = datagen.load_shapes(data, group)[1]
             fixed = (p.label == 1) | (p.label == 3)
-            tri_np = np.where(tr)[0][:8]; vai = np.where(va)[0][:8]
+            tri_np = np.where(tr)[0][:8]; vai = np.where(va)[0][:n_eval]
             rec['iou_train'] = float(np.mean([grid_iou(p, model, model.lat.weight[i:i + 1].detach(), p_occ[i] | fixed, device) for i in tri_np]))
             if len(vai):
                 zv = infer_z(model, X[vai], S[vai], device=device)
                 rec['iou_val'] = float(np.mean([grid_iou(p, model, zv[k:k + 1], p_occ[i] | fixed, device) for k, i in enumerate(vai)]))
+                with torch.no_grad():                       # 표면 근처 점의 거리 오차 (mm): |예측 s − 정답 s|, 정답 |s| < 1칸 인 점
+                    xs = torch.tensor(X[vai][:, :2000], device=device); ss = torch.tensor(S[vai][:, :2000], device=device)
+                    pr = model(zv, xs); msk = ss.abs() < p.grid.h
+                    rec['surf_err_mm'] = float((pr - ss).abs()[msk].mean())
             hist.append(rec)
-            log(f'[sdf {group}] {json.dumps(rec)}')
+            log(f'[{tag} {group}] {json.dumps(rec)}', flush=True) if log is print else log(f'[{tag} {group}] {json.dumps(rec)}')
             torch.save(dict(model=model.state_dict(), opt=opt.state_dict(), step=step, hist=hist, n=len(idx),
-                            idx=idx, lo=lo, hi=hi), ck + '.tmp')
+                            idx=idx, lo=lo, hi=hi, cfg=model.cfg), ck + '.tmp')
             os.replace(ck + '.tmp', ck)
         if time_limit and time.time() > time_limit:
             log(f'[sdf {group}] 시간 한도 도달 step {step}')
@@ -111,5 +117,9 @@ if __name__ == '__main__':
     ap.add_argument('--steps', type=int, default=20000); ap.add_argument('--bs', type=int, default=32)
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     ap.add_argument('--eval-every', type=int, default=2000)
+    ap.add_argument('--width', type=int, default=128); ap.add_argument('--depth', type=int, default=4)
+    ap.add_argument('--nfreq', type=int, default=0); ap.add_argument('--subset', type=int, default=None)
+    ap.add_argument('--npts', type=int, default=1024); ap.add_argument('--tag', default='sdf'); ap.add_argument('--n-eval', type=int, default=8)
     a = ap.parse_args()
-    train(a.group, a.data, a.out, a.steps, a.bs, device=a.device, eval_every=a.eval_every)
+    train(a.group, a.data, a.out, a.steps, a.bs, npts=a.npts, device=a.device, eval_every=a.eval_every, width=a.width,
+          depth=a.depth, nfreq=a.nfreq, subset=a.subset, tag=a.tag, n_eval=a.n_eval)
