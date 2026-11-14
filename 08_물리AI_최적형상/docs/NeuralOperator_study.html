@@ -310,6 +310,7 @@ const P={A:[0,0],B:[3,0],C:[0,3],D:[2,2],E:[7,1]};
 const mat={A:1,B:1,C:0,D:1,E:1}, load={A:0,B:1,C:0,D:0,E:0};
 const R=4,W=0.8,Q=0.5,S=55,X=x=>90+S*x,Y=y=>215-S*y;
 const v0={};for(const k in P)v0[k]=1*mat[k]+2*load[k];
+const TGT={A:0,B:0.9,C:0,D:0.5,E:0.3};
 const kap=(dx,dy,ay)=>0.5+0.10*dx-0.05*dy+0.3*ay;
 const f=(n,d=2)=>(+n.toFixed(d)).toString();
 const svg=document.getElementById('gx-svg'),out=document.getElementById('gx-out');
@@ -338,6 +339,8 @@ function run(sel){
   h+=`</table><div class="gx-s">④ 평균 = (${rows.map(r=>f(r[7],3)).join(' + ')}) ÷ ${rows.length} = <b>${f(agg,3)}</b></div>`;}
  h+=`<div class="gx-s">⑤ 자기 값 + 이웃 평균 → 활성화: v₁ = ReLU(<span class="lw">0.8</span> × ${f(v0[sel])} + ${f(agg,3)}) = ReLU(${f(pre,3)}) = <b>${f(v1,3)}</b></div>`;
  h+=`<div class="gx-s">⑥ 내리기 → 출력: u(${sel}) = <span class="lw">0.5</span> × ${f(v1,3)} = <b>${f(u,3)}</b></div>`;
+ h+=`<div class="gx-s">⑦ 정답과 비교 (채점): 가상 정답 u<sub>FEM</sub>(${sel}) = ${f(TGT[sel])} → 오차 = ${f(u,3)} − ${f(TGT[sel])} = <b>${f(u-TGT[sel],3)}</b>, 제곱 오차 = ${f((u-TGT[sel])**2,3)}</div>`;
+ h+=`<div class="gx-s" style="color:#5b6475">⑧ 학습: 5개 점의 제곱 오차 평균(손실 0.414)이 줄어드는 방향으로 <span class="lw">빨간 숫자</span>를 조금씩 수정 → ①~⑦ 다시 계산 → 반복. <b>v₀가 아니라 정답 u<sub>FEM</sub>에 가까워져야 함</b></div>`;
  out.innerHTML=h;
 }
 document.querySelectorAll('.gx-btn').forEach(b=>b.onclick=()=>run(b.dataset.k));
@@ -347,13 +350,15 @@ run('A');
 
   <div class="callout green"><b>무엇이 학습되나</b> — <span class="lw">빨간 숫자</span> 8개(들어 올리기 1·2, κ의 0.5·0.10·0.05·0.3, W 0.8, 내리기 0.5)뿐. 학습 안 하는 것: 입력(재료·하중), 점 위치와 Δ·거리(기하 계산), 반지름 r(사람이 정함), ReLU(고정 함수). 실제 GNO에서는 빨간 숫자 자리가 행렬·MLP 가중치 수천~수만 개로 늘어날 뿐 구조는 같음.</div>
   <table style="margin-top:8px">
-    <tr><th>점</th><th>입력 v₀</th><th>이웃</th><th>이웃 평균</th><th>v₁</th><th>출력 u</th></tr>
-    <tr><td>A</td><td>1</td><td>B, C, D</td><td>1.4</td><td>2.2</td><td>1.1</td></tr>
-    <tr><td>B</td><td>3</td><td>A, D</td><td>0.55</td><td>2.95</td><td>1.475</td></tr>
-    <tr><td>C</td><td>0</td><td>A, D</td><td>1.0</td><td>1.0</td><td>0.5</td></tr>
-    <tr><td>D</td><td>1</td><td>A, B, C</td><td>1.233</td><td>2.033</td><td>1.017</td></tr>
-    <tr><td>E</td><td>1</td><td>없음</td><td>0</td><td>0.8</td><td>0.4</td></tr>
+    <tr><th>점</th><th>입력 v₀</th><th>이웃</th><th>이웃 평균</th><th>v₁</th><th>출력 u</th><th>가상 정답 u<sub>FEM</sub></th><th>오차</th></tr>
+    <tr><td>A</td><td>1</td><td>B, C, D</td><td>1.4</td><td>2.2</td><td>1.1</td><td>0</td><td>1.1</td></tr>
+    <tr><td>B</td><td>3</td><td>A, D</td><td>0.55</td><td>2.95</td><td>1.475</td><td>0.9</td><td>0.575</td></tr>
+    <tr><td>C</td><td>0</td><td>A, D</td><td>1.0</td><td>1.0</td><td>0.5</td><td>0</td><td>0.5</td></tr>
+    <tr><td>D</td><td>1</td><td>A, B, C</td><td>1.233</td><td>2.033</td><td>1.017</td><td>0.5</td><td>0.517</td></tr>
+    <tr><td>E</td><td>1</td><td>없음</td><td>0</td><td>0.8</td><td>0.4</td><td>0.3</td><td>0.1</td></tr>
   </table>
+  <p class="note">손실(제곱 오차 평균) = (1.1² + 0.575² + 0.5² + 0.517² + 0.1²) ÷ 5 = <b>0.414</b>. 가상 정답은 채점 과정을 보이려고 정한 값(이 예제엔 고정 조건이 없어 실제 FEM 해가 아님). 실제로는 빈 곳 C는 마스크로 0 처리 후 채점.</p>
+  <div class="callout red"><b>오해 ✕ "출력 u가 입력 v₀와 같을수록 정확하다"</b> — 아님. v₀는 입력을 숫자로 옮긴 출발값(단위 없음), u는 예측 변위(mm). 비교 대상은 <b>정답 u<sub>FEM</sub></b>. u = v₀이면 입력을 그대로 베낀 것 = 물리를 하나도 못 배운 상태. 우리 PINO의 채점도 ① 데이터 손실 |u − u<sub>FEM</sub>| ② 물리 손실 |Ku − f|(평형식 잔차) — 둘 다 v₀와는 무관.</div>
   <div class="callout"><b>예시에서 볼 것</b> — ① A의 이웃 B·C는 <b>거리가 둘 다 3 mm</b>인데 κ는 1.1 vs 0.35: 방향(Δ)과 이웃 재료 여부가 다르기 때문. ② B의 하중 정보(v₀=3)가 <b>A·D에는 1층 만에 전달</b>, 4 mm 밖의 E는 못 받음(E의 출력은 자기 값뿐) → 층을 쌓아야 멀리 감. ③ 빈 곳 C도 이웃 덕에 값(0.5)이 생김 → 실제로는 빈 곳 출력을 마스크로 0 처리(우리 PINO도 같은 처리). ④ <b>학습</b>은 출력 u와 정답(FEM 변위)의 차이를 줄이도록 κ의 계수(0.5, 0.10, −0.05, 0.3)·W·Q를 조금씩 고치는 것 — 모든 점이 같은 계수를 공유.</div>
   <p class="note">숫자는 이해용으로 정한 값이며 학습된 가중치가 아님. 표 값은 Python으로 계산해 위 버튼 결과와 대조함.</p>
 
@@ -509,6 +514,17 @@ run('A');
     <div class="box"><h3>③ 기울기가 최적화에 바로 쓰임</h3><p>z → DeepSDF → 격자 → PINO 전체가 미분 가능 → Adam으로 z 갱신 (설계 결정 8번).</p></div>
     <div class="box"><h3>④ 해커톤 일정</h3><p>2일. 검증된 구조(FNO)를 쓰고 새 위험은 물리 손실 하나로 제한.</p></div>
   </div>
+  <h3>FEM 결과를 이미 갖고 있는데 모델이 왜 필요한가</h3>
+  <table>
+    <tr><th>질문</th><th>답</th></tr>
+    <tr><td>이미 FEM으로 푼 형상</td><td>모델 <b>불필요</b> — 답을 이미 가짐. 그 FEM 결과는 모델의 <b>학습 데이터(정답)</b>가 됨</td></tr>
+    <tr><td>아직 안 푼 새 형상·새 조건</td><td>모델이 <b>FEM 대신</b> 수 ms에 예측 → 이게 대리 모델의 존재 이유</td></tr>
+    <tr><td>요청 1건</td><td>FEM 직접이 더 빠름(데이터 생성 + 학습 비용이 먼저 듦) — 우리 "손익분기 요청 수" 논리</td></tr>
+    <tr><td>최적화(형상 수천 개 평가) · 반복 요청</td><td>모델이 이김: FEM 약 1~2 s/회 <span class="tag m">실측</span> × 수천 회 vs 모델 1회 학습 후 회당 ms</td></tr>
+    <tr><td>GNO냐 FNO냐</td><td>별개 질문 — 데이터가 <b>이미지·정형 격자</b>면 FNO, <b>좌표·비정형 메시</b>면 GNO(또는 GINO). 우리는 2 mm 복셀이라 FNO</td></tr>
+  </table>
+  <div class="callout">주의: 모델 값은 <b>근사</b>. 최종 설계는 반드시 FEM으로 다시 판정(품질 관문 · verify). 기울기 자체는 FEM도 adjoint로 구할 수 있으므로 모델의 이점은 "미분 가능"이 아니라 <b>1회 평가 비용</b>.</div>
+
   <h3>GNO/GINO가 더 나아지는 때 <span class="tag e">추정</span></h3>
   <table>
     <tr><th>상황</th><th>이유</th></tr>
