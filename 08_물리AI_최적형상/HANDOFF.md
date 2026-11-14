@@ -58,6 +58,7 @@
 | DeepSDF 크기 비교 (1,000형상, 3,000스텝) | 8층×256 > 4층×128, 푸리에 특징은 오히려 나쁨 → **8×256 채택, 푸리에 미사용** | §아래 표 |
 | PINO | ⚠ CPU 시험 학습만 (값 의미 없음). 본 학습 필요 | `train_pino.py` |
 | 시연 파이프라인 (최적화→FEM 검증→STL→summary.html) | ✅ 시험 모델로 끝까지 동작 확인 (bike_pad80, 42초) | `fp08/demo.py` |
+| 학습 전 시연 경로 A (수식 형상 + FEM 직접) + 통합 화면 `app.html` | ✅ 7그룹 8조건 CPU 시험: 7개 합격, tvfeet_L220 은 조건상 불가(넘어짐 여유 0.889) | `fp08/fem_opt.py`, `fp08/app.py`, README '통합 시연 화면' |
 
 DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 
@@ -159,7 +160,7 @@ python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 |---|---|---|
 | PINO (코드에 들어있음, `loop.py GATE`, **시험 셋**으로 판정) | 변위장 상대 L2 평균 ≤ 0.10, 판정값 오차 p90 ≤ 5%, 응력 오차 p90 ≤ 15%, 진동수 ±5% 이내 ≥ 95% | 자동 판정 |
 | DeepSDF | 시험 셋 IoU ≥ 0.90, 표면 오차 ≤ 0.5칸 (`state.json` 의 `sdf_test`, `report.html`) | **제안값, 사용자 미확정. 코드에서 자동 판정 안 함** → `pack report` 로 눈으로 확인 |
-| 최종 시연 | `status: ok` (대리 모델 결과가 FEM 검증 합격). `fallback` = 후보가 전부 FEM 검증에 떨어졌다는 **표시만** 함 — FEM 직접 최적화(경로 A)를 자동으로 돌리지는 않음(미구현). 그 경우 팀 `opt3d.py`·`ped.py` 결과를 수동으로 사용 | 자동 판정 |
+| 최종 시연 | `status: ok` (대리 모델 결과가 FEM 검증 합격). `fallback` = 후보가 전부 FEM 검증에 떨어졌다는 **표시만** 함 — 경로 A(`fem_opt`, 수식 형상 + FEM 직접)를 자동으로 이어 돌리지는 않음. 그 경우 `handoff\step4b_pc_demo_fem.bat` 결과(또는 팀 `opt3d.py`·`ped.py`)를 사용 | 자동 판정 |
 
 DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 에서 이어짐, 크기 옵션은 꼭 같게):
 `python -m fp08.train_sdf --group <그룹> --data data --out runs/main --steps 40000 --width 256 --depth 8 --n-eval 30 --device cuda:0`
@@ -261,6 +262,6 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 | ESO | 힘이 거의 안 가는 칸을 지우는 고전 기법 (Xie & Steven 1993) |
 | 관문(gate) | 대리 모델을 믿어도 되는지 검사. 불합격이면 능동학습 |
 | 능동학습 | 모델이 틀리는 형상만 골라 FEM 정답을 더 만들어 재학습 |
-| fallback / 경로 A | 대리 모델 결과가 FEM 검증에 실패한 상태 / FEM 직접 최적화(팀 코드, 자동 연결은 아직 없음) |
+| fallback / 경로 A | 대리 모델 결과가 FEM 검증에 실패한 상태 / 학습 모델 없이 수식 형상 + FEM 직접 최적화 (`fp08/fem_opt.py`, 대리 모델 경로와 자동 연결은 없음) |
 
 참고문헌: Park et al., *DeepSDF*, CVPR 2019 · Li et al., *Fourier Neural Operator*, ICLR 2021 · Li et al., *Physics-Informed Neural Operator*, 2021 · Xie & Steven, *A simple evolutionary procedure for structural optimization*, Computers & Structures 1993.
