@@ -151,6 +151,39 @@ def shapes_shard(args):
     return path, time.time() - t0
 
 
+ESO_BASE = 10_000_000     # ESO 로 다듬은 형상의 번호 = 원본 번호 + ESO_BASE
+
+
+def eso_shard(args):
+    """선택된 형상 묶음 s 에서 짝수 번째(절반)를 ESO 로 다듬어 새 형상으로 저장 (shapes_e#####.npz)"""
+    group, s, out, n_pts = args
+    path = os.path.join(out, group, f'shapes_e{s:05d}.npz')
+    if os.path.exists(path):
+        return path, 0.0
+    from . import eso
+    t0 = time.time()
+    p, cv = _prob(group)
+    z = np.load(os.path.join(out, group, f'shapes_{s:05d}.npz'))
+    occ0 = np.unpackbits(z['occ'], axis=1)[:, :p.grid.ne].astype(bool)
+    meta0 = json.loads(str(z['meta']))
+    idx, occ, meta, X, S = [], [], [], [], []
+    for k in range(0, len(z['idx']), 2):
+        if not meta0[k].get('connected', True):
+            continue
+        o, lg = eso.eso_prune(p, cv, occ0[k])
+        if (o ^ occ0[k]).sum() == 0:
+            continue
+        i = ESO_BASE + int(z['idx'][k])
+        rng = np.random.default_rng(shapes.seed_of(group, i) ^ 0xd5df)
+        x, d = shapes.sample_sdf(p, o | cv.fixed, rng, n=n_pts)
+        m = dict(meta0[k], idx=i, parent=int(z['idx'][k]), eso=lg, vf=float(o.sum() / cv.design.sum()))
+        idx.append(i); occ.append(np.packbits(o)); meta.append(m); X.append(x.astype(np.float16)); S.append(d.astype(np.float16))
+    tmp = path + '.tmp.npz'
+    np.savez_compressed(tmp, idx=np.array(idx), occ=np.stack(occ), meta=json.dumps(meta), sdf_xyz=np.stack(X), sdf=np.stack(S))
+    os.replace(tmp, path)
+    return path, time.time() - t0
+
+
 def load_shapes(out, group):
     p, _ = _prob(group)
     d = os.path.join(out, group)
@@ -237,7 +270,7 @@ def run_pool(fn, tasks, workers, log=print):
         pool.close(); pool.join()
 
 
-def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, log=print):
+def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, eso=False, log=print):
     """n_cand 를 주면: 후보 n_cand 개 생성 → 걸러서 n 개 선택 → 선택된 것만 SDF 점 샘플"""
     os.makedirs(os.path.join(out, group), exist_ok=True)
     p, _ = _prob(group)
@@ -251,6 +284,8 @@ def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, log=print):
             select(group, out, n, log=log)
     tasks = [(group, s, out, n_pts) for s in range((n + SHARD - 1) // SHARD)]
     run_pool(shapes_shard, tasks, workers, log)
+    if eso:                                    # 11-14: 절반을 ESO 로 다듬어 추가 (형상 n → 약 1.5n)
+        run_pool(eso_shard, tasks, workers, log)
 
 
 def make_fem(group, n, out, workers, log=print):
@@ -285,12 +320,13 @@ if __name__ == '__main__':
     ap.add_argument('--n-shapes', type=int, default=5000)
     ap.add_argument('--n-fem', type=int, default=1000)
     ap.add_argument('--n-cand', type=int, default=None, help='후보 형상 수 (주면 걸러서 n-shapes 개 선택)')
+    ap.add_argument('--eso', action='store_true', help='선택된 형상의 절반을 ESO 로 다듬어 추가')
     ap.add_argument('--workers', type=int, default=os.cpu_count())
     ap.add_argument('--out', default='data')
     a = ap.parse_args()
     groups = [a.group] if a.group else list(problems.GROUPS)
     for gname in groups:
         if a.what in ('shapes', 'all'):
-            make_shapes(gname, a.n if a.what == 'shapes' else a.n_shapes, a.out, a.workers, n_cand=a.n_cand)
+            make_shapes(gname, a.n if a.what == 'shapes' else a.n_shapes, a.out, a.workers, n_cand=a.n_cand, eso=a.eso)
         if a.what in ('fem', 'all'):
             make_fem(gname, a.n if a.what == 'fem' else a.n_fem, a.out, a.workers)

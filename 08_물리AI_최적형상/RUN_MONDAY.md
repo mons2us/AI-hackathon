@@ -28,7 +28,8 @@ python -m fp08.problems                                  # 6개 그룹 격자·�
 
 ```bash
 python -m fp08.loop --run runs/main --data data --stages shapes,fem --workers $(nproc) \
-       --n-shapes 5000 --n-cand 12000 --n-fem 1000
+       --n-shapes 5000 --n-cand 12000 --eso --n-fem 1000
+# --eso: 선택된 5,000개 중 절반을 FEM 변형 에너지로 다듬어(ESO) 새 형상으로 추가 → 그룹당 약 7,500개 (32코어 약 25분, 추정)
 # 후보 12,000개를 만들어 허공 가지·울퉁불퉁한 것을 거르고 5,000개 선택 (data/<그룹>/selection.json, drop_reason.json)
 # 진행: runs/main/report.html, runs/main/loop.log, data/<그룹>/spec.json
 rsync -a data/ <GPU서버>:<경로>/08_물리AI_최적형상/data/      # 서버 간 SSH 전송 (사내망)

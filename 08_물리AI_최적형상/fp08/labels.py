@@ -39,7 +39,7 @@ def fem_label(p, occ, cond=None, want_modes=True, keep_K=False):
         for j, n in enumerate(nm):
             Ud[n] = U[bc][:, j]
     res = dict(U=Ud, freq={bc: np.asarray(v) for bc, v in (FR or {}).items()}, occ=occb, _K=K)
-    res['eval'] = p.evaluate(res, cond)
+    res['eval'] = p.evaluate(res, cond) if (want_modes or not p.modes) else None   # 진동 없이 풀면 판정 생략
     res['t'] = time.time() - t0
     if not keep_K:
         res.pop('_K')

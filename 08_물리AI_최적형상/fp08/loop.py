@@ -93,7 +93,7 @@ class Loop:
             if self.done(k):
                 continue
             t = time.time()
-            datagen.make_shapes(g, self.a.n_shapes, self.a.data, self.a.workers, n_cand=self.a.n_cand, log=self.log)
+            datagen.make_shapes(g, self.a.n_shapes, self.a.data, self.a.workers, n_cand=self.a.n_cand, eso=self.a.eso, log=self.log)
             self.mark(k, sec=round(time.time() - t, 1), n=self.a.n_shapes)
 
     def st_fem(self):
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     ap.add_argument('--groups', default=None)
     ap.add_argument('--workers', type=int, default=os.cpu_count())
     ap.add_argument('--devices', default='cpu')
-    ap.add_argument('--n-shapes', type=int, default=5000); ap.add_argument('--n-cand', type=int, default=12000); ap.add_argument('--n-fem', type=int, default=1000)
+    ap.add_argument('--n-shapes', type=int, default=5000); ap.add_argument('--n-cand', type=int, default=12000); ap.add_argument('--eso', action='store_true'); ap.add_argument('--n-fem', type=int, default=1000)
     ap.add_argument('--sdf-steps', type=int, default=20000); ap.add_argument('--pino-steps', type=int, default=30000)
     ap.add_argument('--al-n', type=int, default=200); ap.add_argument('--max-rounds', type=int, default=3)
     ap.add_argument('--n-starts', type=int, default=10); ap.add_argument('--opt-steps', type=int, default=300)
