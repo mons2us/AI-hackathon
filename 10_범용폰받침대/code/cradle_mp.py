@@ -83,13 +83,19 @@ def report(rho,Cc,T,tag):
     r=dict(tag=tag,AL=AL,mass_g=round(mass(rho),1),C=round(Cc,2),defl_mm=round(Cc/276.,3),Tmax=round(float(T[phn].max()),2),Tsrc=round(float(T[np.unique(en[src].ravel())].mean()),2),Tback=round(float(T[np.unique(en[ph&(K==NP+NA)][:,fbot].ravel())].mean()),2))
     print(json.dumps(r),flush=True); return r
 if MODE=='eval':
-    rr=np.load(os.environ['RHO']); rho,u,T,Kt,used,ps2,Cc,Jp=evaluate(rr[didx]); r=report(rho,Cc,T,'eval'); np.save('T_%s.npy'%TAG,T); sys.exit()
+    rr=np.load(os.environ['RHO']); rho,u,T,Kt,used,ps2,Cc,Jp=evaluate(rr[didx]); r=report(rho,Cc,T,'eval'); np.save('T_%s.npy'%TAG,T)
+    on=np.where(petg&(rho>0.5))[0]; out={}
+    for c,nm in ((0,'LC1_떨어지는방향'),(1,'LC2_세로방향')):
+        st=(E_PETG*(C@B0@u[edof[on],c].T)).T
+        vm=np.sqrt(0.5*((st[:,0]-st[:,1])**2+(st[:,1]-st[:,2])**2+(st[:,2]-st[:,0])**2)+3*(st[:,3:]**2).sum(1))
+        out[nm]=dict(vm_max=round(float(vm.max()),1),vm999=round(float(np.percentile(vm,99.9)),1),vm99=round(float(np.percentile(vm,99)),1))
+    print(json.dumps(out,ensure_ascii=False)); sys.exit()
 if MODE=='flat':
     xd=(K[didx]==NP-1).astype(float)              # 맨 윗층(폰 닿는 면) 2 mm 평판
     rho,u,T,Kt,used,ps2,Cc,Jp=evaluate(xd); r=report(rho,Cc,T,'flat'); json.dump(r,open('res_%s.json'%TAG,'w')); np.save('rho_%s.npy'%TAG,rho); np.save('T_%s.npy'%TAG,T); sys.exit()
 CMAX=float(os.environ.get('CMAX','1e9')); MMAX=float(os.environ['MMAX']); OBJ=os.environ.get('OBJ','T')
 mfix=float(fixed_solid.sum()*h**3*1.27e-3)+(80*150*0.5*2.7e-3 if AL else 0.); me=h**3*1.27e-3
-x=np.full(nd,0.3); xo1=x[:,None].copy(); xo2=x[:,None].copy(); low=np.zeros((nd,1)); upp=np.ones((nd,1))
+x=(np.random.default_rng(int(os.environ['SEED'])).uniform(0.1,0.5,nd) if os.environ.get('SEED') else np.full(nd,0.3)); xo1=x[:,None].copy(); xo2=x[:,None].copy(); low=np.zeros((nd,1)); upp=np.ones((nd,1))
 sched={0:1,30:2,55:4,80:8,100:16}; t0=time.time(); J0=None
 tt=np.where(top)[0]; bb=np.where(bot)[0]
 loc={e:i for i,e in enumerate(didx)}
