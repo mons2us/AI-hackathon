@@ -197,7 +197,7 @@ function draw(cv, M, yaw, pitch){
 }
 const YAW0=CFG.group.startsWith('bike')?-0.55:-0.75, PITCH0=0.45;
 function cap(m){const fam=CFG.fam[m[1]]||m[1];
- return `#${m[0]} · ${fam} · 재료 ${(100*m[2]).toFixed(1)}% · 가지 ${m[3]} · 울퉁 ${m[4]}`+(m[5]?'':' · 끊김')+(m[6]==2?` · 위에서 깎기 순서열-단계 ${m[7].slice(4)}`:m[6]?' · 선택':` · ${({tips:'제외: 허공 가지',rough:'제외: 울퉁불퉁',broken_over_quota:'제외: 끊김 초과',not_sampled:'품질 통과, 비율상 안 뽑힘',failed:'생성 실패'})[m[7]]||m[7]}`);}
+ return `#${m[0]} · ${fam} · 재료 ${(100*m[2]).toFixed(1)}% · 가지 ${m[3]} · 울퉁 ${m[4]}`+(m[5]?'':' · 끊김')+(m[6]==2?` · 위에서 깎기 순서열-단계 ${m[7].slice(4)}`:m[6]?' · 선택':` · ${({tips:'제외: 허공 가지',rough:'제외: 울퉁불퉁',broken_over_quota:'제외: 끊김 초과',not_sampled:'품질 통과, 비율상 안 뽑힘',family_off:'이 제품에서 안 쓰는 형식',failed:'생성 실패'})[m[7]]||m[7]}`);}
 function cls(m){return m[6]==2?'top':m[6]?'':(m[7]=='not_sampled'?'ns':'drop');}
 function want(m,sh){if(sh=='all')return m[6]!=2; if(sh=='keep')return m[6]==1; if(sh=='top')return m[6]==2;
  if(sh=='ns')return !m[6]&&m[7]=='not_sampled'; return !m[6]&&m[7]!='not_sampled';}

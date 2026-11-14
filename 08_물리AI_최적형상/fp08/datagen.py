@@ -83,6 +83,11 @@ def select(group, out, n_keep, broken_frac=0.05, max_tips=2, rough_pct=90, log=p
             reason[m['idx']] = 'rough'
         else:
             good.append(m)
+    caps = FAM_CAP.get(problems.PRODUCT_OF[group], {})
+    off = {f for f, c in caps.items() if c <= 0}       # 상한 0% 형식은 끊긴 형상 몫에서도 제외
+    for m in [m for m in broken if m['family'] in off]:
+        reason[m['idx']] = 'family_off'
+    broken = [m for m in broken if m['family'] not in off]
     n_broken = min(len(broken), int(round(broken_frac * n_keep)))
     keep = [m['idx'] for m in sorted(broken, key=lambda m: m['idx'])[:n_broken]]
     for m in broken[n_broken:]:
@@ -95,7 +100,7 @@ def select(group, out, n_keep, broken_frac=0.05, max_tips=2, rough_pct=90, log=p
     w = {f: max(rate[f], 1e-6) for f in fams}
     ws = sum(w.values()); w = {f: max(v / ws, 0.05) for f, v in w.items()}; ws = sum(w.values())
     mix = {f: v / ws for f, v in w.items()}
-    for f, cap in FAM_CAP.items():                    # 11-15: 형식별 상한 (D 열린 껍데기 5%) — 남는 몫은 다른 형식에 비례 배분
+    for f, cap in caps.items():                       # 11-15: 형식별 상한 — 남는 몫은 다른 형식에 비례 배분
         if f in mix and mix[f] > cap:
             rest = sum(v for k, v in mix.items() if k != f)
             mix = {k: (cap if k == f else v * (1 - cap) / rest) for k, v in mix.items()}
@@ -156,7 +161,9 @@ def shapes_shard(args):
 
 
 ESO_BASE = 10_000_000     # ESO 로 다듬은 형상의 번호 = 원본 번호 + ESO_BASE
-FAM_CAP = {'D': 0.05}     # 11-15: 선택 단계 형식 상한 — D(열린 껍데기)는 부품답지 않은 모양이 많아 15% → 5% (사용자 결정)
+# 11-15: 선택 단계 형식 상한 (제품별). D(열린 껍데기: 속을 파내고 평면으로 자른 모양)는 부품답지 않아
+#        거치대는 0% (사용자 결정: 안 씀), TV 는 5%. 후보 생성은 그대로라 다른 형식 형상은 바뀌지 않음
+FAM_CAP = {'bike': {'D': 0.0}, 'tvfeet': {'D': 0.05}, 'tvped': {'D': 0.05}}
 TOP_BASE = 50_000_000     # 위에서 깎기(top-down) 형상 번호 = TOP_BASE + 순서열 번호 × TOP_STEP + 단계
 TOP_STEP = 24
 TOP_PER_SHARD = 4         # 파일 하나에 순서열 4개

@@ -97,6 +97,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | `fp08/loop.py` | 전체 흐름 자동화 (단계·관문·능동학습·시연, `state.json`·`report.html`) |
 | `fp08/design_opt.py` | z 최적화 (증강 라그랑주 + Adam) + FEM 검증 |
 | `fp08/demo.py` | 시연: JSON·PNG·STL·summary.html |
+| `fp08/datagen.py` `FAM_CAP` | 제품별 형식 상한: 거치대는 D(열린 껍데기) 0%, TV 5% (11-15 사용자 결정) |
 | `fp08/sweep.py` | 학습 방법 후보·점수 계산·선택 (후보는 여기만 고치면 됨) |
 | `diag_eso.bat` / `diag_eso.py` | Windows 에서 ESO·FEM 속도 진단 |
 | `fp08/pack.py` | zip 묶기/풀기, `check`(데이터 개수), `report`(학습 결과 요약) |
