@@ -22,7 +22,9 @@ def load_group(data, group):
 def split3(idx, frac=0.1):
     """번호로 결정되는 고정 분할 (다시 실행해도 같음): 학습 80% / 검증 10% / 시험 10%
     검증 = 학습 중 성능 확인·학습 방법 고르기(sweep) / 시험 = 고르는 데 쓰지 않은 최종 성적표(관문·보고)"""
-    h = np.array([shapes.seed_of('split', int(i)) % 1000 for i in idx])
+    # ESO 로 깎은 형상(번호 = 부모 + ESO_BASE)은 부모와 같은 쪽으로 (닮은 형상이 학습/시험에 갈라져 들어가는 것 방지)
+    par = lambda i: i - datagen.ESO_BASE if datagen.ESO_BASE <= i < 2 * datagen.ESO_BASE else i
+    h = np.array([shapes.seed_of('split', par(int(i))) % 1000 for i in idx])
     return h >= 2 * frac * 1000, h < frac * 1000, (h >= frac * 1000) & (h < 2 * frac * 1000)
 
 
@@ -56,7 +58,7 @@ def infer_z(model, X, S, steps=200, lr=5e-3, device='cpu', n0=None):
 
 
 def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu', time_limit=None, log=print,
-          eval_every=2000, width=128, depth=4, nfreq=0, subset=None, tag='sdf', n_eval=8, stop_at=None):
+          eval_every=2000, width=128, depth=4, nfreq=0, subset=None, tag='sdf', n_eval=8, stop_at=None, zdim=32):
     """stop_at: 학습률 일정은 steps 기준으로 두고 stop_at 스텝에서 멈춤 (sweep 1차 거르기용, 나중에 같은 명령으로 이어하기)"""
     t0 = time.time()
     p = problems.get(group)
@@ -73,8 +75,8 @@ def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu'
     if os.path.exists(ck):                         # 이어하기: 저장된 크기로 모델을 만듦 (명령 옵션과 달라도 안전)
         cf = torch.load(ck, map_location='cpu', weights_only=False).get('cfg') or {}
         width, depth, nfreq = cf.get('width', width), cf.get('depth', depth), cf.get('nfreq', nfreq)
-        lr, npts = cf.get('lr', lr), cf.get('npts', npts)
-    model = models.DeepSDF(len(idx), lo, hi, width=width, depth=depth, nfreq=nfreq).to(device)
+        lr, npts, zdim = cf.get('lr', lr), cf.get('npts', npts), cf.get('zdim', zdim)
+    model = models.DeepSDF(len(idx), lo, hi, zdim=zdim, width=width, depth=depth, nfreq=nfreq).to(device)
     model.cfg.update(lr=lr, npts=npts)
     opt = torch.optim.Adam([{'params': model.net.parameters(), 'lr': lr},
                             {'params': model.lat.parameters(), 'lr': lr * 2}])
@@ -84,6 +86,15 @@ def train(group, data, out, steps=20000, bs=32, npts=1024, lr=5e-4, device='cpu'
         if c['n'] == len(idx):
             model.load_state_dict(c['model']); opt.load_state_dict(c['opt']); step, hist = c['step'], c['hist']
             log(f'[sdf {group}] 이어하기 step {step}')
+        else:                                      # 형상 수가 바뀜(데이터 추가) → 디코더와 기존 형상의 z 는 물려받고 처음부터 다시 (warm start)
+            sd = {k: v for k, v in c['model'].items() if k != 'lat.weight'}
+            model.load_state_dict(sd, strict=False)
+            pos = {int(i): k for k, i in enumerate(c['idx'])}
+            with torch.no_grad():
+                for k, i in enumerate(idx):
+                    if int(i) in pos:
+                        model.lat.weight[k] = c['model']['lat.weight'][pos[int(i)]]
+            log(f'[sdf {group}] 형상 수 {c["n"]} → {len(idx)}: 이전 모델에서 이어받아 다시 학습 (warm start)')
     Xt = torch.tensor(X, device=device); St = torch.tensor(S, device=device)
     tri = torch.tensor(np.where(tr)[0], device=device)
     sched = lambda s: 0.5 ** (s / (steps / 3))
@@ -152,6 +163,7 @@ if __name__ == '__main__':
     ap.add_argument('--nfreq', type=int, default=0); ap.add_argument('--subset', type=int, default=None)
     ap.add_argument('--npts', type=int, default=1024); ap.add_argument('--tag', default='sdf'); ap.add_argument('--n-eval', type=int, default=8)
     ap.add_argument('--lr', type=float, default=5e-4); ap.add_argument('--stop-at', type=int, default=None)
+    ap.add_argument('--zdim', type=int, default=32)
     a = ap.parse_args()
     train(a.group, a.data, a.out, a.steps, a.bs, npts=a.npts, device=a.device, eval_every=a.eval_every, width=a.width,
-          depth=a.depth, nfreq=a.nfreq, subset=a.subset, tag=a.tag, n_eval=a.n_eval, lr=a.lr, stop_at=a.stop_at)
+          depth=a.depth, nfreq=a.nfreq, subset=a.subset, tag=a.tag, n_eval=a.n_eval, lr=a.lr, stop_at=a.stop_at, zdim=a.zdim)

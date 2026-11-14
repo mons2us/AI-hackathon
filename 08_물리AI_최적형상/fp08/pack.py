@@ -54,7 +54,7 @@ def unpack(zp, dest):
 
 def check(data):
     from . import datagen, problems
-    print(f'{"그룹":14s} {"형상":>7s} {"ESO":>6s} {"FEM":>6s} {"능동학습 FEM":>12s}')
+    print(f'{"그룹":14s} {"형상":>7s} {"ESO":>6s} {"FEM":>6s} {"ESO FEM":>8s} {"능동학습 FEM":>12s}')
     for g in problems.GROUPS:
         d = os.path.join(data, g)
         if not os.path.isdir(d):
@@ -64,7 +64,8 @@ def check(data):
         ne = sum(len(__import__('numpy').load(os.path.join(d, f))['idx']) for f in fs if f.startswith('shapes_e') and f.endswith('.npz'))
         nf = sum(len(__import__('numpy').load(os.path.join(d, f))['idx']) for f in fs if f.startswith('fem_') and f.endswith('.npz'))
         na = sum(len(__import__('numpy').load(os.path.join(d, f))['idx']) for f in fs if f.startswith('femal') and f.endswith('.npz'))
-        print(f'{g:14s} {ns:7d} {ne:6d} {nf:6d} {na:12d}')
+        nx = sum(len(__import__('numpy').load(os.path.join(d, f))['idx']) for f in fs if f.startswith('femeso_') and f.endswith('.npz'))
+        print(f'{g:14s} {ns:7d} {ne:6d} {nf:6d} {nx:8d} {na:12d}')
 
 
 def report(run):
@@ -101,6 +102,40 @@ def report(run):
         for g, L in res.items():
             for d in L:
                 print(f"  {r} {g:13s} {d['cond']} {d['status']} 질량 {(d['best'] or {}).get('mass_g', '-')}")
+    advise(run, st)
+
+
+def advise(run, st):
+    """학습이 잘 안 됐을 때 다음에 할 일 (HANDOFF.md §6-1 대응 사다리). 규칙 기반 참고용 — 최종 판단은 사람이"""
+    import torch
+    print('== 권장 조치 (참고용, HANDOFF.md §6-1) ==')
+    n = 0
+    for g, m in st.get('sdf_test', {}).items():
+        if m['iou_test'] >= 0.90 and m['surf_err_cell_test'] <= 0.5:
+            continue
+        n += 1
+        ck = os.path.join(run, 'sdf', g, 'ckpt.pt')
+        h = torch.load(ck, map_location='cpu', weights_only=False)['hist'] if os.path.exists(ck) else []
+        v = [x['iou_val'] for x in h if 'iou_val' in x]
+        rising = len(v) >= 2 and v[-1] - v[-2] > 0.005
+        if rising:
+            print(f"  DeepSDF {g}: IoU {m['iou_test']:.2f} < 0.90, 아직 오르는 중(+{v[-1] - v[-2]:.3f}) → S1 더 오래: --sdf-steps {2 * m['step']}")
+        else:
+            print(f"  DeepSDF {g}: IoU {m['iou_test']:.2f} < 0.90, 더 안 오름 → S2 큰 모델(sweep 후보 wide_8x512·z64, --sweep-topk 2). 시연 FEM 검증이 ok 면 이대로도 사용 가능")
+    G = st.get('gate', {})
+    if G:
+        last = G[sorted(G)[-1]]
+        for g, v in last.items():
+            if v['passed']:
+                continue
+            n += 1
+            print(f"  PINO {g}: 관문 불합격 ({', '.join(v['why'])})")
+        if any(not v['passed'] for v in last.values()):
+            nf = max((s.get('req', 0) for k, s in st.get('stages', {}).items() if k.startswith('fem:')), default=1000)
+            print(f"    → P1 능동학습 3바퀴가 끝났는지 확인(state.json rounds) → P2 FEM 정답 늘리기: N_FEM={nf + 1000} 로 step3 다시 실행 (모자란 만큼만 추가, PINO 는 이어서 학습)")
+            print(f"    → 그래도 안 되면 P3 형상 늘리기 N_SHAPES=8000, 마지막은 FEM 직접 최적화(2번 대응)")
+    if not n:
+        print('  없음 (DeepSDF 제안 기준·PINO 관문 모두 통과했거나 아직 결과 없음)')
 
 
 if __name__ == '__main__':

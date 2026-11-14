@@ -9,7 +9,7 @@ python -m fp08.demo --run runs/main --data data --out results --groups bike_pad8
   <그룹>_<조건>.png   : 최적 형상 그림 (표면 다듬어 표시)
   <그룹>_<조건>.stl   : 최적 형상 STL (FEM 으로 검증한 칸 형상의 표면을 다듬은 것, 대칭 복원, 강체 대역 제외, mm)
   summary.html        : 전체 표
-fallback = 대리 모델 결과가 FEM 검증에 실패 → FEM 직접 최적화(경로 A, 팀 opt3d.py·ped.py)로 대신
+fallback = 대리 모델 후보가 전부 FEM 검증에 실패 (표시만 함. FEM 직접 최적화(경로 A, 팀 opt3d.py·ped.py)는 자동 연결 안 됨 → 수동)
 """
 import os, sys, json, time, argparse, html
 import numpy as np
@@ -115,12 +115,12 @@ def main():
             rows.append(rec)
             print(f'[demo] {tag}: {rec["status"]} {rec["sec"]} s', flush=True)
     E = html.escape
-    tr = ''.join(f'<tr><td>{E(r["group"])}</td><td>{E(json.dumps(r["cond"]))}</td><td>{"✅ ok" if r["status"] == "ok" else "⚠ fallback (경로 A)"}</td>'
+    tr = ''.join(f'<tr><td>{E(r["group"])}</td><td>{E(json.dumps(r["cond"]))}</td><td>{"✅ ok" if r["status"] == "ok" else "⚠ fallback (FEM 검증 실패)"}</td>'
                  f'<td>{(r["fem"] or {}).get("mass_g", "-")}</td><td><code>{E(json.dumps({k: (round(v, 3) if isinstance(v, float) else v) for k, v in (r["fem"] or {}).items() if k not in ("f", "pad_min_N")}, default=str))}</code></td>'
                  f'<td>{r["sec"]}</td><td>{"<img src=%s width=220>" % E(tagof(r["group"], r["cond"]) + ".png") if r["status"] == "ok" else ""}</td></tr>' for r in rows)
     open(os.path.join(a.out, 'summary.html'), 'w', encoding='utf-8').write(
         f'<!DOCTYPE html><html lang="ko"><meta charset="utf-8"><title>08 시연 결과</title><style>body{{font-family:sans-serif;margin:20px}}td,th{{border:1px solid #ddd;padding:4px 6px;font-size:13px}}table{{border-collapse:collapse}}</style>'
-        f'<h2>08 시연 결과 — 대리 모델 최적화 + FEM 검증</h2><p>질량 g은 대칭 복원 전체(고정부품 포함). fallback 은 FEM 직접 최적화로 대신.</p>'
+        f'<h2>08 시연 결과 — 대리 모델 최적화 + FEM 검증</h2><p>질량 g은 대칭 복원 전체(고정부품 포함). fallback = 대리 모델 후보가 모두 FEM 검증 실패 (자동 대체 없음).</p>'
         f'<table><tr><th>그룹</th><th>조건</th><th>상태</th><th>질량 g</th><th>FEM 판정값</th><th>시간 s</th><th>형상</th></tr>{tr}</table></html>')
     print(f'요약: {os.path.join(a.out, "summary.html")}')
 

@@ -16,10 +16,10 @@ SCREEN_FRAC = 0.2
 
 # DeepSDF: 11-14 비교에서 8층×256 이 4층×128 보다 좋았음(IoU 0.73 vs 0.70) → 기준으로 두고 크기·점 수·학습률을 흔듦
 SDF_CANDS = {
-    'base_8x256':  dict(width=256, depth=8, npts=1024, lr=5e-4),
-    'wide_8x512':  dict(width=512, depth=8, npts=1024, lr=5e-4),
-    'pts2048':     dict(width=256, depth=8, npts=2048, lr=5e-4),
-    'lr1e-3':      dict(width=256, depth=8, npts=1024, lr=1e-3),
+    'base_8x256':  dict(width=256, depth=8, npts=1024, lr=5e-4, zdim=32),
+    'wide_8x512':  dict(width=512, depth=8, npts=1024, lr=5e-4, zdim=32),
+    'pts2048':     dict(width=256, depth=8, npts=2048, lr=5e-4, zdim=32),
+    'z64':         dict(width=256, depth=8, npts=1024, lr=5e-4, zdim=64),   # 번호표 z 를 32 → 64차원 (형상 수가 많아 32로 모자랄 때)
 }
 # PINO: 폭, 푸리에 모드 수, 물리 손실 가중치
 PINO_CANDS = {
@@ -31,7 +31,8 @@ PINO_CANDS = {
 
 
 def sdf_args(c):
-    return ['--width', str(c['width']), '--depth', str(c['depth']), '--npts', str(c['npts']), '--lr', str(c['lr'])]
+    return ['--width', str(c['width']), '--depth', str(c['depth']), '--npts', str(c['npts']), '--lr', str(c['lr']),
+            '--zdim', str(c.get('zdim', 32))]
 
 
 def pino_args(c):

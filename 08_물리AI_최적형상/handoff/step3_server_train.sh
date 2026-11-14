@@ -4,6 +4,10 @@
 #   A (기본) : 데이터도 서버에서 만듦 (서버 CPU 코어가 많을 때. 회사 PC 에서 만들 필요 없음)
 #   B        : 회사 PC 에서 만든 upload_data.zip 을 이 폴더에 두고 실행
 # 끊기면 같은 명령을 다시 실행 → runs/main/state.json 보고 끝난 단계는 건너뜀
+# 학습이 잘 안 됐을 때(HANDOFF.md §6-1): 숫자를 키워 같은 스크립트를 다시 실행 → 모자란 만큼만 추가로 만들고 이어서 학습
+#   N_FEM=2000 bash handoff/step3_server_train.sh A            # FEM 정답 1000 → 2000 (+ESO 정답), PINO 이어서
+#   SDF_STEPS=40000 bash handoff/step3_server_train.sh A       # DeepSDF 더 오래
+#   N_SHAPES=8000 bash handoff/step3_server_train.sh A         # 형상 5000 → 8000 (DeepSDF 는 이어받아 다시 학습)
 set -e
 cd "$(dirname "$0")/.."
 PLAN=${1:-A}
@@ -28,8 +32,8 @@ fi
 #           시간이 모자라면 --sweep 을 지우면 기존처럼 1개 설정(8층×256, PINO 폭 24)만 학습
 SWEEP=${SWEEP---sweep --sweep-topk 1}
 python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $(nproc) $SWEEP \
-  --n-shapes 5000 --n-cand 12000 --eso --n-fem 1000 \
-  --sdf-steps 20000 --sdf-width 256 --sdf-depth 8 --pino-steps 30000 \
+  --n-shapes ${N_SHAPES:-5000} --n-cand 12000 --eso --n-fem ${N_FEM:-1000} \
+  --sdf-steps ${SDF_STEPS:-20000} --sdf-width 256 --sdf-depth 8 --pino-steps ${PINO_STEPS:-30000} \
   --al-n 200 --max-rounds 3 2>&1 | tee -a runs_main.out
 python -m fp08.pack check data
 python -m fp08.pack runs runs/main results.zip

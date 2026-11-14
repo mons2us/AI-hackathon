@@ -96,39 +96,49 @@ class Loop:
     def st_shapes(self):
         for g in self.groups:
             k = f'shapes:{g}'
-            if self.done(k):
-                continue
+            prev = self.state['stages'].get(k, {})
+            if prev.get('done') and prev.get('n', 0) >= self.a.n_shapes and (prev.get('eso', False) or not self.a.eso):
+                continue                                   # --n-shapes 를 늘리거나 --eso 를 새로 켜면 모자란 만큼만 추가 생성
             t = time.time()
             datagen.make_shapes(g, self.a.n_shapes, self.a.data, self.a.workers, n_cand=self.a.n_cand, eso=self.a.eso, log=self.log)
-            self.mark(k, sec=round(time.time() - t, 1), n=self.a.n_shapes)
+            self.mark(k, sec=round(time.time() - t, 1), n=self.a.n_shapes, eso=bool(self.a.eso or prev.get('eso')),
+                      total=datagen.count_shapes(self.a.data, g))
 
     def st_fem(self):
         for g in self.groups:
             k = f'fem:{g}'
-            if self.done(k):
-                continue
+            prev = self.state['stages'].get(k, {})
+            if prev.get('done') and prev.get('req', prev.get('n', 0)) >= self.a.n_fem and (prev.get('eso', False) or not self.a.eso):
+                continue                                   # --n-fem 을 늘리면 모자란 만큼만 추가
             t = time.time()
-            datagen.make_fem(g, self.a.n_fem, self.a.data, self.a.workers, log=self.log)
+            datagen.make_fem(g, self.a.n_fem, self.a.data, self.a.workers, log=self.log, eso=self.a.eso)
             R = datagen.load_fem(self.a.data, g)
-            self.mark(k, sec=round(time.time() - t, 1), n=int(len(R['idx'])),
+            self.mark(k, sec=round(time.time() - t, 1), n=int(len(R['idx'])), req=self.a.n_fem, eso=bool(self.a.eso),
+                      n_eso=int(((R['idx'] >= datagen.ESO_BASE) & (R['idx'] < 2 * datagen.ESO_BASE)).sum()) if len(R['idx']) else 0,
                       pass_frac=float(np.mean([e['pass'] for e in R['eval']])) if R['eval'] else None)
 
     def st_sdf(self):
+        """체크포인트 기준으로 판단: 없거나, 스텝이 모자라거나(--sdf-steps 를 늘림), 형상 수가 바뀌었으면(데이터 추가) 학습.
+        sweep 으로 고른 모델도 여기서 같은 설정으로 이어감 (설정은 체크포인트에 저장돼 있음)"""
+        import torch
         jobs = []
         for g in self.groups:
-            if not self.done(f'sdf:{g}'):
-                jobs.append((f'sdf_{g}', [sys.executable, '-m', 'fp08.train_sdf', '--group', g, '--data', self.a.data,
-                                          '--out', self.run, '--steps', str(self.a.sdf_steps),
-                                          '--eval-every', str(max(self.a.sdf_steps // 10, 100)),
-                                          '--width', str(self.a.sdf_width), '--depth', str(self.a.sdf_depth), '--n-eval', '30']))
+            ck = os.path.join(self.run, 'sdf', g, 'ckpt.pt')
+            if os.path.exists(ck):
+                c = torch.load(ck, map_location='cpu', weights_only=False)
+                if c['step'] >= self.a.sdf_steps and c['n'] == datagen.count_shapes(self.a.data, g):
+                    continue
+            jobs.append((f'sdf_{g}', [sys.executable, '-m', 'fp08.train_sdf', '--group', g, '--data', self.a.data,
+                                      '--out', self.run, '--steps', str(self.a.sdf_steps),
+                                      '--eval-every', str(max(self.a.sdf_steps // 10, 100)),
+                                      '--width', str(self.a.sdf_width), '--depth', str(self.a.sdf_depth), '--n-eval', '30']))
         self.run_jobs(jobs)
-        import torch
         for g in self.groups:
             ck = os.path.join(self.run, 'sdf', g, 'ckpt.pt')
             if os.path.exists(ck):
                 c = torch.load(ck, map_location='cpu', weights_only=False)
                 if c['step'] >= self.a.sdf_steps:
-                    self.mark(f'sdf:{g}', last=c['hist'][-1] if c['hist'] else None)
+                    self.mark(f'sdf:{g}', last=c['hist'][-1] if c['hist'] else None, step=c['step'], n=c['n'], cfg=c.get('cfg'))
 
     # ---------------------------------------------------------------- 학습 방법 고르기 (sweep)
     def _sweep(self, kind, units, cands, mk_cmd, read_hist, score_fn, full_steps, canon):
@@ -198,34 +208,60 @@ class Loop:
         for pr in self.products:
             if self.done(f'sweep_pino:{pr}') and not self.done(f'pino:{pr}:r0'):
                 self.mark(f'pino:{pr}:r0', chosen=self.state['sweep']['pino'][pr]['chosen'])
+            if self.done(f'sweep_pino:{pr}') and f'pino:{pr}' not in self.state.get('pino_data', {}):
+                self.state.setdefault('pino_data', {})[f'pino:{pr}'] = sum(
+                    datagen.count_fem(self.a.data, g) for g in train_pino.PRODUCTS[pr] if g in self.groups)
+                self.save()
 
     def sdf_test(self):
-        """DeepSDF 시험 셋 성적 (고르는 데 안 쓴 10%) → state['sdf_test']"""
+        """DeepSDF 시험 셋 성적 (고르는 데 안 쓴 10%) → state['sdf_test'] (모델이 바뀌면 다시 계산)"""
+        import torch
         from . import train_sdf
         for g in self.groups:
             ck = os.path.join(self.run, 'sdf', g, 'ckpt.pt')
-            if os.path.exists(ck) and g not in self.state.get('sdf_test', {}):
-                m = train_sdf.test_metrics(ck, self.a.data, g)
-                self.state.setdefault('sdf_test', {})[g] = m
-                self.log(f'DeepSDF 시험 셋 {g}: {json.dumps(m)}')
-                self.save()
+            if not os.path.exists(ck):
+                continue
+            c = torch.load(ck, map_location='cpu', weights_only=False)
+            old = self.state.get('sdf_test', {}).get(g, {})
+            if old.get('step') == c['step'] and old.get('n_shapes') == c['n']:
+                continue
+            m = train_sdf.test_metrics(ck, self.a.data, g)
+            m.update(step=c['step'], n_shapes=c['n'])
+            self.state.setdefault('sdf_test', {})[g] = m
+            self.log(f'DeepSDF 시험 셋 {g}: {json.dumps(m)}')
+            self.save()
 
     def st_pino(self, tag='pino', extra=(), steps=None, round_=0):
-        steps = steps or self.a.pino_steps
-        jobs = []
-        for pr in self.products:
-            key = f'{tag}:{pr}:r{round_}'
-            if not self.done(key):
-                jobs.append((f'{tag}_{pr}', [sys.executable, '-m', 'fp08.train_pino', '--product', pr, '--data', self.a.data,
-                                             '--out', self.run, '--steps', str(steps), '--tag', tag,
-                                             '--eval-every', str(max(self.a.pino_steps // 15, 50))] + self.pgroups(pr) + list(extra)))
-        self.run_jobs(jobs)
+        """체크포인트 기준으로 판단: 없거나 스텝이 모자라면 학습. FEM 정답 수가 지난 학습 때보다 늘었으면
+        (‑‑n-fem 을 늘림) 스텝을 1/3 만큼 더해 이어서 학습 (능동 학습과 같은 방식)"""
         from . import train_pino
+        steps = steps or self.a.pino_steps
+        jobs, target = [], {}
+        for pr in self.products:
+            gs = [g for g in train_pino.PRODUCTS[pr] if g in self.groups]
+            nfem = sum(datagen.count_fem(self.a.data, g) for g in gs)
+            st = steps
+            try:
+                c = train_pino.load(self.run, tag, pr)[1]
+                seen = self.state.get('pino_data', {}).get(f'{tag}:{pr}')
+                if c['step'] >= steps:
+                    if seen is None or nfem <= seen:
+                        target[pr] = (c['step'], nfem); continue
+                    st = c['step'] + self.a.pino_steps // 3
+                    self.log(f'{tag} {pr}: FEM 정답 {seen} → {nfem} 로 늘어남 → {c["step"]} → {st} 스텝까지 이어서 학습')
+            except FileNotFoundError:
+                pass
+            target[pr] = (st, nfem)
+            jobs.append((f'{tag}_{pr}', [sys.executable, '-m', 'fp08.train_pino', '--product', pr, '--data', self.a.data,
+                                         '--out', self.run, '--steps', str(st), '--tag', tag,
+                                         '--eval-every', str(max(self.a.pino_steps // 15, 50))] + self.pgroups(pr) + list(extra)))
+        self.run_jobs(jobs)
         for pr in self.products:
             try:
                 _, c = train_pino.load(self.run, tag, pr)
-                if c['step'] >= steps:
-                    self.mark(f'{tag}:{pr}:r{round_}', last=c['hist'][-1] if c['hist'] else None)
+                if c['step'] >= target[pr][0]:
+                    self.state.setdefault('pino_data', {})[f'{tag}:{pr}'] = target[pr][1]
+                    self.mark(f'{tag}:{pr}:r{round_}', last=c['hist'][-1] if c['hist'] else None, step=c['step'], n_fem=target[pr][1])
             except FileNotFoundError:
                 pass
 
@@ -281,7 +317,7 @@ class Loop:
             # 최적화 후보: 직전 시연 최적화에서 나온 실패 후보 + 학습 형상 주변 무작위 섞기
             cand = self.opt_candidates(g, self.a.al_n - len(idx))
             if len(cand):
-                base = 10_000_000 * (round_ + 1)
+                base = 100_000_000 * (round_ + 1)        # ESO 번호대(1천만~2천만)와 겹치지 않게
                 idx = np.concatenate([idx, base + np.arange(len(cand))]); occ = np.concatenate([occ, cand])
             tasks = [(g, s, self.a.data, idx[s * 25:(s + 1) * 25], occ[s * 25:(s + 1) * 25], f'al{round_}')
                      for s in range((len(idx) + 24) // 25)]
@@ -330,10 +366,12 @@ class Loop:
         if 'shapes' in st: self.st_shapes()
         if 'fem' in st: self.st_fem()
         if 'sdf' in st:
-            self.sweep_sdf() if self.a.sweep else self.st_sdf()
+            if self.a.sweep: self.sweep_sdf()
+            self.st_sdf()                   # sweep 뒤에도 호출: 스텝·데이터가 늘었으면 고른 모델을 이어서 학습
             self.sdf_test()
         if 'pino' in st:
-            self.sweep_pino() if self.a.sweep else self.st_pino()
+            if self.a.sweep: self.sweep_pino()
+            self.st_pino()
         if 'compare' in st:              # 부록 비교: FNO(물리 손실 없음), 레일리 대신 직접 회귀
             self.st_pino('fno', ['--no-physics'])
             self.st_pino('direct', ['--freq', 'direct'])

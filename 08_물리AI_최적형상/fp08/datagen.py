@@ -228,22 +228,45 @@ def fem_shard(args):
             idx_list, occ_list, meta = idx_list[sl], occ_list[sl], meta[sl]
     else:
         meta = [{}] * len(idx_list)
+    _fem_write(path, group, idx_list, occ_list, meta)
+    return path, time.time() - t0
+
+
+def _fem_write(path, group, idx_list, occ_list, meta, conds=None):
+    """형상 목록 → FEM 정답 파일. conds: 형상별 조건(없으면 번호로 정해지는 조건)"""
     U, FR, EV, CD, T, ok = [], [], [], [], [], []
-    for i, o, m in zip(idx_list, occ_list, meta):
+    for n, (i, o, m) in enumerate(zip(idx_list, occ_list, meta)):
         if m and not m.get('connected', True):
             ok.append(False); continue             # 끊긴 형상은 FEM 불가 → DeepSDF 전용
         try:
-            u, fr, ev, cd, t = fem_one(group, int(i), o)
+            u, fr, ev, cd, t = fem_one(group, int(i), o, cond=conds[n] if conds else None)
         except Exception as e:                      # FEM 실패도 기록
             ok.append(False); continue
         U.append(u.astype(np.float16)); FR.append(fr); EV.append(ev); CD.append(cd); T.append(t); ok.append(True)
-    ok = np.array(ok)
+    ok = np.array(ok, bool)
     tmp = path + '.tmp.npz'
     np.savez_compressed(tmp, idx=np.asarray(idx_list)[ok], U=np.stack(U) if U else np.zeros(0),
                         freq=np.stack(FR) if FR and len(FR[0]) else np.zeros((len(U), 0)),
                         eval=json.dumps(EV), cond=json.dumps(CD), t=np.array(T),
                         occ=np.packbits(np.asarray(occ_list)[ok], axis=1))
     os.replace(tmp, path)
+
+
+def fem_eso_shard(args):
+    """ESO 로 깎은 형상(shapes_e 묶음 s)의 FEM 정답 → femeso_#####.npz
+    조건(폰 무게·각도 등)은 깎기 전 부모 형상과 같게 → '깎기 전/후' 쌍을 같은 조건에서 비교 학습"""
+    group, s, out = args
+    path = os.path.join(out, group, f'femeso_{s:05d}.npz')
+    src = os.path.join(out, group, f'shapes_e{s:05d}.npz')
+    if os.path.exists(path) or not os.path.exists(src):
+        return path, 0.0
+    t0 = time.time()
+    p, cv = _prob(group)
+    z = np.load(src)
+    occ = np.unpackbits(z['occ'], axis=1)[:, :p.grid.ne].astype(bool)
+    meta = json.loads(str(z['meta']))
+    conds = [cond_of(p, group, int(m['parent'])) for m in meta]
+    _fem_write(path, group, z['idx'], occ, meta, conds)
     return path, time.time() - t0
 
 
@@ -284,16 +307,56 @@ def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, eso=False, log=
         run_pool(cand_shard, [(group, s, out) for s in range((n_cand + SHARD - 1) // SHARD)], workers, log)
         if not os.path.exists(os.path.join(out, group, 'selection.json')):
             select(group, out, n, log=log)
+        else:
+            n = extend_selection(group, out, n, log=log)      # n 을 늘려 다시 실행한 경우
     tasks = [(group, s, out, n_pts) for s in range((n + SHARD - 1) // SHARD)]
     run_pool(shapes_shard, tasks, workers, log)
     if eso:                                    # 11-14: 절반을 ESO 로 다듬어 추가 (형상 n → 약 1.5n)
         run_pool(eso_shard, tasks, workers, log)
 
 
-def make_fem(group, n, out, workers, log=print):
+def make_fem(group, n, out, workers, log=print, eso=False):
+    """앞에서부터 n 개 형상의 FEM 정답 (이미 있는 묶음은 건너뜀 → n 을 늘려 다시 실행하면 모자란 만큼만 추가)
+    eso=True: 그 형상들을 ESO 로 깎은 형상(약 n/2 개)의 정답도 생성"""
     ns = (n + SHARD - 1) // SHARD
     tasks = [(group, (s, k), out, None, None, '') for s in range(ns) for k in range(FEM_SPLIT)]
     run_pool(fem_shard, tasks, workers, log)
+    if eso:
+        run_pool(fem_eso_shard, [(group, s, out) for s in range(ns)], workers, log)
+
+
+def count_fem(out, group):
+    d = os.path.join(out, group)
+    return sum(len(np.load(os.path.join(d, f))['idx']) for f in os.listdir(d)
+               if f.startswith('fem') and f.endswith('.npz') and '.tmp' not in f) if os.path.isdir(d) else 0
+
+
+def count_shapes(out, group):
+    d = os.path.join(out, group)
+    return sum(len(np.load(os.path.join(d, f))['idx']) for f in os.listdir(d)
+               if f.startswith('shapes_') and f.endswith('.npz') and '.tmp' not in f) if os.path.isdir(d) else 0
+
+
+def extend_selection(group, out, n, log=print):
+    """형상 수를 늘릴 때: 기존 선택은 그대로 두고(묶음 번호 유지), 품질 기준은 통과했지만 안 뽑혔던 후보(not_sampled)에서
+    고르게 더 뽑아 뒤에 붙임. 후보가 모자라면 있는 만큼만."""
+    sf = os.path.join(out, group, 'selection.json')
+    rep = json.load(open(sf))
+    keep = rep['keep']
+    if len(keep) >= n:
+        return len(keep)
+    reason = json.load(open(os.path.join(out, group, 'drop_reason.json')))
+    have = set(keep)
+    pool = sorted(int(k) for k, v in reason.items() if v == 'not_sampled' and int(k) not in have)
+    q = min(n - len(keep), len(pool))
+    pick = np.unique(np.linspace(0, len(pool) - 1, q).round().astype(int)) if q > 0 else []
+    add = [pool[i] for i in pick]
+    rep['keep'] = keep + add; rep['n_keep'] = len(rep['keep']); rep.setdefault('extended', []).append(len(add))
+    for i in add:
+        reason.pop(str(i), None)
+    json.dump(rep, open(sf, 'w')); json.dump(reason, open(os.path.join(out, group, 'drop_reason.json'), 'w'))
+    log(f'  [{group}] 형상 추가 선택 {len(add)}개 → 총 {len(rep["keep"])}개 (요청 {n}, 남은 후보 {len(pool) - len(add)})')
+    return len(rep['keep'])
 
 
 def load_fem(out, group, tag=None):

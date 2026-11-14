@@ -114,7 +114,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 ### ① [회사 PC] 데이터 생성 — 계획 B 일 때만
 - 실행: `handoff\step1_pc_datagen.bat`
 - 시간(추정): 형상 6그룹 수십 분 + FEM 6,000개 1~3시간 (8코어 기준, TV 그룹이 더 느림). **실측 아님.**
-- 성공: 마지막 표에서 6그룹 모두 `형상 5000`, `FEM 1000` (ESO 열은 2,500 근처).
+- 성공: 마지막 표에서 6그룹 모두 `형상 5000`, `FEM 1000` 근처 (ESO 열 2,500 근처, ESO FEM 열 500 근처. 끊긴 형상·FEM 실패는 빠져서 조금 적을 수 있음).
 - 끊기면: 그냥 다시 실행.
 
 ### ② [회사 PC] 업로드 파일 만들기
@@ -130,7 +130,7 @@ tail -f train.out                           # 진행 보기
 python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 ```
 - 하는 일: (A면 형상·FEM 생성) → **학습 방법 고르기(sweep)** → DeepSDF 6개(20,000스텝) → PINO 3개(30,000스텝) → 관문 → 불합격 그룹은 능동학습(200개 FEM 추가, 최대 3바퀴) → 시연.
-- **sweep (기본 켜짐)**: `fp08/sweep.py` 의 후보 4개(DeepSDF: 8×256 / 8×512 / 표면점 2048 / 학습률 1e-3, PINO: 폭 24 / 폭 32 / 물리가중 0.3 / 푸리에 모드 1.5배)를 20% 스텝만 학습 → **검증 셋** 점수 1등만 끝까지 → `runs/main/sdf|pino/` 로 복사. GPU 시간 약 1.6배(추정). 끄려면 `SWEEP= bash handoff/step3_server_train.sh A`
+- **sweep (기본 켜짐)**: `fp08/sweep.py` 의 후보 4개(DeepSDF: 8×256 / 8×512 / 표면점 2048 / z 64차원, PINO: 폭 24 / 폭 32 / 물리가중 0.3 / 푸리에 모드 1.5배)를 20% 스텝만 학습 → **검증 셋** 점수 1등만 끝까지 → `runs/main/sdf|pino/` 로 복사. GPU 시간 약 1.6배(추정). 끄려면 `SWEEP= bash handoff/step3_server_train.sh A`
 - 데이터 분할(형상 번호로 고정): 학습 80% / 검증 10%(학습 중 확인·sweep 선택) / **시험 10%(관문·최종 보고 전용, 고르는 데 안 씀)**
 - GPU 가 1~2장이어도 동작 (한 장에 작업 여러 개 동시 실행).
 - 시간(추정, 미측정): DeepSDF 그룹당 GPU 수십 분, PINO 제품당 수 시간. **처음 10분 동안 `runs/main/sdf_*.log` 의 step 속도를 보고 전체 시간을 다시 계산할 것.**
@@ -151,12 +151,40 @@ python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 |---|---|---|
 | PINO (코드에 들어있음, `loop.py GATE`, **시험 셋**으로 판정) | 변위장 상대 L2 평균 ≤ 0.10, 판정값 오차 p90 ≤ 5%, 응력 오차 p90 ≤ 15%, 진동수 ±5% 이내 ≥ 95% | 자동 판정 |
 | DeepSDF | 시험 셋 IoU ≥ 0.90, 표면 오차 ≤ 0.5칸 (`state.json` 의 `sdf_test`, `report.html`) | **제안값, 사용자 미확정. 코드에서 자동 판정 안 함** → `pack report` 로 눈으로 확인 |
-| 최종 시연 | `status: ok` (대리 모델 결과가 FEM 검증 합격). `fallback` = FEM 직접 최적화(경로 A)로 대신했다는 뜻 | 자동 |
+| 최종 시연 | `status: ok` (대리 모델 결과가 FEM 검증 합격). `fallback` = 후보가 전부 FEM 검증에 떨어졌다는 **표시만** 함 — FEM 직접 최적화(경로 A)를 자동으로 돌리지는 않음(미구현). 그 경우 팀 `opt3d.py`·`ped.py` 결과를 수동으로 사용 | 자동 판정 |
 
 DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 에서 이어짐, 크기 옵션은 꼭 같게):
 `python -m fp08.train_sdf --group <그룹> --data data --out runs/main --steps 40000 --width 256 --depth 8 --n-eval 30 --device cuda:0`
 
 그래도 안 되면 사용자에게 보고하고 지시를 받을 것.
+
+### 6-1. 학습이 잘 안 됐을 때 — 대응 사다리 (1번 대응: 학습을 개선)
+
+`python -m fp08.pack report runs/main` 맨 아래 **"권장 조치"** 가 아래 표에서 무엇을 할지 알려 줍니다(규칙 기반, 참고용).
+모든 조치는 **숫자만 키워 같은 스크립트를 다시 실행**하면 됩니다. 이미 만든 데이터·모델은 버리지 않고 모자란 만큼만 추가하고 이어서 학습합니다.
+
+```
+ DeepSDF 시험 IoU < 0.90 ?                     PINO 관문 불합격 ?
+   │ 아직 오르는 중 → S1 더 오래                  │ P1 능동학습 (자동, 최대 3바퀴)
+   │ 멈춤          → S2 큰 모델 (sweep)          │ P2 FEM 정답 늘리기 (+ESO 정답)
+   │ 그래도 미달   → S3 시연 FEM 검증으로 판단    │ P3 형상 늘리기
+   ▼                                             ▼ 그래도 불합격 → 2번 대응(FEM 직접 최적화, 별도 준비)
+```
+
+| 단계 | 언제 | 실행 (서버) | 추가 비용 (추정) | 왜 효과가 있나 |
+|---|---|---|---|---|
+| **S1** DeepSDF 더 오래 | IoU 가 마지막 평가까지 오르는 중 | `SDF_STEPS=40000 bash handoff/step3_server_train.sh A` | 학습 시간 2배 | 11-14 비교에서 모든 설정이 아직 오르는 중이었음 |
+| **S2** DeepSDF 큰 모델 | IoU 가 멈춤 | sweep 후보에 8×512, z 64차원이 이미 있음. 2등까지 끝까지: `SWEEP="--sweep --sweep-topk 2"` | 약 1.5배 | 형상 7,500개를 32차원·256폭으로 다 못 담을 수 있음 |
+| **S3** 그대로 진행 | S1·S2 후에도 0.90 미달 | 시연(`demo`) 결과가 `ok` 인지 확인 | 없음 | 최종 형상은 DeepSDF 가 **만든** 형상을 FEM 으로 직접 검증하므로, 복원이 완벽하지 않아도 결과는 틀리지 않음(표현 가능한 형상의 폭만 줄어듦) |
+| **P1** 능동학습 | 관문 불합격 | 자동 (틀리는 형상 100 + 최적화 후보 100 개에 FEM 정답 추가 → 재학습, 최대 3바퀴) | 바퀴당 FEM 200개/그룹 + 학습 1/3 | 틀리는 곳·최적화가 가는 곳에 정답 집중 |
+| **P2** FEM 정답 늘리기 | P1 후에도 불합격 | `N_FEM=2000 bash handoff/step3_server_train.sh A` (3000 까지) | FEM 1,000개 + ESO 500개 ≈ 그룹당 40분·코어(형상당 약 1.5 s, TV 는 더 김) + PINO 학습 1/3 | PINO 는 정답 수에 가장 민감 (리허설: 100개 과적합, 1,000개에서 모양 오차 16%) |
+| **P3** 형상 늘리기 | P2 후에도 불합격 | `N_SHAPES=8000 bash handoff/step3_server_train.sh A` (후보 여유상 약 10,000 까지) | 형상·ESO 생성 + DeepSDF 다시 학습(이전 모델 이어받음) | 정답 없는 형상의 물리 손실 데이터와 z 공간 범위가 넓어짐 |
+
+주의
+- **형상 수를 늘린다고 DeepSDF IoU 가 오르지는 않습니다.** 같은 크기 모델이 더 많은 형상을 외워야 해서 오히려 어려워집니다. DeepSDF 는 S1·S2 로, 형상 늘리기(P3)는 PINO·최적화 범위를 위한 것.
+- ESO 정답: `--eso` 가 켜져 있으면 FEM 정답 형상의 절반에 대해 **깎은 뒤 형상의 정답**도 만듭니다(`femeso_*.npz`, 조건은 부모와 동일). N_FEM 을 늘리면 같이 늘어남.
+- 계획 B(데이터를 회사 PC 에서 생성)면 P2·P3 는 회사 PC 에서 `step1` 을 숫자 키워 다시 실행 → 데이터 다시 업로드.
+- 관문 기준(`GATE`)을 낮추는 것은 대응이 아닙니다. 사용자 결정 사항.
 
 ---
 
@@ -178,7 +206,7 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 | `CUDA out of memory` | 한 GPU 에 작업 너무 많음 | `step3` 의 `DEV="$DEV,$DEV,$DEV"` 를 `DEV="$DEV,$DEV"` 로, 또는 `--bs` 줄이기 |
 | 학습이 중간에 죽음 | 세션 끊김 | `nohup` 으로 실행했는지 확인, 같은 명령 재실행 (이어짐) |
 | 관문 계속 불합격 | 데이터 부족/학습 부족 | `pack report` 의 불합격 사유 확인 → 사용자 보고. 기준(GATE)을 낮추지 말 것 |
-| 시연 `fallback` | 대리 모델 예측 ≠ FEM | 정상 동작(안전장치). 사유를 summary 에 그대로 보고 |
+| 시연 `fallback` | 대리 모델 후보가 전부 FEM 검증 실패 | 표시만 됨(자동 대체 없음). §6-1 사다리로 모델 개선 또는 팀 FEM 직접 최적화 결과를 수동 사용. summary 에 그대로 보고 |
 | `torch.load` 에러 `weights_only` | torch 버전 차이 | 코드가 `weights_only=False` 사용 중. torch ≥ 2.1 사용 |
 | Windows 에서 한글 깨짐 | 콘솔 코드페이지 | bat 첫 줄 `chcp 65001` 유지 |
 | bat 실행 시 `'cho'`, `'THREADS'` 등 조각난 명령 오류 | bat 줄끝이 LF | 편집기에서 CRLF 로 저장 (VS Code 오른쪽 아래 LF→CRLF) |
@@ -222,6 +250,6 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 | ESO | 힘이 거의 안 가는 칸을 지우는 고전 기법 (Xie & Steven 1993) |
 | 관문(gate) | 대리 모델을 믿어도 되는지 검사. 불합격이면 능동학습 |
 | 능동학습 | 모델이 틀리는 형상만 골라 FEM 정답을 더 만들어 재학습 |
-| fallback / 경로 A | 대리 모델이 실패하면 FEM 직접 최적화로 대신 |
+| fallback / 경로 A | 대리 모델 결과가 FEM 검증에 실패한 상태 / FEM 직접 최적화(팀 코드, 자동 연결은 아직 없음) |
 
 참고문헌: Park et al., *DeepSDF*, CVPR 2019 · Li et al., *Fourier Neural Operator*, ICLR 2021 · Li et al., *Physics-Informed Neural Operator*, 2021 · Xie & Steven, *A simple evolutionary procedure for structural optimization*, Computers & Structures 1993.
