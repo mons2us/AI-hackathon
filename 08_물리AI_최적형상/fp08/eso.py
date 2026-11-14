@@ -22,7 +22,7 @@ def energy_density(p, occ, res):
     return E
 
 
-def eso_prune(p, cv, occ, cond=None, frac=0.15, iters=2, min_vf=0.04):
+def eso_prune(p, cv, occ, cond=None, frac=0.15, iters=2, min_vf=0.04, filt=False):
     """반환: (다듬은 occ, 기록 dict). FEM 은 정적만(진동 없이) iters 번."""
     cond = cond or p.default_cond
     occ = occ.copy()
@@ -30,6 +30,9 @@ def eso_prune(p, cv, occ, cond=None, frac=0.15, iters=2, min_vf=0.04):
     for it in range(iters):
         res = labels.fem_label(p, occ, cond, want_modes=False)
         E = energy_density(p, occ, res)
+        if filt:     # 감도 필터(이웃 3×3×3 평균): 칸 하나씩 파먹어 생기는 홈·체커보드 방지 (Huang & Xie, BESO 2007). 기본 꺼짐
+            from scipy import ndimage
+            E = ndimage.uniform_filter(p.grid.eshape(E * occ), size=3).ravel()
         m = np.where(occ & cv.design)[0]
         if len(m) == 0:
             break

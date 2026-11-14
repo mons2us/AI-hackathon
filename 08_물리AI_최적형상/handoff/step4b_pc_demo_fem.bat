@@ -8,6 +8,12 @@ rem 시간(추정, 미측정): 거치대 그룹당 약 2~3분, TV 그룹은 FEM 
 rem 한 그룹만: python -m fp08.fem_opt --out results --groups bike_pad80
 cd /d %~dp0\..
 set OMP_NUM_THREADS=1
-python -m fp08.fem_opt --out results %*
+rem TV 그룹은 FEM 메모리가 커서 작업자 1개 (메모리 7 GB 환경에서 2개면 작업자가 죽고 멈춤, 11-15 확인)
+if "%~1"=="" (
+  python -m fp08.fem_opt --out results --groups bike_pad50,bike_pad80,bike_pad120,bike_pad80_free --no-app
+  python -m fp08.fem_opt --out results --groups tvped,tvfeet_L300,tvfeet_L220 --workers 1
+) else (
+  python -m fp08.fem_opt --out results %*
+)
 start results\app.html
 pause

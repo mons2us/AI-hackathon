@@ -11,6 +11,8 @@ python -m fp08.fem_opt --out results --groups bike_pad80 --cond phone_mass_g=180
   2) FEM 계산: 후보마다 정적 + 고유진동수 → 기준 판정 (problems.*.evaluate, 학습 데이터 만들 때와 같은 계산)
   3) 합격 후보 중 가벼운 3개 → FEM 다듬기: 힘을 거의 안 받는 칸 지우기(ESO, Xie & Steven 1993) → FEM 재판정,
      합격이면 계속, 불합격이면 지우는 양을 반으로 줄여 한 번 더, 그래도 불합격이면 멈춤
+  (11-15) 모든 형상은 FEM 전에 '최소 두께'(격자 2~2.5 mm → 3칸, 5 mm → 2칸)로 굵게 + 홈 메우기,
+     ESO 는 감도 필터(이웃 평균)로 지울 칸 선택 → 가는 목·날카로운 홈 방지. --raw 로 끄기
   4) 합격이 하나도 없으면: (어느 형상이든 값이 같은 기준 미달 항목이 있으면 = 형상으로 못 고침 → 표시하고 끝)
      기준에 가장 가까운 후보 3개를 한 칸씩 굵게(최대 3번) → FEM 재판정 → 합격하면 3) 다듬기
   5) 가장 가벼운 합격 형상 → <tag>.json·.stl·.png + detail/opt_<tag>.json·.npy → app.html
@@ -23,6 +25,7 @@ from scipy import ndimage
 from . import problems, labels, shapes, loop
 
 SEED0 = 500000          # 학습 데이터(0~)와 겹치지 않는 형상 번호대
+ROBUST = True           # 11-15: 최소 두께·홈 메우기·감도 필터 (--raw 로 끔 = 11-14 동작)
 
 
 def violation(p, ev):
@@ -61,6 +64,80 @@ def shape_independent_fails(p, evals):
     return out
 
 
+def min_cells_of(p):
+    """최소 부재 두께(칸). 격자 2~2.5 mm → 3칸(6~7.5 mm), 5 mm → 2칸(10 mm). 육면체 FEM 이 굽힘을 믿을 만하게 풀려면
+    두께 방향 칸이 2~3개 이상 필요 (1칸 부재는 실제보다 단단하게 계산됨). 제안값 — min_feature 사용자 미확정"""
+    return 3 if p.grid.h <= 2.5 else 2
+
+
+def _mirror(p, A):
+    """대칭 반쪽 → 전체 (모폴로지 연산이 대칭면을 '바깥'으로 착각하지 않게)"""
+    if p.sym_axis is None:
+        return A, None
+    ax = 2 - p.sym_axis
+    return np.concatenate([np.flip(A, ax), A], ax), (ax, A.shape[ax])
+
+
+def _half(A, info):
+    if info is None:
+        return A
+    ax, n = info
+    return np.take(A, range(n, 2 * n), axis=ax)
+
+
+def thin_cells(p, occ, k=None):
+    """두께 k칸 미만인 재료 칸 (설계 공간 자체가 그만큼 얇은 곳은 제외). 반환: (ne,) bool"""
+    k = k or min_cells_of(p)
+    g = p.grid
+    se = np.ones((k, k, k), bool)
+    A, inf = _mirror(p, g.eshape(occ | (p.label == 1) | (p.label == 3)))
+    D, _ = _mirror(p, g.eshape((p.label == 0) | (p.label == 1) | (p.label == 3)))
+    room = ndimage.binary_opening(D, se)                       # 설계 공간이 k칸 두께를 허락하는 곳
+    thin = A & ~ndimage.binary_opening(A, se) & room
+    return _half(thin, inf).ravel() & occ & (p.label == 0)
+
+
+def robustify(p, cv, occ, k=None, rounds=4):
+    """얇은 부재는 굵게, 날카로운 홈은 메움 (설계 공간 안에서만). FEM 판정 전에 적용"""
+    k = k or min_cells_of(p)
+    if k <= 1:
+        return occ
+    g = p.grid
+    st = ndimage.generate_binary_structure(3, 1)
+    Dd, _ = _mirror(p, g.eshape(cv.design))
+    for _ in range(rounds):
+        A, inf = _mirror(p, g.eshape(occ | cv.fixed))
+        A = A | (ndimage.binary_closing(A, st, iterations=1) & Dd)          # 홈·틈 메우기
+        occ = _half(A, inf).ravel() & cv.design
+        th = thin_cells(p, occ, k)
+        if not th.any():
+            break
+        T, _ = _mirror(p, g.eshape(th))
+        grow = ndimage.binary_dilation(T, np.ones((k, k, k), bool)) & Dd     # 얇은 곳 주변을 k칸 폭으로
+        occ = occ | (_half(grow, inf).ravel() & cv.design)
+    occ = shapes.fill_cavities(cv, occ | cv.fixed) & cv.design
+    return shapes.drop_floating(cv, occ)
+
+
+def open_close(p, cv, occ, k=None):
+    """최소 크기 필터 (Sigmund 2007, 모폴로지 열림→닫힘): k칸보다 가는 부재는 없애고, 1칸짜리 홈·틈은 메움.
+    다듬기(ESO) 뒤에 사용 — 굵게 채우는 robustify 와 달리 무게를 늘리지 않음. 끊기면 None"""
+    k = k or min_cells_of(p)
+    g = p.grid
+    st = ndimage.generate_binary_structure(3, 1)
+    A, inf = _mirror(p, g.eshape(occ | cv.fixed))
+    D, _ = _mirror(p, g.eshape(cv.design))
+    F, _ = _mirror(p, g.eshape(cv.fixed))
+    room = ndimage.binary_opening(D | F, np.ones((k, k, k), bool))
+    op = ndimage.binary_opening(A, np.ones((k, k, k), bool))
+    A = (op | (A & ~room)) | F                   # 설계 공간 자체가 얇은 곳은 그대로
+    A = A | (ndimage.binary_closing(A, st) & D)
+    occ = _half(A, inf).ravel() & cv.design
+    occ = shapes.fill_cavities(cv, occ | cv.fixed) & cv.design
+    occ = shapes.drop_floating(cv, occ)
+    return occ if shapes.connected_groups(cv, occ | cv.fixed)[0] else None
+
+
 def _eval(args):
     """작업자: (그룹, 조건, 번호) → 수식 형상 + FEM 판정"""
     g, cond, idx = args
@@ -70,6 +147,11 @@ def _eval(args):
     rec = dict(idx=int(idx), family=meta.get('family'), connected=bool(meta.get('connected')))
     if not rec['connected']:
         return rec, None
+    if ROBUST:
+        occ = robustify(p, cv, occ)
+        rec['connected'] = bool(shapes.connected_groups(cv, occ | cv.fixed)[0])
+        if not rec['connected']:
+            return rec, None
     r = labels.fem_label(p, occ, cond)
     rec.update(fem=r['eval'], fem_t=round(r['t'], 2))
     return rec, np.packbits(occ)
@@ -86,7 +168,12 @@ def refine(p, cv, occ, ev, cond, steps=6, frac=0.10, log=print):
     for it in range(steps):
         f, done = frac, False
         for _ in range(2):
-            new, lg = eso.eso_prune(p, cv, occ, cond, frac=f, iters=1)
+            new, lg = eso.eso_prune(p, cv, occ, cond, frac=f, iters=1, filt=ROBUST)
+            if ROBUST and not (lg and lg[-1].get('stopped')):
+                oc = open_close(p, cv, new)
+                if oc is None:                       # 가는 부재를 없애니 끊김 → 덜 지우고 다시
+                    f /= 2; continue
+                new = oc
             if new.sum() >= occ.sum() or (lg and lg[-1].get('stopped')):
                 done = True; break
             e2 = _fem(p, new, cond)
@@ -107,6 +194,8 @@ def thicken(p, cv, occ, cond, times=3, log=print):
     hist = []
     for t in range(times):
         occ = ndimage.binary_dilation(p.grid.eshape(occ)).ravel() & cv.design
+        if ROBUST:
+            occ = robustify(p, cv, occ)
         ev = _fem(p, occ, cond)
         hist.append(dict(step=t + 1, mass_g=ev['mass_g'], passed=bool(ev['pass'])))
         log(f'    굵게 {t + 1}: {ev["mass_g"]:.1f} g, 합격 {ev["pass"]}')
@@ -151,7 +240,8 @@ def optimize(g, cond, n=None, refine_steps=6, workers=2, log=print, pool=None):
         fixes.append(dict(idx=r['idx'], kind='refine', start_mass_g=r['fem']['mass_g'], hist=h))
         if best is None or e2['mass_g'] < best[1]['mass_g']:
             best = (o2, e2, r['idx'], occs[r['idx']])
-    summ = dict(group=g, cond=cond, method='formula_fem', t=time.time() - t0, t_search=t_search,
+    summ = dict(group=g, cond=cond, method='formula_fem', t=time.time() - t0, t_search=t_search, robust=ROBUST,
+                min_cells=min_cells_of(p),
                 status='ok' if best else 'fallback', n=n,
                 tried=[dict(idx=r['idx'], family=r.get('family'), connected=r['connected'], pred_mass_g=None,
                             fem=None if not r.get('fem') else {k: v for k, v in r['fem'].items() if k != 'pad_min_N'})
@@ -168,8 +258,10 @@ def main():
     ap.add_argument('--cond', default=None, help='예: phone_mass_g=180,phone_angle_deg=10')
     ap.add_argument('--n', type=int, default=None); ap.add_argument('--refine', type=int, default=10)
     ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 2) - 1))
-    ap.add_argument('--no-app', action='store_true'); ap.add_argument('--no-stress', action='store_true')
+    ap.add_argument('--raw', action='store_true', help='최소 두께·홈 메우기 끄기 (11-14 동작)'); ap.add_argument('--no-app', action='store_true'); ap.add_argument('--no-stress', action='store_true')
     a = ap.parse_args()
+    global ROBUST
+    ROBUST = not a.raw
     os.makedirs(os.path.join(a.out, 'detail'), exist_ok=True)
     groups = a.groups.split(',') if a.groups else list(problems.GROUPS)
     pool = get_context('spawn').Pool(a.workers) if a.workers > 1 else None

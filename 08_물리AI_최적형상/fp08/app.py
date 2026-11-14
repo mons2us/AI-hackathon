@@ -33,6 +33,20 @@ PRODUCT_TEXT = {
 }
 COND_TEXT = {'phone_mass_g': ('휴대폰 질량', 'g'), 'phone_angle_deg': ('화면 기울기', '°'),
              'tv_mass_kg': ('TV 질량', 'kg'), 'leg_span_mm': ('양발 간격', 'mm')}
+TV_W_65 = 1450.0      # 65" 16:9 패널 폭 약 1,439 mm + 베젤 → 대략값 (화면 표시용, 해석에는 안 씀)
+TV_D = 30.0           # TV 두께 대략값 (화면 표시용)
+
+
+def scene_of(p, g, cond):
+    """TV 그룹: 화면에 TV 몸체(대략 상자)와 다리 배치. 해석과 무관한 표시용 값"""
+    if g.startswith('tvfeet'):
+        return dict(kind='tvfeet', span=float(cond.get('leg_span_mm', p.span)),
+                    tv=dict(w=TV_W_65, h=p.TV['top_above_bottom_mm'], d=TV_D, z0=float(p.H)))
+    if g.startswith('tvped'):
+        return dict(kind='tvped', tv=dict(w=TV_W_65, h=p.TV['top_above_bottom_mm'], d=TV_D, z0=float(p.ZN)))
+    return None
+
+
 GROUP_TEXT = {'bike_pad80_free': '받침 80 mm 앞 · 화면 각도 자유(기둥 60 mm)', 'bike_pad50': '받침 50 mm 앞', 'bike_pad80': '받침 80 mm 앞', 'bike_pad120': '받침 120 mm 앞',
               'tvfeet_L300': '발 길이 300 mm · 다리 하나', 'tvfeet_L220': '발 길이 220 mm · 다리 하나', 'tvped': '중앙형'}
 
@@ -54,6 +68,10 @@ def mesh_of(p, mask, field=None, up=2):
         return None
     A = _grid_field(p, mask.astype(float))
     A = ndimage.zoom(ndimage.gaussian_filter(A, 0.7), up, order=1)
+    if A.max() <= 0.5:                                   # 아주 작은 조각(흩어진 1칸 등)은 다듬으면 사라짐
+        A = ndimage.zoom(_grid_field(p, mask.astype(float)), up, order=0) * 0.99
+        if A.max() <= 0.5:
+            return None
     v, f, _, _ = measure.marching_cubes(A, 0.5)
     v = v / up
     val = None
@@ -195,18 +213,28 @@ def collect(results, run, inp=None, stress=True, log=print):
                                  full=pack_mesh(mesh_of(p, design | fixed, up=1)), full_mass=p.mass_g(np.ones(p.grid.ne)))
         b = base_cache[g]
 
+        from .fem_opt import thin_cells, min_cells_of
+        kmin = min_cells_of(p)
+
         def shape_mesh(occ):
             vm = element_vm(p, occ, cond)[0] if stress else None
             return pack_mesh(mesh_of(p, (occ & (p.label == 0)) | (p.label == 1), vm), vm_lim)
-        opt, start, start_eval = None, None, None
+
+        def thin_of(occ):
+            th = thin_cells(p, occ, kmin)
+            return dict(n=int(th.sum()), tot=int((occ & (p.label == 0)).sum()), mesh=pack_mesh(mesh_of(p, th, up=1)) if th.any() else None)
+        opt, start, start_eval, thin, thin_start = None, None, None, None, None
         if rec['status'] == 'ok' and os.path.exists(occf):
-            opt = shape_mesh(np.load(occf) > 0.5)
+            occ_best = np.load(occf) > 0.5
+            opt = shape_mesh(occ_best)
+            thin = thin_of(occ_best)
         elif rec['status'] == 'ok' and os.path.exists(os.path.join(results, tag + '.stl')):
             opt = pack_mesh(read_stl(os.path.join(results, tag + '.stl')))
         stf = os.path.join(results, 'detail', f'start_{tag}.npy')
         if os.path.exists(stf):                       # FEM 직접 경로: 다듬기 전 형상
             st_occ = np.load(stf) > 0.5
             start = shape_mesh(st_occ)
+            thin_start = thin_of(st_occ)
             start_eval = next((t['fem'] for t in tried if t.get('idx') == detj.get('best_idx') and t.get('fem')), None)
         # 합격 형상이 없을 때 보여줄 값: 기준에 가장 가까운 후보의 FEM 값
         from .fem_opt import shape_independent_fails
@@ -231,6 +259,8 @@ def collect(results, run, inp=None, stress=True, log=print):
             cond=[dict(k=k, label=COND_TEXT.get(k, (k, ''))[0], unit=COND_TEXT.get(k, ('', ''))[1], v=v) for k, v in cond.items()],
             material=p.material, grid_h=p.grid.h, crit=criteria_rows(p, rec.get('fem'), rec.get('pred')),
             near_crit=criteria_rows(p, near_eval, None) if near_eval else None, infeasible=infeasible,
+            kmin=kmin, robust=detj.get('robust', False), scene=scene_of(p, g, cond),
+            thin_n=None if thin is None else thin['n'], thin_tot=None if thin is None else thin['tot'], thin_start_n=None if thin_start is None else thin_start['n'],
             start_mass=(start_eval or {}).get('mass_g'),
             mass=(rec.get('fem') or {}).get('mass_g'), full_mass=b['full_mass'], vm_lim=vm_lim,
             uplift=(rec.get('fem') or {}).get('uplift'),
@@ -238,7 +268,7 @@ def collect(results, run, inp=None, stress=True, log=print):
                         fem_pass=(t.get('fem') or {}).get('pass'), fem_mass=(t.get('fem') or {}).get('mass_g')) for t in tried],
             assumptions=getattr(p, 'assumptions', []), margins=rec.get('margins', {}),
             files=[f for f in (tag + '.stl', tag + '.json', tag + '.png') if os.path.exists(os.path.join(results, f))],
-            mesh=dict(opt=opt, start=start),
+            mesh=dict(opt=opt, start=start, thin=(thin or {}).get('mesh'), thin_start=(thin_start or {}).get('mesh')),
             thumb=thumb))
         log(f'[app] {tag}: {rec["status"]} (화면 데이터 {time.time() - t0:.1f} s)')
     first = None
