@@ -81,6 +81,9 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | `handoff/step2_pack_upload.bat` | [회사 PC] 업로드용 zip |
 | `handoff/step3_server_train.sh` | [서버] 학습 전체 (GPU 자동 감지) |
 | `handoff/step4_pc_demo.bat` | [회사 PC] 결과 풀기 + 시연 |
+| `handoff/step4b_pc_demo_fem.bat` | [회사 PC] **학습 모델 없이** 시연: 수식 형상 + FEM 직접 최적화 → `results/app.html` |
+| `fp08/fem_opt.py` | 경로 A: 수식 형상 생성 → FEM → ESO 다듬기 (DeepSDF·PINO 대체용 임시 경로) |
+| `fp08/app.py`, `fp08/app_template.html`, `fp08/vendor/` | 통합 시연 화면 `results/app.html` 생성 (three.js r147, MIT) |
 | `requirements.txt` | 패키지 목록 (오프라인 설치 방법 포함) |
 | `fp08/problems.py` | 6개 그룹: 격자·고정부품·하중·판정 기준 (**함부로 수정 금지**) |
 | `fp08/fem.py` | 3D 육면체 FEM (정적 + 고유진동수) |
@@ -137,9 +140,14 @@ python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 - 끝나면 `results.zip` 생성 → 회사 PC 로 다운로드.
 - 시간이 모자라면: `--sdf-steps 10000 --pino-steps 15000` 으로 줄이거나, `loop.py` 의 `--deadline "YYYY-MM-DD HH:MM"` 옵션 (마감 3시간 전 능동학습 중단).
 
+### ④-0 [회사 PC] 학습 전 시연 (지금 바로 가능)
+- `handoff\step4b_pc_demo_fem.bat` → 수식 형상 + FEM 직접 최적화 → `results\app.html` 이 열림. GPU·학습 모델 불필요.
+- 한 그룹만: `python -m fp08.fem_opt --out results --groups bike_pad80`. 후보 수 `--n`, 다듬기 횟수 `--refine`.
+- 학습이 끝나면 아래 ④(대리 모델 경로)로 바꿈. 같은 `results` 폴더를 쓰면 같은 이름 파일은 덮어씀.
+
 ### ④ [회사 PC] 시연
 - `results.zip` 을 코드 최상위 폴더에 두고 `handoff\step4_pc_demo.bat`
-- 결과: `results\summary.html` (표 + 그림), `results\<그룹>_<조건>.stl` (CAD/3D 뷰어로 열기), `.json` (FEM 판정값).
+- 결과: `results\app.html` (통합 시연 화면: 3D·판정·과정), `results\summary.html` (표 + 그림), `results\<그룹>_<조건>.stl` (CAD/3D 뷰어로 열기), `.json` (FEM 판정값).
 - 특정 조건만: `python -m fp08.demo --run runs\main --data data --out results --groups bike_pad80 --cond phone_mass_g=180,phone_angle_deg=10`
 - 그룹당 CPU 수 분 (시험: bike_pad80 시작점 2개·30스텝에 42초. 기본값 10개·300스텝은 더 오래).
 
@@ -192,6 +200,7 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 
 - DeepSDF 관문 기준 (§6 제안값 확정 여부)
 - TV 발 높이 (120 mm 또는 더 낮게), 두 번째 발 길이 (260 / 340 mm)
+  - 참고(11-14 경로 A 시험): 지금 값 220 mm 는 넘어짐 여유(앞뒤) 0.889 < 1.0 으로 **어떤 형상도 통과 불가** (발 길이로만 정해지는 해석식). 300 mm 는 합격
 - TV 패드 들림(uplift) 처리 방식
 - FEM 정답 개수 (지금 1,000/그룹)
 

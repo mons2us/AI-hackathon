@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FormProof · 물리 AI 최적 형상</title>
+<script>/*__VENDOR__*/</script>
+<style>
+/* 색·글꼴은 10_입력_1차설계 화면과 같은 값 → 두 화면이 한 제품처럼 보이게 */
+:root{
+  --bg:#eef1f5; --card:#fff; --ink:#111827; --ink2:#4b5563; --ink3:#9aa3ae; --line:#e3e7ee; --soft:#f4f6f9;
+  --nav:#172033; --blue:#2563eb; --blue-d:#1d4ed8; --blue-s:#e8efff; --green:#0f9f6e; --green-s:#e3f6ee;
+  --red:#d33a4b; --red-s:#fdecee; --amber:#e8853a; --amber-s:#fff3e6; --dark:#141c2c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:1480px;margin:0 auto;padding:20px}
+header.top{background:var(--nav);color:#fff;border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:36px;height:36px;border-radius:10px;background:var(--blue);display:grid;place-items:center}
+.brand b{font-size:19px;display:block;letter-spacing:-.2px}.brand span{font-size:12px;color:#aab4c4}
+.steps{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.step{border:1px solid #2c3850;background:#1f2a40;color:#c3cbd8;border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.step i{font-style:normal;display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid currentColor;border-radius:50%;font-size:11px;margin-right:6px}
+.step.done{color:#fff;border-color:#3b4a66}.step.done i{background:#3b4a66;border-color:#3b4a66}
+.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.step.bad{background:var(--red);border-color:var(--red);color:#fff}
+.steps .sep{color:#55627a;font-size:12px}
+.stage-note{font-size:11px;color:#8d98ab;margin-left:4px}
+
+.cases{display:flex;gap:10px;margin-top:16px;overflow-x:auto;padding-bottom:4px}
+.case{flex:0 0 auto;min-width:200px;border:1.5px solid #e6e9ef;background:#fff;border-radius:14px;padding:10px 12px;text-align:left;display:flex;gap:10px;align-items:center}
+.case:hover{border-color:#c9d1dd}
+.case.on{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-s)}
+.case img{width:58px;height:44px;object-fit:contain;border-radius:6px;background:var(--soft)}
+.case .ph{width:58px;height:44px;border-radius:6px;background:var(--soft);display:grid;place-items:center;font-size:22px}
+.case .t{font-weight:700;font-size:13px;line-height:1.3}.case .s{font-size:11.5px;color:var(--ink2)}
+
+.grid{display:grid;grid-template-columns:300px minmax(0,1fr) 330px;gap:16px;margin-top:14px;align-items:start}
+@media (max-width:1200px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){.wrap{padding:10px}.view{height:380px!important}.steps{margin-left:0}}
+.grid>section{min-width:0}
+.card{background:var(--card);border-radius:16px;border:1px solid #e6e9ef;padding:18px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 4px;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+.card h2 .tag{margin-left:auto}
+.sub{color:var(--ink2);font-size:12.5px;margin:0 0 12px}
+.tag{font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 9px;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.tag.green{background:var(--green-s);color:var(--green)}.tag.red{background:var(--red-s);color:var(--red)}
+.tag.blue{background:var(--blue-s);color:var(--blue)}.tag.amber{background:var(--amber-s);color:#b8601d}
+.quote{background:var(--blue-s);border-radius:12px;padding:12px 14px;font-size:14px;color:#1e3a8a;position:relative}
+.quote small{display:block;color:#5b74b5;font-size:11.5px;margin-top:6px}
+.reqs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.req{background:var(--soft);border-radius:10px;padding:8px 10px}
+.req small{display:block;color:var(--ink2);font-size:11.5px}.req b{font-size:13.5px}
+.req.wide{grid-column:1/-1}
+.crit{display:flex;flex-direction:column;gap:6px}
+.crit div{background:var(--soft);border-radius:10px;padding:8px 10px;font-size:12.5px}
+.crit b{display:block;font-size:13px}.crit small{color:var(--ink2)}
+details{margin-top:10px;font-size:12.5px;color:var(--ink2)}details li{margin:3px 0}summary{cursor:pointer}
+
+.tabs{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 14px;font-weight:600;font-size:13.5px;color:var(--ink2)}
+.tab.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.tab:disabled{opacity:.4;cursor:not-allowed}
+.view{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(#f7f9fc,#e6ebf2);border:1px solid var(--line);height:540px}
+.view canvas{display:block;width:100%;height:100%}
+.ovl{position:absolute;background:rgba(255,255,255,.92);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--ink2);pointer-events:none}
+.ovl b{color:var(--ink);font-size:13px}
+.ovl.l{left:10px;top:10px}.ovl.r{right:10px;top:10px;text-align:right}
+.ovl.big{font-size:12.5px}.ovl.big b{font-size:20px}
+.vt{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.vt button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px;color:var(--ink2)}
+.vt button.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.vt .hint{margin-left:auto;font-size:11.5px;color:var(--ink3)}
+.legend{position:absolute;left:10px;bottom:10px;background:rgba(255,255,255,.92);border-radius:10px;padding:8px 10px;font-size:11.5px;color:var(--ink2);pointer-events:none}
+.legend .bar{width:190px;height:10px;border-radius:5px;margin:4px 0 2px}
+.legend .ticks{display:flex;justify-content:space-between;width:190px;font-size:10.5px}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink2);font-size:13.5px;pointer-events:none;padding:30px}
+.empty b{display:block;font-size:16px;color:var(--red);margin-bottom:6px}
+
+.flow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.flow span{font-size:12px;background:var(--soft);border-radius:999px;padding:4px 10px;color:var(--ink2)}
+.flow span.ok{background:var(--green-s);color:var(--green);font-weight:600}
+.flow span.bad{background:var(--red-s);color:var(--red);font-weight:600}
+.flow em{font-style:normal;color:var(--ink3)}
+svg text{font-family:inherit}
+
+.banner{border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.banner.ok{background:var(--green-s);color:#0b6b4b}.banner.bad{background:var(--red-s);color:#9b2232}
+.banner .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;flex:0 0 auto}
+.banner.ok .ic{background:var(--green)}.banner.bad .ic{background:var(--red)}
+.banner b{display:block;font-size:15px}.banner small{font-size:12px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.kpi{background:var(--soft);border-radius:10px;padding:8px 10px}.kpi small{color:var(--ink2);font-size:11.5px;display:block}
+.kpi b{font-size:20px;letter-spacing:-.3px}.kpi .d{font-size:12px;font-weight:700;color:var(--green)}
+.metric{margin-bottom:13px}
+.metric .row{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--ink2)}
+.metric .row b{font-size:14px;color:var(--ink);white-space:nowrap}
+.metric .row b.bad{color:var(--red)}
+.mbar{position:relative;height:10px;background:#edf0f4;border-radius:99px;margin-top:6px}
+.mbar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--green)}
+.mbar i.bad{background:var(--red)}
+.mbar .lim{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--dark)}
+.mbar .pr{position:absolute;top:-7px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--blue);transform:translateX(-5px)}
+.metric .cap{font-size:11px;color:var(--ink3);margin-top:3px;display:flex;justify-content:space-between}
+.keyrow{display:flex;gap:12px;font-size:11.5px;color:var(--ink2);margin:-4px 0 12px;flex-wrap:wrap}
+.keyrow span{display:inline-flex;align-items:center;gap:5px}
+.k1{width:12px;height:8px;border-radius:4px;background:var(--green);display:inline-block}
+.k2{width:2px;height:12px;background:var(--dark);display:inline-block}
+.k3{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--blue);display:inline-block}
+.note{font-size:12px;color:var(--ink2);background:var(--soft);border-radius:10px;padding:8px 10px;margin-top:8px}
+.warn{font-size:12px;color:#9a5a17;background:var(--amber-s);border-radius:10px;padding:8px 10px;margin-top:8px}
+table.g{width:100%;border-collapse:collapse;font-size:12.5px}
+table.g td{padding:6px 0;border-bottom:1px solid #f0f2f6}table.g td:nth-child(2){text-align:right;font-weight:700}
+table.g td:last-child{text-align:right;width:56px}
+.files{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.files a,.files button{display:block;text-align:center;border:1px solid var(--line);border-radius:10px;padding:10px 6px;color:var(--ink);text-decoration:none;font-size:13px;font-weight:600;background:#fff}
+.files a:hover,.files button:hover{border-color:var(--blue);color:var(--blue)}
+.files small{display:block;font-weight:400;color:var(--ink3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files a,.files button{min-width:0}
+footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
+    <div class="brand"><b>FormProof</b><span>요구사항 → 물리 AI 최적 형상 → FEM 검증</span></div>
+    <nav class="steps" id="steps"></nav>
+  </header>
+
+  <div class="cases" id="cases"></div>
+
+  <div class="grid">
+    <section>
+      <div class="card">
+        <h2>요청 <span class="tag" id="srcTag">시연 고정 시나리오</span></h2>
+        <p class="sub">사용자가 원한 것 — 1단계(입력)에서 정리된 내용</p>
+        <div class="quote" id="request"></div>
+        <div class="reqs" id="conds"></div>
+      </div>
+      <div class="card">
+        <h2>통과해야 할 기준</h2>
+        <p class="sub">최종 형상은 항상 <b>FEM(유한요소 해석)으로 계산</b>해서 이 기준으로 판정합니다.</p>
+        <div class="crit" id="crit"></div>
+        <details><summary>해석 가정 보기</summary><ul id="assum"></ul></details>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <div class="tabs" id="tabs">
+          <button class="tab on" data-v="opt">최적 형상</button>
+          <button class="tab" data-v="cmp">전·후 비교</button>
+          <button class="tab" data-v="space">설계 공간</button>
+        </div>
+        <div class="view" id="view">
+          <div class="ovl l big" id="ovlL"></div>
+          <div class="ovl r" id="ovlR"></div>
+          <div class="legend" id="legend">
+            <div><b style="color:var(--ink)">응력 ÷ 허용응력</b> (FEM)</div>
+            <div class="bar" id="lgBar"></div>
+            <div class="ticks"><span>0</span><span>0.5</span><span>1.0 한계</span><span>1.5</span><span>2+</span></div>
+          </div>
+          <div class="empty" id="empty" style="display:none"></div>
+        </div>
+        <div class="vt" id="vt">
+          <button data-t="stress" class="on">응력 색</button>
+          <button data-t="fixed" class="on">고정 부품</button>
+          <button data-t="ghost">설계 공간 겹쳐 보기</button>
+          <button data-t="spin">자동 회전</button>
+          <button data-t="reset">시점 초기화</button>
+          <span class="hint">끌기 = 회전 · 휠 = 확대 · 오른쪽 끌기 = 이동</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>어떻게 찾았나</h2>
+        <p class="sub" id="howSub"></p>
+        <div class="flow" id="flow"></div>
+        <div id="chart"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <h2>결과</h2>
+        <div class="banner" id="banner"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="keyrow"><span><i class="k1"></i>FEM 값</span><span><i class="k2"></i>기준</span><span id="keyPred"><i class="k3"></i>대리 모델 예측</span></div>
+        <div id="metrics"></div>
+        <div id="warns"></div>
+      </div>
+      <div class="card">
+        <h2 id="gateH">대리 모델 믿을 만한가 <span class="tag" id="gateTag"></span></h2>
+        <p class="sub" id="gateSub">학습에 쓰지 않은 시험 형상(10%)에서 FEM 정답과 비교한 오차</p>
+        <div id="gate"></div>
+      </div>
+      <div class="card">
+        <h2>결과 파일</h2>
+        <p class="sub">이 화면과 같은 폴더(results)에 있는 파일</p>
+        <div class="files" id="files"></div>
+      </div>
+    </section>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const fmt = (v, d) => v == null || !isFinite(v) ? '-' : (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(d ?? 1) : v.toFixed(d ?? 2));
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------------- 색 지도 (응력비 0 → 2): 파랑 → 초록 → 노랑 → 주황 → 빨강, 1.0 = 한계
+const STOPS = [[0,[49,99,206]],[0.25,[38,166,154]],[0.45,[120,190,70]],[0.5,[245,200,50]],[0.62,[240,130,40]],[0.75,[214,48,49]],[1,[150,20,40]]];
+function cmap(t){ t = Math.min(Math.max(t,0),1);
+  for (let i=1;i<STOPS.length;i++){ if (t<=STOPS[i][0]){ const [a,ca]=STOPS[i-1],[b,cb]=STOPS[i], u=(t-a)/(b-a);
+    return ca.map((c,j)=>(c+(cb[j]-c)*u)/255); } } return STOPS[STOPS.length-1][1].map(c=>c/255); }
+$('#lgBar').style.background = 'linear-gradient(90deg,' + STOPS.map(([t,c]) => `rgb(${c}) ${t*100}%`).join(',') + ')';
+
+// ---------------- three.js 장면
+const view = $('#view');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 1e5);
+camera.up.set(0,0,1);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a94a6, 0.85));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(1,-1.4,2); scene.add(sun);
+const sun2 = new THREE.DirectionalLight(0xffffff, 0.25); sun2.position.set(-1,1,0.5); scene.add(sun2);
+let root = new THREE.Group(); scene.add(root);
+let ground = null;
+
+function resize(){ const w=view.clientWidth, h=view.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view);
+
+function b64(s, T){ const b = atob(s), u = new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return new T(u.buffer); }
+const geoCache = new Map();
+function geometry(m){
+  if (!m) return null;
+  if (geoCache.has(m)) return geoCache.get(m);
+  const q = b64(m.v, Uint16Array), pos = new Float32Array(m.n*3);
+  for (let i=0;i<m.n;i++) for (let j=0;j<3;j++) pos[3*i+j] = m.lo[j] + q[3*i+j]/65535*(m.hi[j]-m.lo[j]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setIndex(new THREE.BufferAttribute(b64(m.f, m.fb === 2 ? Uint16Array : Uint32Array),1));
+  g.computeVertexNormals();
+  if (m.s){ const s = b64(m.s, Uint8Array), col = new Float32Array(m.n*3);
+    for (let i=0;i<m.n;i++){ const c = cmap(s[i]/255); col.set(c, 3*i); }
+    g.setAttribute('color', new THREE.BufferAttribute(col,3)); g.userData.stress = true; }
+  g.computeBoundingBox();
+  geoCache.set(m, g); return g;
+}
+const MAT = {
+  opt:   () => new THREE.MeshStandardMaterial({color:0xe8853a, roughness:.55, metalness:.05}),
+  stress:() => new THREE.MeshStandardMaterial({vertexColors:true, roughness:.6, metalness:0}),
+  fixed: () => new THREE.MeshStandardMaterial({color:0x8d97a8, roughness:.5, metalness:.15}),
+  ghost: () => new THREE.MeshBasicMaterial({color:0x2563eb, transparent:true, opacity:.10, depthWrite:false, side:THREE.DoubleSide}),
+  first: () => new THREE.MeshStandardMaterial({color:0x7aa2e8, roughness:.6}),
+  rigid: () => new THREE.MeshStandardMaterial({color:0x6b7280, roughness:.5, transparent:true, opacity:.28, depthWrite:false}),
+};
+function addMesh(grp, m, kind, opt){
+  const g = geometry(m); if (!g) return null;
+  let mat;
+  if (kind === 'main') mat = (S.stress && g.userData.stress) ? MAT.stress() : (opt?.color ? new THREE.MeshStandardMaterial({color:opt.color, roughness:.55}) : MAT.opt());
+  else mat = MAT[kind]();
+  const mesh = new THREE.Mesh(g, mat); grp.add(mesh);
+  if (kind === 'ghost'){ const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 40), new THREE.LineBasicMaterial({color:0x2563eb, transparent:true, opacity:.25})); grp.add(e); }
+  return mesh;
+}
+function boxOf(obj){ return new THREE.Box3().setFromObject(obj); }
+function label(text, sub){
+  const c = document.createElement('canvas'), x = c.getContext('2d'); c.width = 512; c.height = 128;
+  x.fillStyle = 'rgba(255,255,255,.92)'; x.beginPath(); x.roundRect(4,4,504,120,24); x.fill();
+  x.fillStyle = '#111827'; x.font = 'bold 44px Malgun Gothic, sans-serif'; x.textAlign = 'center'; x.fillText(text, 256, 58);
+  x.fillStyle = '#4b5563'; x.font = '32px Malgun Gothic, sans-serif'; x.fillText(sub || '', 256, 104);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), depthTest:false}));
+  s.renderOrder = 10; return s;
+}
+
+// ---------------- 상태
+const S = {i:0, v:'opt', stress:true, fixed:true, ghost:false, spin:false};
+const cases = D?.cases || [];
+
+function build(keepCam){
+  scene.remove(root); root = new THREE.Group(); scene.add(root);
+  const c = cases[S.i]; if (!c) return;
+  const M = Object.assign({}, D.base?.[c.group] || {}, c.mesh), hasOpt = !!M.opt;
+  const empty = $('#empty'); empty.style.display = 'none';
+  let fitObj = root;
+  if (S.v === 'opt'){
+    if (hasOpt){ addMesh(root, M.opt, 'main'); }
+    else { addMesh(root, M.space, 'ghost'); empty.style.display='grid';
+      empty.innerHTML = c.infeasible?.length ? `<div><b>이 조건에서는 통과할 수 있는 형상이 없습니다</b>${esc(shortLabel(c.infeasible[0].label))} ${fmt(c.infeasible[0].value,3)} (기준 ${c.infeasible[0].op==='<='?'≤':'≥'} ${c.infeasible[0].lim})는 형상과 무관하게 정해집니다.<br>파란 윤곽 = 설계 공간</div>`
+        : c.method === 'formula_fem' ? '<div><b>합격한 형상이 없습니다 (fallback)</b>수식 형상·굵게 보정 모두 FEM 기준 미달.<br>파란 윤곽 = 설계 공간. 후보 수(--n)를 늘려 다시 실행하세요.</div>'
+        : '<div><b>합격한 형상이 없습니다 (fallback)</b>대리 모델 후보가 모두 FEM 검증에서 떨어졌습니다.<br>파란 윤곽 = 설계 공간. 팀 FEM 직접 최적화 결과를 대신 사용하세요.</div>'; }
+    if (S.fixed && !(hasOpt && M.opt.s)) addMesh(root, M.fixed, 'fixed');
+    if (S.ghost && hasOpt) addMesh(root, M.space, 'ghost');
+    if (S.fixed) addMesh(root, M.rigid, 'rigid');
+  } else if (S.v === 'space'){
+    addMesh(root, M.space, 'ghost'); if (S.fixed){ addMesh(root, M.fixed, 'fixed'); addMesh(root, M.rigid, 'rigid'); }
+  } else { // 비교: 왼쪽 = 1차 설계(10) 또는 꽉 채운 설계 공간, 오른쪽 = 최적
+    const L = new THREE.Group(), R = new THREE.Group();
+    const first = D.input_mesh && c.product === 'bike_mount', st = !first && M.start;
+    if (first) addMesh(L, D.input_mesh, 'first'); else if (st) addMesh(L, M.start, 'main'); else addMesh(L, M.full, 'main', {color:0x9fb3d1});
+    if (st && S.fixed && !M.start.s) addMesh(L, M.fixed, 'fixed');
+    if (hasOpt) addMesh(R, M.opt, 'main'); else addMesh(R, M.space, 'ghost');
+    if (S.fixed && !(hasOpt && M.opt.s)) addMesh(R, M.fixed, 'fixed');
+    if (S.fixed){ addMesh(L, M.rigid, 'rigid'); addMesh(R, M.rigid, 'rigid'); }
+    const bl = boxOf(L), br = boxOf(R), sz = bl.getSize(new THREE.Vector3()), cl = bl.getCenter(new THREE.Vector3()), cr = br.getCenter(new THREE.Vector3());
+    const dx = Math.max(sz.x, br.getSize(new THREE.Vector3()).x) * 1.25 + 10;
+    L.position.set(-cl.x - dx/2, -cl.y, -cl.z); R.position.set(-cr.x + dx/2, -cr.y, -cr.z);
+    root.add(L, R);
+    const top = Math.max(sz.z, br.getSize(new THREE.Vector3()).z) / 2 + 8;
+    const ll = first ? label('1차 설계 (입력 단계)', '') : st ? label('다듬기 전 (수식 형상)', fmt(c.start_mass,1) + ' g · FEM 합격') : label('설계 공간을 꽉 채운 형상', fmt(c.full_mass,0) + ' g (FEM 안 함)');
+    const lr = label(c.method === 'formula_fem' ? '최적 형상 (FEM 다듬기)' : '물리 AI 최적 형상', hasOpt ? fmt(c.mass,0) + ' g · FEM 합격' : 'fallback');
+    const sc = dx * 0.62;
+    [ll, lr].forEach(s => s.scale.set(sc, sc/4, 1));
+    ll.position.set(-dx/2, 0, top + sc*0.2); lr.position.set(dx/2, 0, top + sc*0.2); root.add(ll, lr);
+    if (first) { ll.material.map.needsUpdate = true; }
+  }
+  // 바닥 그림자 대신 격자
+  if (ground) scene.remove(ground);
+  const bb = boxOf(root), size = bb.getSize(new THREE.Vector3()), ctr = bb.getCenter(new THREE.Vector3());
+  const R0 = Math.max(size.x, size.y, size.z, 1);
+  ground = new THREE.GridHelper(R0*2.2, 22, 0xc9d1dd, 0xdde2ea); ground.rotation.x = Math.PI/2; ground.position.set(ctr.x, ctr.y, bb.min.z - R0*0.02);
+  scene.add(ground);
+  if (!keepCam){
+    const dist = R0 * (S.v === 'cmp' ? 1.45 : 2.1);
+    const dir = c.product === 'bike_mount' ? new THREE.Vector3(0.75,-1.1,0.65) : new THREE.Vector3(0.9,-1.2,0.7);
+    camera.position.copy(ctr).add(dir.normalize().multiplyScalar(dist)); controls.target.copy(ctr);
+    camera.near = R0/100; camera.far = R0*100; camera.updateProjectionMatrix(); controls.update();
+  }
+  const st = S.stress && ((S.v==='opt' && hasOpt && M.opt.s) || (S.v==='cmp' && ((hasOpt && M.opt.s) || M.start?.s)));
+  $('#legend').style.display = st ? 'block' : 'none';
+  overlays(c);
+}
+function overlays(c){
+  const L = $('#ovlL'), R = $('#ovlR');
+  if (S.v === 'opt'){
+    L.innerHTML = c.mass != null ? `<small>질량 (전체, 대칭 복원)</small><br><b>${fmt(c.mass,1)} g</b>` : '<b>형상 없음</b>';
+    R.innerHTML = `${esc(c.icon)} ${esc(c.product_name)}<br><small>${esc(c.group_text)} · 격자 ${c.grid_h} mm</small>`;
+  } else if (S.v === 'space'){
+    L.innerHTML = `<small>설계 공간 = AI가 재료를 놓을 수 있는 곳</small><br><b>파란 윤곽</b>`;
+    R.innerHTML = `회색 = 고정 부품(클램프·체결부 등)<br><small>바꾸지 않는 부분 · 반투명 회색 = 강체(TV 블록 등, 질량 제외)</small>`;
+  } else {
+    const first = D.input_mesh && c.product==='bike_mount', st = !first && c.mesh.start;
+    const base = st ? c.start_mass : c.full_mass, d = c.mass != null && base ? (1 - c.mass/base)*100 : null;
+    L.innerHTML = d != null && !first ? `<small>${st ? '다듬기로' : '꽉 채운 형상 대비'}</small><br><b style="color:var(--green)">−${fmt(d,0)}% 가벼움</b>` : '';
+    R.innerHTML = first ? '왼쪽 = 입력 단계 1차 설계 STL' : st ? '두 형상 모두 FEM 합격<br><small>같은 기준을 지키며 재료만 줄임</small>' : '왼쪽 = 설계 공간 전체 (질량 비교용)';
+  }
+}
+let last = performance.now();
+function loop(t){ const dt = (t-last)/1000; last = t;
+  if (S.spin){ const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0,0,1), dt*0.5); camera.position.copy(controls.target).add(off); }
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+// ---------------- 화면 패널
+function steps(c){
+  const ok = c?.status === 'ok', fe = c?.method === 'formula_fem';
+  const items = fe ? [['입력','done'],['1차 설계','done'],['수식 형상 생성','done'],['FEM 계산','done'],['FEM 다듬기', ok ? 'done' : 'bad'],['결과', ok ? 'on' : 'bad']]
+                   : [['입력','done'],['1차 설계','done'],['대리 모델 학습','done'],['최적화','done'],['FEM 검증', ok ? 'done' : 'bad'],['결과', ok ? 'on' : 'bad']];
+  $('#steps').innerHTML = items.map(([t,k],i) => `<span class="step ${k}"><i>${k==='done'?'✓':i+1}</i>${t}</span>`).join('<span class="sep">›</span>')
+    + `<span class="stage-note">1–2 입력 단계(10) · 3–6 물리 AI(08)</span>`;
+}
+function caseBar(){
+  $('#cases').innerHTML = cases.map((c,i) => `<button class="case ${i===S.i?'on':''}" data-i="${i}">
+    ${c.thumb ? `<img src="${c.thumb}" alt="">` : `<span class="ph">${esc(c.icon)}</span>`}
+    <span><span class="t">${esc(c.product_name)}</span><br><span class="s">${esc(c.group_text)} · ${c.cond.map(q=>fmt(q.v,1).replace(/\.0$/,'')+q.unit).join(', ')}</span><br>
+    <span class="tag ${c.status==='ok'?'green':'red'}">${c.status==='ok' ? 'FEM 합격 · '+fmt(c.mass,0)+' g' : (c.infeasible?.length ? '조건상 불가' : 'fallback')}</span></span></button>`).join('');
+  document.querySelectorAll('.case').forEach(b => b.onclick = () => select(+b.dataset.i));
+}
+function left(c){
+  const inp = D.input?.report;
+  $('#srcTag').textContent = inp ? '입력 단계 결과(report.json)' : '시연 고정 시나리오';
+  const text = inp?.input?.text || inp?.text || c.request;
+  $('#request').innerHTML = `“${esc(text)}”<small>${esc(c.icon)} ${esc(c.product_name)} · ${esc(c.group_text)}</small>`;
+  const m = c.material || {};
+  $('#conds').innerHTML = c.cond.map(q => `<div class="req"><small>${esc(q.label)}</small><b>${fmt(q.v,1).replace(/\.0$/,'')} ${esc(q.unit)}</b></div>`).join('')
+    + `<div class="req wide"><small>재료</small><b>${esc(m.name||'-')}</b> <small style="display:inline">· E ${fmt(m.E/1000,1)} GPa · 항복 ${fmt(m.yield_mpa,0)} MPa</small></div>`;
+  $('#crit').innerHTML = c.crit.map(r => `<div><b>${esc(shortLabel(r.label))} ${r.op==='<='?'≤':'≥'} ${r.lim} ${esc(unitOf(r.label))}</b><small>근거: ${esc(r.src||'-')}</small></div>`).join('')
+    + `<div><b>그 안에서 질량 최소</b><small>목표</small></div>`;
+  $('#assum').innerHTML = (c.assumptions||[]).map(a => `<li>${esc(a)}</li>`).join('');
+}
+function unitOf(label){ const m = /\[(.+?)\]/.exec(label); return m ? m[1] : ''; }
+function shortLabel(label){ return label.replace(/\s*\[.+?\]/,''); }
+function right(c){
+  const ok = c.status === 'ok', fe = c.method === 'formula_fem';
+  $('#banner').className = 'banner ' + (ok ? 'ok' : 'bad');
+  const inf = c.infeasible || [];
+  $('#banner').innerHTML = !ok && inf.length ? `<span class="ic">!</span><span><b>이 조건에서는 어떤 형상도 통과 불가</b><small>형상과 무관하게 정해지는 기준이 미달 — 형상 최적화로 못 고침</small></span>` : ok ? `<span class="ic">✓</span><span><b>모든 기준 통과 (FEM 검증)</b><small>${fe ? '수식 형상을 FEM으로 직접 계산·다듬은 값' : '대리 모델 예측이 아니라 FEM으로 다시 계산한 값'}</small></span>`
+    : `<span class="ic">!</span><span><b>합격 후보 없음 (fallback)</b><small>${fe ? '수식 형상 '+c.tried.length+'개·굵게 보정 후에도 FEM 기준 미달 — 후보 수(--n)를 늘려 다시 실행' : '대리 모델 후보 '+c.tried.length+'개 모두 FEM 검증 실패 — 자동 대체 없음'}</small></span>`;
+  const d = c.mass != null && c.full_mass ? (1 - c.mass/c.full_mass)*100 : null;
+  $('#kpis').innerHTML = `<div class="kpi"><small>질량</small><b>${c.mass!=null ? fmt(c.mass,1)+' g' : '-'}</b>${c.start_mass!=null&&c.mass!=null?`<div class="d">다듬기로 −${fmt((1-c.mass/c.start_mass)*100,0)}% (${fmt(c.start_mass,1)} g에서)</div>`:''}${d!=null?`<div class="d" style="color:var(--ink2);font-weight:400">설계 공간 전체 ${fmt(c.full_mass,0)} g의 ${fmt(100-d,0)}%</div>`:''}</div>
+    <div class="kpi"><small>${fe ? '계산 시간 (CPU)' : '최적화 + FEM 검증 시간'}</small><b>${fmt(c.sec,0)} s</b><div class="d" style="color:var(--ink2);font-weight:400">${fe ? '탐색 + 다듬기' : ''}</div></div>`;
+  const rows = ok ? c.crit : (c.near_crit || c.crit);
+  $('#metrics').innerHTML = (ok ? '' : '<div class="note" style="margin:-4px 0 10px">합격 형상이 없어 아래는 <b>기준에 가장 가까운 후보</b>의 FEM 값입니다.</div>') + rows.map(r => {
+    if (r.fem == null) return '';
+    const ge = r.op === '>=', pass = ge ? r.fem >= r.lim : r.fem <= r.lim;
+    const SC = 2.0; // 막대 끝 = 기준의 2배
+    const w = Math.min(r.fem / r.lim / SC, 1) * 100, limX = 100/SC;
+    const pr = r.pred != null && ok ? Math.min(r.pred / r.lim / SC, 1) * 100 : null;
+    const margin = ge ? (r.fem/r.lim - 1)*100 : (1 - r.fem/r.lim)*100;
+    return `<div class="metric"><div class="row"><span>${esc(shortLabel(r.label))}</span><b class="${pass?'':'bad'}">${fmt(r.fem)} ${esc(unitOf(r.label))} ${ge?'≥':'≤'} ${r.lim}</b></div>
+      <div class="mbar"><i class="${pass?'':'bad'}" style="width:${w}%"></i><span class="lim" style="left:${limX}%"></span>${pr!=null?`<span class="pr" style="left:${pr}%"></span>`:''}</div>
+      <div class="cap"><span>${pass ? '여유 '+(margin<10?margin.toFixed(1):margin.toFixed(0))+'%' : '기준 초과'}</span><span>${r.pred!=null&&ok ? '예측 '+fmt(r.pred)+' (FEM과 차이 '+fmt(Math.abs(r.pred/r.fem-1)*100,0)+'%)' : ''}</span></div></div>`;
+  }).join('');
+  const w = [];
+  inf.forEach(x => w.push(`<div class="warn"><b>${esc(shortLabel(x.label))} = ${fmt(x.value,3)} (기준 ${x.op==='<='?'≤':'≥'} ${x.lim})</b><br>후보 ${c.tried.length}개 모두 같은 값 → 형상이 아니라 문제 조건(${esc(x.how)})으로 정해짐. 조건(예: 발 길이)을 바꿔야 합니다 — 사용자 결정 사항.</div>`));
+  if (c.uplift) w.push('<div class="warn">패드 들림 경고: 고정 패드 가정이 깨지는 하중 경우가 있습니다 (정보용, 판정에는 미포함).</div>');
+  if (!D.stress) w.push('<div class="note">응력 색 없음 (--no-stress 로 만든 화면)</div>');
+  $('#warns').innerHTML = w.join('');
+  // 관문 (대리 모델 경로) / 계산 방식 (FEM 직접 경로)
+  if (fe){
+    $('#gateH').firstChild.textContent = '계산 방식 ';
+    $('#gateTag').className = 'tag blue'; $('#gateTag').textContent = 'FEM 직접 (학습 모델 없음)';
+    $('#gateSub').textContent = '지금은 학습 모델 없이 수식 형상 + FEM 으로 계산합니다. 예측 오차가 없는 대신 느립니다.';
+    const nF = c.tried.filter(t => t.fem_pass != null).length, nP = c.tried.filter(t => t.fem_pass).length, nR = c.fixes.reduce((a,x) => a + x.hist.length, 0);
+    $('#gate').innerHTML = `<table class="g"><tr><td>수식 형상 FEM 계산</td><td>${nF}개</td><td><span class="tag green">합격 ${nP}</span></td></tr>
+      <tr><td>FEM 다듬기·보정 계산</td><td>${nR}회</td><td></td></tr><tr><td>탐색 시간</td><td>${fmt(c.t_search,0)} s</td><td></td></tr></table>
+      <div class="note">DeepSDF·PINO 학습이 끝나면 <code>fp08.demo</code>(대리 모델 경로)로 바꿉니다. 화면은 같고, 이 칸이 '품질 관문' 결과로 바뀝니다.</div>`;
+    $('#keyPred').style.display = 'none';
+  } else {
+  $('#gateH').firstChild.textContent = '대리 모델 믿을 만한가 '; $('#gateSub').textContent = '학습에 쓰지 않은 시험 형상(10%)에서 FEM 정답과 비교한 오차'; $('#keyPred').style.display = '';
+  const G = D.gate?.gate?.[c.group], lim = D.gate?.limits, sdf = D.gate?.sdf_test?.[c.group];
+  $('#gateTag').className = 'tag ' + (G ? (G.passed ? 'green' : 'red') : '');
+  $('#gateTag').textContent = G ? (G.passed ? '관문 합격' : '관문 불합격') : '결과 없음';
+  let h = '';
+  const row = (k, v, l, ge, unit='') => { const p = v==null ? null : (ge ? v >= l : v <= l);
+    return `<tr><td>${k}</td><td>${v==null?'-':fmt(v,3)+unit}</td><td><span class="tag ${p==null?'':p?'green':'red'}">${ge?'≥':'≤'} ${l}</span></td></tr>`; };
+  if (G && lim){
+    h += '<table class="g">' + row('PINO 변위장 상대 오차', G.relL2, lim.relL2_mean, false) + row('진동수 ±5% 안 비율', G.freq5, lim.freq_within5, true);
+    for (const [q,v] of Object.entries(G.judge||{})) { if (/mass|tip/.test(q)) continue; h += row(`판정값 ${q} 오차(상위10%)`, v, /vm|interlayer/.test(q) ? lim.stress : lim.judge, false); }
+    h += '</table>';
+    if (!G.passed && G.reasons?.length) h += `<div class="warn">불합격 사유: ${esc(G.reasons.join(', '))}</div>`;
+  }
+  if (sdf) h += `<table class="g" style="margin-top:6px">${row('DeepSDF 형상 복원 IoU', sdf.iou_test, 0.90, true)}${row('표면 오차 (칸)', sdf.surf_err_cell_test, 0.5, false)}</table><div class="note">DeepSDF 기준(0.90, 0.5칸)은 제안값 — 아직 미확정</div>`;
+  if (!h) h = '<div class="note">runs/main/state.json 에 관문 결과가 없습니다 (리허설 모델이거나 관문 단계 전). 위의 FEM 검증 결과는 이와 무관하게 유효합니다.</div>';
+  else h += '<div class="note">관문과 상관없이 최종 형상은 항상 FEM으로 다시 검증합니다.</div>';
+  $('#gate').innerHTML = h;
+  }
+  // 파일
+  const name = f => f.endsWith('.stl') ? ['3D 프린트용 STL','mm 단위'] : f.endsWith('.json') ? ['판정값 JSON','FEM 값·예측값'] : ['형상 그림 PNG',''];
+  $('#files').innerHTML = c.files.map(f => `<a href="${encodeURI(f)}" download>${name(f)[0]}<small>${esc(f)}</small></a>`).join('')
+    + `<button id="shot">화면 캡처 PNG<small>지금 3D 화면</small></button>`;
+  $('#shot').onclick = () => { renderer.render(scene, camera); const a = document.createElement('a'); a.href = renderer.domElement.toDataURL('image/png'); a.download = c.tag + '_view.png'; a.click(); };
+}
+function flowChart(c){
+  const fe = c.method === 'formula_fem', T = c.tried || [];
+  $('#howSub').innerHTML = fe
+    ? '설계 공간 안에 <b>수식으로 형상 후보</b>(부재·트러스·판·껍데기 + 보강)를 만들고 각각 <b>FEM으로 계산</b>합니다. 합격 후보 중 가벼운 3개에서 힘을 거의 안 받는 칸을 조금씩 지우며(ESO) 매번 FEM으로 다시 판정해, 합격을 유지하는 가장 가벼운 형상을 고릅니다.'
+    : '대리 모델(DeepSDF 형상 + PINO 물리 예측)로 수 초 만에 후보를 만들고, 가벼운 순서대로 FEM으로 검증해 처음 합격한 것을 고릅니다.';
+  if (!T.length){ $('#flow').innerHTML=''; $('#chart').innerHTML = '<div class="note">후보 기록(detail/opt_*.json)이 없습니다.</div>'; return; }
+  if (!fe) return surrogateChart(c);
+  const ev = T.filter(t => t.fem_pass != null), okN = ev.filter(t => t.fem_pass).length;
+  const ref = (c.fixes||[]).filter(x => x.kind === 'refine'), thk = (c.fixes||[]).filter(x => x.kind === 'thicken');
+  const bestFix = ref.find(x => x.idx === c.best_idx);
+  const startM = bestFix ? bestFix.start : null;
+  $('#flow').innerHTML = `<span>① 수식 형상 ${T.length}개</span><em>→</em><span>② FEM 계산 · 합격 ${okN}개</span><em>→</em>`
+    + (thk.length ? `<span>굵게 보정 ${thk.length}개</span><em>→</em>` : '')
+    + `<span>③ 가벼운 ${ref.length}개 FEM 다듬기</span><em>→</em>`
+    + (c.status === 'ok' ? `<span class="ok">④ ${startM!=null?fmt(startM,1)+' → ':''}${fmt(c.mass,1)} g 채택</span>` : `<span class="bad">합격 없음</span>`);
+  // 왼쪽: 후보별 FEM 질량 (가벼운 순) / 오른쪽: 다듬기 궤적
+  const W = 700, H = 200, pt = 18, pb = 36;
+  const cand = ev.slice().sort((a,b) => a.fem_mass - b.fem_mass);
+  const allM = cand.map(t => t.fem_mass).concat(...ref.map(x => x.hist.map(h => h.m)), ...(thk.map(x => x.hist.map(h => h.m))));
+  const mx = Math.max(...allM, 1) * 1.08;
+  const L0 = 40, L1 = 400, R0 = 452, R1 = W - 10, yOf = m => pt + (H-pt-pb) * (1 - m/mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="후보별 FEM 질량과 다듬기 과정">`;
+  for (let k = 0; k <= 4; k++){ const y = yOf(mx*k/4);
+    s += `<line x1="${L0}" x2="${R1}" y1="${y}" y2="${y}" stroke="#eef1f5"/><text x="${L0-6}" y="${y+4}" font-size="10.5" fill="#9aa3ae" text-anchor="end">${(mx*k/4).toFixed(0)}</text>`; }
+  s += `<text x="4" y="${pt-6}" font-size="10.5" fill="#4b5563">질량 g (FEM)</text>`;
+  const step = (L1 - L0) / Math.max(cand.length, 1), bw = Math.max(Math.min(14, step*0.75), 2);
+  cand.forEach((t,i) => { const x = L0 + step*i + (step-bw)/2, y = yOf(t.fem_mass), col = t.fem_pass ? '#0f9f6e' : '#d33a4b', sel = ref.some(r => r.idx === t.idx);
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${H-pb-y}" rx="${Math.min(3,bw/2)}" fill="${col}" opacity="${sel?1:.55}" ${sel?'stroke="#141c2c" stroke-width="1.5"':''}><title>형상 #${t.idx} (${t.family||''}) ${fmt(t.fem_mass,1)} g · ${t.fem_pass?'합격':'불합격'}${sel?' · 다듬기 대상':''}</title></rect>`; });
+  const nc = T.length - ev.length;
+  s += `<text x="${L0}" y="${H-18}" font-size="10.5" fill="#4b5563">② 수식 형상 FEM 결과 (가벼운 순)${nc?` · 끊긴 형상 ${nc}개 제외`:''}</text>`;
+  s += `<g font-size="10.5" fill="#4b5563" transform="translate(${L0},${H-4})"><rect x="0" y="-9" width="10" height="10" rx="2" fill="#0f9f6e"/><text x="14" y="0">합격</text><rect x="48" y="-9" width="10" height="10" rx="2" fill="#d33a4b"/><text x="62" y="0">불합격</text><rect x="106" y="-9" width="10" height="10" rx="2" fill="#fff" stroke="#141c2c" stroke-width="1.5"/><text x="120" y="0">다듬기 대상</text></g>`;
+  // 오른쪽
+  s += `<line x1="${R0-20}" x2="${R0-20}" y1="${pt}" y2="${H-pb}" stroke="#e3e7ee"/>`;
+  const maxS = Math.max(1, ...ref.map(x => x.hist.length)), sx = (R1 - R0) / maxS;
+  const COLS = ['#2563eb','#e8853a','#7c3aed'];
+  ref.forEach((x,k) => { const pts = [[R0, yOf(x.start)]], acc = [];
+    let cur = x.start, st = 0;
+    x.hist.forEach(h => { if (h.ok){ st++; cur = h.m; pts.push([R0 + sx*st, yOf(h.m)]); } else acc.push([R0 + sx*(st+1), yOf(h.m)]); });
+    const best = x.idx === c.best_idx, col = COLS[k % 3];
+    s += `<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="${best?3:1.6}" opacity="${best?1:.6}"/>`;
+    pts.forEach(p => s += `<circle cx="${p[0]}" cy="${p[1]}" r="${best?3.5:2.5}" fill="${col}"/>`);
+    acc.forEach(p => s += `<text x="${p[0]}" y="${p[1]+4}" font-size="11" fill="#d33a4b" text-anchor="middle" font-weight="700">✗<title>이만큼 지우면 불합격 → 멈춤</title></text>`);
+    const e = pts[pts.length-1]; if (best) s += `<text x="${Math.min(e[0]+5, R1-40)}" y="${e[1]-6}" font-size="10.5" fill="${col}" font-weight="${best?700:400}">${fmt(cur,1)} g${best?' 채택':''}</text>`; });
+  s += `<text x="${R0}" y="${H-18}" font-size="10.5" fill="#4b5563">③ 다듬기 (✗ = 불합격 → 멈춤)</text>`;
+  s += `<text x="${R0}" y="${H-4}" font-size="10.5" fill="#9aa3ae">가로 = 합격한 다듬기 횟수</text>`;
+  $('#chart').innerHTML = s + '</svg>';
+}
+function surrogateChart(c){
+  const T = c.tried || [], n = T.length, ver = T.filter(t => t.fem_pass != null), okN = ver.filter(t => t.fem_pass).length;
+  $('#flow').innerHTML = `<span>시작점 ${n}개</span><em>→</em><span>대리 모델로 z 최적화</span><em>→</em><span>가벼운 순서로 FEM 검증 ${ver.length}개</span><em>→</em>`
+    + (okN ? `<span class="ok">합격 → 채택</span>` : `<span class="bad">합격 없음</span>`);
+  const W = 640, H = 170, pl = 44, pb = 34, pt = 14, mx = Math.max(...T.map(t => t.pred_mass || 0), 1) * 1.1;
+  const bw = Math.min(46, (W - pl - 10) / n * 0.7), step = (W - pl - 10) / n;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="후보별 예측 질량과 FEM 결과">`;
+  for (let k = 0; k <= 4; k++){ const y = pt + (H-pt-pb)*(1-k/4), v = mx*k/4;
+    s += `<line x1="${pl}" x2="${W-6}" y1="${y}" y2="${y}" stroke="#eef1f5"/><text x="${pl-6}" y="${y+4}" font-size="10.5" fill="#9aa3ae" text-anchor="end">${v.toFixed(0)}</text>`; }
+  s += `<text x="10" y="${pt+4}" font-size="10.5" fill="#4b5563">g</text>`;
+  T.forEach((t,i) => { const x = pl + step*i + (step-bw)/2, h = (H-pt-pb) * (t.pred_mass||0)/mx, y = H - pb - h;
+    const col = t.fem_pass === true ? '#0f9f6e' : t.fem_pass === false ? '#d33a4b' : !t.connected ? '#e3e7ee' : '#c9d1dd';
+    const tip = t.fem_pass === true ? '합격' : t.fem_pass === false ? '불합격' : !t.connected ? '끊김(검증 제외)' : '검증 안 함';
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="5" fill="${col}" ${!t.connected?'stroke="#9aa3ae" stroke-dasharray="3 2"':''}><title>후보 ${i+1}: 예측 ${fmt(t.pred_mass,1)} g · ${tip}${t.fem_mass!=null?' · FEM 질량 '+fmt(t.fem_mass,1)+' g':''}</title></rect>`;
+    s += `<text x="${x+bw/2}" y="${H-pb+14}" font-size="10.5" fill="#4b5563" text-anchor="middle">${i+1}</text>`;
+    if (t.fem_pass != null) s += `<text x="${x+bw/2}" y="${y-4}" font-size="10.5" font-weight="700" fill="${col}" text-anchor="middle">${t.fem_pass?'✓':'✗'}</text>`; });
+  s += `<text x="${pl}" y="${H-4}" font-size="10.5" fill="#9aa3ae">후보 (예측 질량 가벼운 순 = FEM 검증 순서)</text>`;
+  $('#chart').innerHTML = s + '</svg>';
+}
+function select(i){
+  S.i = i; location.hash = cases[i].tag;
+  const c = cases[i];
+  document.querySelectorAll('.case').forEach((b,k) => b.classList.toggle('on', k===i));
+  document.querySelector('[data-v="opt"]').disabled = false;
+  steps(c); left(c); right(c); flowChart(c); build(false);
+}
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => { S.v = b.dataset.v;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===b)); build(false); });
+document.querySelectorAll('#vt button').forEach(b => b.onclick = () => { const t = b.dataset.t;
+  if (t === 'reset') return build(false);
+  S[t] = !S[t]; b.classList.toggle('on', S[t]); if (t !== 'spin') build(true); });
+
+if (!cases.length){
+  $('#empty').style.display = 'grid'; $('#empty').innerHTML = '<div><b>결과가 없습니다</b>results 폴더에 시연 결과(*.json)가 없습니다. 먼저 <code>python -m fp08.demo</code> 를 실행하세요.</div>';
+  steps(null);
+} else {
+  caseBar();
+  const h = decodeURIComponent(location.hash.slice(1)), k = cases.findIndex(c => c.tag === h);
+  select(k >= 0 ? k : 0);
+  const qv = new URLSearchParams(location.search).get('v');      // ?v=cmp|space 로 탭 바로 열기 (발표용)
+  if (qv) document.querySelector(`.tab[data-v="${qv}"]`)?.click();
+}
+$('#foot').textContent = `FormProof 08 물리 AI · 화면 생성 ${D?.made || ''} · 모든 수치는 results 폴더의 결과 파일과 FEM 재계산 값 · three.js r147 (MIT)`;
+</script>
+</body>
+</html>

@@ -8,5 +8,6 @@ cd /d %~dp0\..
 if not exist runs\main\state.json python -m fp08.pack unpack results.zip runs
 set OMP_NUM_THREADS=%NUMBER_OF_PROCESSORS%
 python -m fp08.demo --run runs\main --data data --out results --device cpu
-start results\summary.html
+python -m fp08.app --results results --run runs\main
+start results\app.html
 pause
