@@ -20,7 +20,16 @@ xc=h*I+1; yc=h*J+1
 petg=K<NP; al=(K>=NP)&(K<NP+NA); ph=K>=NP+NA
 hub=petg&((xc-40)**2+(yc-75)**2<=16**2)
 corner=petg&(((xc<10)|(xc>70))&((yc<10)|(yc>140)))
-fixed_solid=hub|corner
+LAYOUT=os.environ.get('LAYOUT','corner')
+if LAYOUT=='side':
+    # 좌우 집게: 가운데 가로 레일 하우징(스프링 내장, 아래 2층) + 양 끝 집게 출입부 + 아래 받침 턱
+    band=petg&(K<=1)&(yc>66)&(yc<84)
+    jaw=petg&((xc<8)|(xc>72))&(yc>62)&(yc<88)
+    ledge=petg&(yc<8)&(xc>24)&(xc<56)
+    corner=jaw|ledge
+    fixed_solid=hub|band|jaw|ledge
+else:
+    fixed_solid=hub|corner
 design=petg&~fixed_solid
 top=petg&(K==NP-1); bot=petg&(K==0)
 src=ph&(K==NP+NA)&(xc>30)&(xc<50)&(yc>100)&(yc<125)
@@ -34,8 +43,13 @@ ftop=np.array(FACES[(0,0,1)]); fbot=np.array(FACES[(0,0,-1)])
 front=ph&(K==nz-1)
 # 하중: 폰은 모서리 걸림 턱이 잡음 → 충격 시 폰 관성(0.29 kg × 48.5 g = 138 N)이 네 모서리로 들어옴
 #   LC1: 폰이 떨어져 나가는 방향(+z), LC2: 폰 세로 방향(+y). 두 경우 합 컴플라이언스로 강성 판정
-ce_=np.where(corner&(K==NP-1))[0]; cn=np.unique(en[ce_][:,ftop].ravel())
-F1=np.zeros(3*nn); F1[3*cn+2]=138./len(cn); F2=np.zeros(3*nn); F2[3*cn+1]=138./len(cn)
+if LAYOUT=='side':
+    # LC1: 폰이 떨어지는 방향(+z) 138 N → 좌우 집게 / LC2: 폰 기울기 30° 가정 세로 성분 69 N(-y) → 아래 받침 턱
+    jn=np.unique(en[np.where(jaw&(K==NP-1))[0]][:,ftop].ravel()); ln=np.unique(en[np.where(ledge&(K==NP-1))[0]][:,ftop].ravel())
+    F1=np.zeros(3*nn); F1[3*jn+2]=138./len(jn); F2=np.zeros(3*nn); F2[3*ln+1]=-69./len(ln)
+else:
+    ce_=np.where(corner&(K==NP-1))[0]; cn=np.unique(en[ce_][:,ftop].ravel())
+    F1=np.zeros(3*nn); F1[3*cn+2]=138./len(cn); F2=np.zeros(3*nn); F2[3*cn+1]=138./len(cn)
 gk=np.arange(nn)//(NX*NY); gi=np.arange(nn)%NX; gj=(np.arange(nn)//NX)%NY
 fixn=np.where((gk==0)&(((h*gi-40)**2+(h*gj-75)**2)<=16**2))[0]
 fdofs=np.r_[3*fixn,3*fixn+1,3*fixn+2]
@@ -80,7 +94,7 @@ proj=lambda x,be,et=.5:(np.tanh(be*et)+np.tanh(be*(x-et)))/(np.tanh(be*et)+np.ta
 dproj=lambda x,be,et=.5:be*(1-np.tanh(be*(x-et))**2)/(np.tanh(be*et)+np.tanh(be*(1-et)))
 mass=lambda rho: float(rho[petg].sum()*h**3*1.27e-3)+(80*150*0.5*2.7e-3 if AL else 0.)
 def report(rho,Cc,T,tag):
-    r=dict(tag=tag,AL=AL,mass_g=round(mass(rho),1),C=round(Cc,2),defl_mm=round(Cc/276.,3),Tmax=round(float(T[phn].max()),2),Tsrc=round(float(T[np.unique(en[src].ravel())].mean()),2),Tback=round(float(T[np.unique(en[ph&(K==NP+NA)][:,fbot].ravel())].mean()),2))
+    r=dict(tag=tag,AL=AL,mass_g=round(mass(rho),1),C=round(Cc,2),defl_mm=round(Cc/(207. if LAYOUT=='side' else 276.),3),Tmax=round(float(T[phn].max()),2),Tsrc=round(float(T[np.unique(en[src].ravel())].mean()),2),Tback=round(float(T[np.unique(en[ph&(K==NP+NA)][:,fbot].ravel())].mean()),2))
     print(json.dumps(r),flush=True); return r
 if MODE=='eval':
     rr=np.load(os.environ['RHO']); rho,u,T,Kt,used,ps2,Cc,Jp=evaluate(rr[didx]); r=report(rho,Cc,T,'eval'); np.save('T_%s.npy'%TAG,T)
