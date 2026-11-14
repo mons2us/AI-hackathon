@@ -113,7 +113,8 @@ class Loop:
             if not self.done(f'sdf:{g}'):
                 jobs.append((f'sdf_{g}', [sys.executable, '-m', 'fp08.train_sdf', '--group', g, '--data', self.a.data,
                                           '--out', self.run, '--steps', str(self.a.sdf_steps),
-                                          '--eval-every', str(max(self.a.sdf_steps // 10, 100))]))
+                                          '--eval-every', str(max(self.a.sdf_steps // 10, 100)),
+                                          '--width', str(self.a.sdf_width), '--depth', str(self.a.sdf_depth), '--n-eval', '30']))
         self.run_jobs(jobs)
         import torch
         for g in self.groups:
@@ -307,7 +308,7 @@ if __name__ == '__main__':
     ap.add_argument('--workers', type=int, default=os.cpu_count())
     ap.add_argument('--devices', default='cpu')
     ap.add_argument('--n-shapes', type=int, default=5000); ap.add_argument('--n-cand', type=int, default=12000); ap.add_argument('--eso', action='store_true'); ap.add_argument('--n-fem', type=int, default=1000)
-    ap.add_argument('--sdf-steps', type=int, default=20000); ap.add_argument('--pino-steps', type=int, default=30000)
+    ap.add_argument('--sdf-steps', type=int, default=20000); ap.add_argument('--sdf-width', type=int, default=256); ap.add_argument('--sdf-depth', type=int, default=8); ap.add_argument('--pino-steps', type=int, default=30000)
     ap.add_argument('--al-n', type=int, default=200); ap.add_argument('--max-rounds', type=int, default=3)
     ap.add_argument('--n-starts', type=int, default=10); ap.add_argument('--opt-steps', type=int, default=300)
     ap.add_argument('--deadline', default=None)

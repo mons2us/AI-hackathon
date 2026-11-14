@@ -1,0 +1,8 @@
+# Cline 규칙 — FormProof 08 물리AI 최적형상
+- 작업 시작 전에 반드시 HANDOFF.md 를 처음부터 끝까지 읽을 것. 모든 절차·명령·판단 기준이 거기 있음.
+- git push 는 sosopapa 브랜치에만. 커밋 메시지에 "변경 포인트" 목록 필수 (HANDOFF.md §9).
+- fp08/problems.py 의 재료·하중·판정 기준, fp08/loop.py 의 GATE·DEMO 값은 사용자 확인 없이 수정 금지.
+- 확인 안 된 수치를 사실처럼 말하지 말 것. 추정이면 "추정"이라고 쓸 것.
+- 학습/데이터 생성이 끊기면 폴더를 지우지 말고 같은 명령 재실행 (이어서 진행됨).
+- 이 PC 에는 GPU 가 없음. 학습은 handoff/step3_server_train.sh 를 GPU 서버에서 실행.
+- *.pt, data/, *.zip 은 커밋 금지.

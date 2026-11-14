@@ -102,9 +102,9 @@ def validate(net, gd, ks=None, max_n=200):
 
 
 def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', physics=True, freq_mode='rayleigh',
-          tag='pino', width=24, time_limit=None, log=print, eval_every=1000, w_phys=0.1):
+          tag='pino', width=24, time_limit=None, log=print, eval_every=1000, w_phys=0.1, groups=None):
     t0 = time.time()
-    gds = [GroupData(g, data, device) for g in PRODUCTS[product]]
+    gds = [GroupData(g, data, device) for g in PRODUCTS[product] if not groups or g in groups]   # groups: 일부 그룹만(시험용)
     nb = len(gds[0].pt.basis_names)
     nfp = FREQ_PAIRS[product]
     net = models.PINO(nb, n_freq_pairs=nfp, width=width, modes=MODES[product], cin=9).to(device)
@@ -159,7 +159,7 @@ def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', 
             net.train()
             h = dict(step=step, t=round(time.time() - t0, 1), train=rec, val=vm)
             hist.append(h)
-            log(f'[{tag} {product}] {json.dumps(h, ensure_ascii=False)}')
+            log(f'[{tag} {product}] {json.dumps(h, ensure_ascii=False)}', flush=True) if log is print else log(f'[{tag} {product}] {json.dumps(h, ensure_ascii=False)}')
             torch.save(dict(model=net.state_dict(), opt=opt.state_dict(), step=step, hist=hist,
                             cfg=dict(product=product, nb=nb, nfp=nfp, width=width, modes=MODES[product],
                                      physics=physics, freq_mode=freq_mode)), ck + '.tmp')
@@ -188,6 +188,7 @@ if __name__ == '__main__':
     ap.add_argument('--tag', default='pino')
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     ap.add_argument('--eval-every', type=int, default=1000)
+    ap.add_argument('--groups', default=None, help='쉼표로 구분, 일부 그룹만 학습(시험용)')
     a = ap.parse_args()
     train(a.product, a.data, a.out, a.steps, a.bs, device=a.device, physics=not a.no_physics, freq_mode=a.freq,
-          tag=a.tag, width=a.width, eval_every=a.eval_every)
+          tag=a.tag, width=a.width, eval_every=a.eval_every, groups=a.groups.split(',') if a.groups else None)

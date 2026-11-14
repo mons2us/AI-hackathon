@@ -1,0 +1,10 @@
+# FormProof 08 - 필요한 파이썬 패키지 (Python 3.10~3.13 확인)
+# 회사 PC / 서버에 인터넷이 없으면: 인터넷 되는 PC에서
+#   pip download -r requirements.txt -d wheels --platform <대상 플랫폼> --python-version 3.11 --only-binary=:all:
+# 로 받아 옮긴 뒤  pip install --no-index --find-links wheels -r requirements.txt
+numpy>=1.24
+scipy>=1.10
+scikit-image>=0.21
+matplotlib>=3.7
+torch>=2.1          # 서버(GPU)는 CUDA 판, 회사 PC는 CPU 판이면 충분
+pypardiso>=0.4 ; platform_machine == "x86_64" or platform_machine == "AMD64"   # 없으면 자동으로 SuperLU (느림, 결과 같음)

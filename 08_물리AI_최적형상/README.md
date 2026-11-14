@@ -6,6 +6,16 @@
 ## 한 줄 요약
 **처음 보는 제품군의 요청이 오면, 08이 학습 계획 → FEM 데이터 생성 → DeepSDF + PINO 학습 → 품질 검사까지 자동으로 해서 대리 모델을 만들고, 그 모델로 최적 설계를 찾은 뒤 FEM으로 검증합니다. 같은 제품군의 다음 요청은 저장된 모델로 즉시 답합니다.**
 
+## ★ 회사 PC + GPU 서버 작업 지시서 → [`HANDOFF.md`](HANDOFF.md) (2026-11-14 추가)
+회사 PC(GPU 없음, Claude 대신 Cline 사용) ↔ GPU 서버(학습)로 나눠 진행하는 순서·명령·성공 기준·문제 해결을 정리. Cline 은 `.clinerules` 를 통해 이 문서를 먼저 읽음.
+
+| 단계 | 어디서 | 실행 |
+|---|---|---|
+| ① 데이터 생성 (계획 B만) | 회사 PC | `handoff\step1_pc_datagen.bat` |
+| ② 업로드 zip | 회사 PC | `handoff\step2_pack_upload.bat` |
+| ③ 학습 (DeepSDF 8×256·PINO·관문·능동학습·시연) | GPU 서버 | `bash handoff/step3_server_train.sh A` (B: 데이터 업로드한 경우) |
+| ④ 시연: 최적화 → FEM 검증 → STL·summary.html | 회사 PC | `handoff\step4_pc_demo.bat` |
+
 ## 해커톤 시연 범위
 | 단계 | 원래 설계 | 해커톤 시연 |
 |---|---|---|
@@ -242,6 +252,7 @@ f₁ = f_R × c
 | ✅ | 설계 범위·받침 위치 그룹·폰 각도 처리·격자 결정 |
 | ✅ | 모델 구조 결정: DeepSDF + 라벨 마스크 + PINO(변위 + 진동수 2단) |
 | ✅ | DeepSDF 2D 개념 검증 (CPU 2코어 학습 약 2분, 미학습 형상 IoU 0.991–0.996) — `experiments/deepsdf2d_concept.py` |
+| ✅ | 시연 스크립트 `fp08/demo.py` (최적화→FEM 검증→STL·PNG·summary.html), 묶기/요약 `fp08/pack.py`, 단계별 실행 스크립트 `handoff/`, 지시서 `HANDOFF.md` — 시험 모델로 끝까지 동작 확인 (2026-11-14) |
 | ✅ | `fp08` 코드 1차 완성 (주말): 문제 정의 6그룹 · 3D FEM · 무작위 형상 · FEM 정답 · DeepSDF · PINO · 최적화 · 자동 루프 · 진행 보고서 |
 | ✅ | 그룹당 형상 200개 · FEM 100개로 처음~끝 리허설 (CPU 2코어) — 결과는 아래 10-1 |
 | ⏳ | 월요일 서버 실행 (`RUN_MONDAY.md`), GPU 학습 시간 실측 |
