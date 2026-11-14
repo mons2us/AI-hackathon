@@ -6,7 +6,7 @@ E,nu,rho=1700.,0.38,1.27e-9; g=9810.; h=1.0; PEAK=48.5
 d=np.load(sys.argv[1]); S=d['S'].astype(bool); x0,y0,z0=[float(v) for v in d['origin']]
 nxp,nyp,nz0=S.shape; ZT=42.; nzt=int((ZT-z0)/h)+1; S2=np.zeros((nxp,nyp,max(nzt,nz0)),bool); S2[:,:,:nz0]=S; nzt=S2.shape[2]
 xs=x0+np.arange(nxp)*h; ys=y0+np.arange(nyp)*h; zs=z0+np.arange(nzt)*h
-P=np.zeros_like(S2); P[np.ix_((xs>=86)&(xs<=96),(ys>=49)&(ys<=61),(zs>=19.5)&(zs<=ZT))]=True; S2&=~P
+P=np.zeros_like(S2); XP=float(os.environ.get('XP','90')); P[np.ix_((xs>=XP-4)&(xs<=XP+6),(ys>=49)&(ys<=61),(zs>=19.5)&(zs<=ZT))]=True; S2&=~P
 lab,n=ndimage.label(S2|P); XX=xs[:,None,None]; ZZ=zs[None,None,:]
 near=(np.sqrt(XX**2+ZZ**2)<=18.0)&np.ones_like(S2); keep=np.unique(lab[near&(S2|P)]); keep=keep[keep>0]
 mask=np.isin(lab,keep); S2&=mask; P&=mask
@@ -26,7 +26,7 @@ out=dict(mass_g=round(float((~isP).sum()*h**3*rho*1e6),1))
 # --- 시스템 검증: 폰+받침대를 강체(질량+회전관성)로 붙여 고유진동수 계산 ---
 import json as _j
 M_T=float(os.environ.get('MSYS','0.340'))*1e-3        # t (= kg×1e-3)
-CG=np.array([91.,55.,float(os.environ.get('CGZ','36.5'))])
+CG=np.array([XP+1,55.,float(os.environ.get('CGZ','36.5'))])
 Lx,Ly,Lz=[float(v) for v in os.environ.get('BOX','165,80,15').split(',')]   # 폰 긴 쪽 = x(앞뒤) 가정
 pos=np.c_[x0-h/2+gi*h, y0-h/2+gj*h, nzc][top]-CG
 nt=len(top); T=np.zeros((3*nt,6))
@@ -44,5 +44,23 @@ def run(J):
     w,V=sla.eigsh(A,k=3,M=Mf,sigma=0,OPinv=OP); return [round(float(np.sqrt(x)/2/np.pi),1) for x in w]
 OP=sla.LinearOperator(A.shape,matvec=lambda v: ps.solve(A,v),dtype=float)
 Jfull=[M_T*(Ly**2+Lz**2)/12, M_T*(Lx**2+Lz**2)/12, M_T*(Lx**2+Ly**2)/12]
+def frf(J,zeta=float(os.environ.get('ZETA','0.03')),nm=8):
+    Mrb=np.diag([M_T,M_T,M_T,*J]); Ma=Tp.T@Mrb@Tp; d=(3*top[:,None]+np.arange(3)).reshape(-1)
+    m=np.zeros(nn); np.add.at(m,en2[~isP].ravel(),rho*h**3/8)
+    Mg=sp.diags(np.repeat(m,3)).tolil()
+    for a in range(3*nt):
+        for b in range(3*nt): Mg[d[a],d[b]]+=Ma[a,b]
+    Mf=Mg.tocsr()[free][:,free]
+    w,V=sla.eigsh(A,k=nm,M=Mf,sigma=0,OPinv=OP)
+    ax_={'x':0,'y':1,'z':2}[os.environ.get('DIR','z')]; rr=np.zeros(3*nn); rr[ax_::3]=1.; r_=rr[free]
+    Gam=V.T@(Mf@r_)                                  # 모드 참여 (질량 정규화 모드)
+    full=np.zeros((3*nn,nm)); full[free]=V
+    cgz=Tp[ax_]@full[d]                                 # 폰 무게중심 수직 변위 (모드별)
+    fr=np.linspace(5,100,191); om=2*np.pi*fr; wn=np.sqrt(w)
+    H=1+np.sum(cgz[None,:]*Gam[None,:]*om[:,None]**2/(wn[None,:]**2-om[:,None]**2+2j*zeta*wn[None,:]*om[:,None]),axis=1)
+    T_=np.abs(H); band=(fr>=34.6)&(fr<=45.6)
+    return dict(f=[round(float(x),1) for x in wn/2/np.pi],freq=fr.round(1).tolist(),T=T_.round(3).tolist(),Tmax_all=round(float(T_.max()),2),Tmax_band=round(float(T_[band].max()),2),zeta=zeta)
 out['f_point_mass']=run([0,0,0]); out['f_rigid_inertia']=run(Jfull)
+if os.environ.get('FRF'):
+    _j.dump(frf(Jfull),open(os.environ['FRF'],'w')); r_=_j.load(open(os.environ['FRF'])); out['Tmax_all']=r_['Tmax_all']; out['Tmax_band']=r_['Tmax_band']
 print(_j.dumps(out))

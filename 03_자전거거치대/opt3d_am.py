@@ -7,13 +7,14 @@ from fem3d import hex8_KB
 E,nu,rho=1700.,0.38,1.27e-9; MP=float(os.environ.get('MP','0.254'))*1e-3; h=2.
 FT=float(os.environ.get('FT','95')); LT=(2*np.pi*FT)**2
 ITERS=int(os.environ.get('ITERS','160')); TAG=os.environ.get('TAG','am'); AM=os.environ.get('AM','1')=='1'
+XP=float(__import__('os').environ.get('XP','90'))
 x0,z0=-24.,-36.; y0=float(os.environ.get("Y0","35")); nx,nz=62,39; ny=int(os.environ.get("NY","20"))          # full model y in [35,75]
 KE,C,B0,xi=hex8_KB(E,nu,h)
 ei=np.array([[i,j,k] for k in range(nz) for j in range(ny) for i in range(nx)]); I,J,K=ei.T
 xc=x0+2*I+1; yc=y0+2*J+1; zc=z0+2*K+1; rr=np.sqrt(xc**2+zc**2); ay=np.abs(yc-55)
 bore=rr<16.1; contact=(rr>=16.1)&(rr<20.6)&(ay<10); slit=(np.abs(xc)<=1)&(zc<0)&(rr<26)
-ears=(np.abs(xc)>1)&(np.abs(xc)<9)&(zc>-34)&(zc<-14)&(ay<10); pad=(xc>80)&(xc<100)&(zc>16)&(zc<20)&(ay<10)
-post=(xc>86)&(xc<96)&(zc>20)&(ay<6); holder=(xc>78)&(zc>20)&~post; above=(zc>24)&~post
+ears=(np.abs(xc)>1)&(np.abs(xc)<9)&(zc>-34)&(zc<-14)&(ay<10); pad=(xc>XP-10)&(xc<XP+10)&(zc>16)&(zc<20)&(ay<10)
+post=(xc>XP-4)&(xc<XP+6)&(zc>20)&(ay<6); holder=(xc>XP-12)&(zc>20)&~post; above=(zc>24)&~post
 void=bore|slit|holder|above; solid=(contact|ears|pad)&~void; design=~(void|solid|post); active=~void
 print('design',design.sum(),'solid',solid.sum(),flush=True)
 NX,NY,NZ=nx+1,ny+1,nz+1; nid=lambda i,j,k:(k*NY+j)*NX+i; corner=((xi+1)/2).astype(int)
@@ -21,7 +22,7 @@ en=np.stack([nid(I+c[0],J+c[1],K+c[2]) for c in corner],1); edof=np.stack([3*en,
 nn=NX*NY*NZ; gi=np.arange(nn)%NX; gj=(np.arange(nn)//NX)%NY; gk=np.arange(nn)//(NX*NY); nxc=x0+2*gi; nyc=y0+2*gj; nzc=z0+2*gk
 used=np.zeros(nn,bool); used[en[active].ravel()]=True
 fixn=np.where(used&(np.sqrt(nxc**2+nzc**2)<=16.7))[0]
-topn=np.where(used&(gk==nz)&(nxc>=86)&(nxc<=96)&(np.abs(nyc-55)<=6))[0]; tipm=np.zeros(nn); tipm[topn]=MP/len(topn)
+topn=np.where(used&(gk==nz)&(nxc>=XP-4)&(nxc<=XP+6)&(np.abs(nyc-55)<=6))[0]; tipm=np.zeros(nn); tipm[topn]=MP/len(topn)
 free=np.setdiff1d(np.where(np.repeat(used,3))[0],np.r_[3*fixn,3*fixn+1,3*fixn+2])
 ea=edof[active].astype(np.int32); iK=np.repeat(ea,24,1).ravel(); jK=np.tile(ea,(1,24)).ravel()
 didx=np.where(design)[0]; nd=len(didx); pos=np.c_[xc,yc,zc][didx]; R=float(os.environ.get('RF','5'))
@@ -59,7 +60,7 @@ P=3.; EMIN=1e-6; me0=rho*h**3
 RIGID=os.environ.get('RIGID')=='1'
 if RIGID:
     tipm[:]=0.
-    MT=float(os.environ.get('MSYS','0.340'))*1e-3; CG=np.array([91.,55.,float(os.environ.get('CGZ','36.5'))])
+    MT=float(os.environ.get('MSYS','0.340'))*1e-3; CG=np.array([XP+1,55.,float(os.environ.get('CGZ','36.5'))])
     Lx,Ly,Lz=[float(v) for v in os.environ.get('BOX','165,80,15').split(',')]
     P_=np.c_[nxc,nyc,nzc][topn]-CG; nt=len(topn); TT=np.zeros((3*nt,6))
     for i_,(rx,ry,rz) in enumerate(P_):

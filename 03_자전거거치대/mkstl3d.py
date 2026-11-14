@@ -16,7 +16,7 @@ f=ndimage.gaussian_filter(f,float(__import__('os').environ.get('SIG','0.5'))/res
 rr=np.sqrt(X**2+Z**2)
 cut=(rr<16.1)|((np.abs(X)<=1.0)&(Z<0)&(rr>=15))
 for yb in (55-5,55+5): cut|=((Y-yb)**2+(Z+27)**2<=2.25**2)&(np.abs(X)<=10)
-cut|=((X-90)**2+(Y-55)**2<=4.0**2)&(Z>=11)
+cut|=((X-float(__import__('os').environ.get('XP','90')))**2+(Y-55)**2<=4.0**2)&(Z>=11)
 f=np.where(cut,0.,f); f=np.pad(f,1)
 ISO=float(__import__('os').environ.get('ISO','0.5')); v,fc,_,_=measure.marching_cubes(f,ISO,spacing=(res,res,res)); v+=np.array([x[0],y[0],z[0]])-res
 n=len(v); e=np.r_[fc[:,[0,1]],fc[:,[1,2]],fc[:,[2,0]]]
