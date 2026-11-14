@@ -1,0 +1,1 @@
+{"label": "AI 3D 설계 (출력용)", "base_m": 42.5, "ai_m": 41.7, "base_f": 25.3, "ai_f": 93.7, "base_s": 32, "ai_s": 10.5, "ai_img": "v11_c_am2_stress.png", "rider": "v11_c_am2_rider.png", "print": "받침대 없이 출력 (격자 기준)", "beam_m": 65, "ai_il": 5.3, "log": "am2"}
