@@ -437,6 +437,11 @@ run('A');
     <line x1="730" y1="70" x2="765" y2="70" stroke="#5b6475" marker-end="url(#ar)"/>
     <text x="770" y="75" font-size="13">표면 압력 등</text>
   </svg>
+  <div class="callout red"><b>오해 ✕ "GINO의 GNO는 입력값을 그대로 출력하도록 따로 학습해서 그 결과로 격자점을 채운다"</b> — 아님.<br>
+  ① 격자점에는 <b>정답이 없음</b>. 격자점 값은 물리량(재료·변위)이 아니라 FNO가 쓰기 좋은 <b>중간 특징(잠재값)</b> — 사람이 해석할 필요도 없음.<br>
+  ② 학습은 <b>통째로 한 번(end-to-end)</b>: 입구 GNO → FNO → 출구 GNO를 거친 <b>최종 출력</b>을 정답(CFD·FEM 결과)과 비교하고, 그 오차로 입구 GNO의 κ까지 함께 수정. 입구만 따로 채점하는 단계 없음.<br>
+  ③ 격자점 값의 계산 자체는 위 5점 예시와 같음: 격자점 주변 r 안 입력 점들의 κ 가중 평균. 들어 올리기 P가 정답 없이 최종 손실로 학습되는 것과 같은 원리.<br>
+  ※ "입력을 그대로 다시 내도록 학습"은 <b>오토인코더</b> 방식이고 GINO는 그렇게 하지 않음 [6].</div>
   <div class="callout blue">근거 <span class="tag">논문</span> [6]: GINO는 SDF + 점구름으로 형상을 받고, GNO가 불규칙 점 ↔ 규칙 잠재 격자를 바꾸며 그 위에서 FNO를 돌림. 3D 자동차 표면 압력을 <b>데이터 500개</b>로 학습, 항력 계산에서 GPU CFD 대비 <b>26,000배</b> 속도. → <b>우리 구조(DeepSDF → 격자 → FNO)와 생각이 같음</b>: 우리는 SDF를 복셀 점유도로 바꿔 바로 FNO에 넣고, GINO는 그 변환을 GNO로 학습.</div>
 </section>
 
@@ -490,6 +495,14 @@ run('A');
     <tr><td>GNO</td><td>실제 거리 r 안</td><td>위치 → 가중치 함수 κ</td><td>점(메시·점구름)</td><td>r이 mm 단위 → 같은 가중치 사용 가능</td></tr>
   </table>
   <p class="note">해상도가 바뀌어도 같은 가중치를 쓸 수 있는 구조를 <b>신경 연산자(neural operator)</b>라 부름 → FNO·GNO는 신경 연산자, 일반 CNN은 아님 [2][3]. 단 "쓸 수 있다"가 "정확도가 유지된다"를 보장하지는 않음(9절 첫 오해 참고).</p>
+
+  <h3>어떻게 묶이나 — 기준이 두 개라 2×2</h3>
+  <table>
+    <tr><th>입력 형식 ＼ 한 층에서 보는 범위</th><th>이웃만 (국소)</th><th>전체 (전역)</th></tr>
+    <tr><td>정형 격자</td><td><b>CNN</b></td><td><b>FNO</b></td></tr>
+    <tr><td>아무 점 (메시·점구름)</td><td><b>GNO</b></td><td><b>GINO</b> = GNO(입·출구) + FNO(가운데) 조합</td></tr>
+  </table>
+  <p class="note">"GNO–CNN"은 <b>보는 범위</b> 기준 짝(둘 다 국소, GNO = CNN 필터의 임의 위치 일반화). "FNO–GINO"는 정확하지 않음 — GINO는 FNO의 형제가 아니라 <b>GNO + FNO 조합</b>이고, 전역으로 섞는 건 안에 FNO가 있어서. <b>입력 형식</b> 기준이면 CNN–FNO(격자 필요) / GNO–GINO(점이면 됨). <b>신경 연산자</b>(해상도 바뀌어도 같은 가중치) 기준이면 FNO·GNO·GINO vs CNN.</p>
 
   <h3>4종 비교표</h3>
   <table>
