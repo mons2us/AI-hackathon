@@ -343,6 +343,7 @@ f₁ = f_R × c
 
 | 날짜 | 변경포인트 |
 |---|---|
+| 2026-11-14 (15) | 신경 연산자 노트 5절: 노드·엣지·엣지 특징·메시지 전달 용어표, 오해 정정 "좌표·Δx를 쓰면 격자"(좌표 = 연속 위치, 격자 = 간격 h 제약) 그림, CNN·FNO가 격자를 요구하는 이유 vs GNO. 코드 변경 없음 |
 | 2026-11-14 (14) | **회사 PC + GPU 서버 인계 패키지**: `HANDOFF.md`(Cline용 지시서), `.clinerules`, `handoff/step1~4`, `fp08/demo.py`(최적화→FEM 검증→STL·summary.html), `fp08/pack.py`(zip·check·report), `requirements.txt`, `loop.py --sdf-width/--sdf-depth`(기본 8×256), `train_pino.py --groups`. 시험 모델로 시연 끝까지 동작 확인 |
 | 2026-11-14 (14) | 신경 연산자 노트 5절: 오해 정정 "GNO = 불규칙 점→격자 변환"은 GINO의 용도일 뿐, GNO = 학습하는 보간(입력 점·출력 점을 따로 받음). 출력 점 위치에 따른 세 쓰임 그림(메시→메시 / 점→격자 / 격자→점). 코드 변경 없음 |
 | 2026-11-14 (13) | `docs/NeuralOperator_study.html` 5절 보강: FNO vs GNO 정보 전달 범위 그림(이퀄라이저 vs 반상회), "이웃을 본다" = CNN 3×3 필터를 임의 위치로 일반화(κ = 상대 위치 → 가중치 MLP) 그림, GNO 한 층 계산 5단계 표. 코드 변경 없음 |
