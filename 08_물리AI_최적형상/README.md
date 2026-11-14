@@ -343,6 +343,7 @@ f₁ = f_R × c
 
 | 날짜 | 변경포인트 |
 |---|---|
+| 2026-11-14 (14) | **회사 PC + GPU 서버 인계 패키지**: `HANDOFF.md`(Cline용 지시서), `.clinerules`, `handoff/step1~4`, `fp08/demo.py`(최적화→FEM 검증→STL·summary.html), `fp08/pack.py`(zip·check·report), `requirements.txt`, `loop.py --sdf-width/--sdf-depth`(기본 8×256), `train_pino.py --groups`. 시험 모델로 시연 끝까지 동작 확인 |
 | 2026-11-14 (13) | `docs/NeuralOperator_study.html` 5절 보강: FNO vs GNO 정보 전달 범위 그림(이퀄라이저 vs 반상회), "이웃을 본다" = CNN 3×3 필터를 임의 위치로 일반화(κ = 상대 위치 → 가중치 MLP) 그림, GNO 한 층 계산 5단계 표. 코드 변경 없음 |
 | 2026-11-14 (12) | **공부 노트 `docs/NeuralOperator_study.html` 추가**: FNO·PINO·GNO·PI-GNO 공통 뼈대(적분층), FNO 모드 자르기·GNO 이웃 반지름 직접 해 보기, PINO 물리 손실 미분 방식 비교(우리는 FEM K 잔차), GINO와 우리 구조의 관계, "PI-GNO는 표준 모델명이 아님"(mGNO·PI-GANO·πG-Sp²GNO 구분), 우리가 FNO 기반 PINO를 쓰는 이유, 흔한 오해 5개. 출처 10편. 코드 변경 없음 |
 | 2026-11-14 (11) | **무작위 형상 정리**: 한쪽 고정부에만 붙은 덩어리 삭제, 허공에 뜬 막대 방지(트러스 사슬 끝·판 막대), 표면 다듬기. 놀고 있는 재료 거치대 7~8% → 0.5~2.5%. 골격 기반 가지치기는 판까지 깎아서 폐기. 그룹 그림·합격률 갱신 |
