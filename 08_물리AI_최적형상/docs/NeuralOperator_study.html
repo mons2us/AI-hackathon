@@ -310,6 +310,15 @@ details{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-
   </table>
   <p class="note">x 자체가 아니라 Δx(상대 위치)를 쓰는 이유: 같은 모양이 다른 위치에 있어도 같은 계산을 하게 하려고(평행이동 불변). CNN이 어디서나 같은 필터를 쓰는 것과 같은 발상.</p>
 
+  <h3>Mesh vs Grid — 정확히는 "정형 vs 비정형"</h3>
+  <table>
+    <tr><th></th><th>점 위치</th><th>연결 정보</th><th>이웃 찾는 법</th><th>예</th></tr>
+    <tr><td><b>정형 격자</b><br><span class="note">structured grid</span></td><td>간격 h의 자리에만</td><td>번호로 자동</td><td>(i±1, j±1, k±1)</td><td>우리 2 mm 복셀, 사진 픽셀</td></tr>
+    <tr><td><b>비정형 메시</b><br><span class="note">unstructured mesh</span></td><td>아무 위치</td><td>요소(삼각형·사면체…)로 따로 저장</td><td>요소 연결표</td><td>일반 FEM 메시, 곡면 STEP 메시화</td></tr>
+    <tr><td><b>점구름</b><br><span class="note">point cloud</span></td><td>아무 위치</td><td>없음</td><td>거리(반지름 r)</td><td>3D 스캔, GINO 입력</td></tr>
+  </table>
+  <p class="note">정형 격자 ⊂ 비정형 메시(의 특수한 경우), 메시에서 연결을 빼면 점구름. <b>CNN·FNO</b>는 정형 격자 필수, <b>GNO</b>는 점 위치만 있으면 됨(원래 GNO는 엣지를 반지름 r로 만들어 메시 연결도 불필요). CFD에서는 "unstructured grid"처럼 grid를 mesh와 같은 뜻으로 쓰기도 하므로 단어보다 <b>정형/비정형</b>으로 구분하는 게 정확. 우리 FEM(2 mm hex8 복셀)은 <b>메시이면서 정형 격자</b> → FEM 결과를 그대로 FNO에 넣을 수 있음.</p>
+
   <div class="callout red"><b>자주 하는 오해 ✕ "GNO = 불규칙 점을 규칙 격자로 바꿔 주는 것"</b> — 그건 <b>GINO가 GNO를 쓰는 방식 하나</b>일 뿐. GNO의 정체는 <b>"학습하는 보간"</b>: 일반 보간이 "주변 점의 가중 평균, 가중치 = 거리 공식"이라면 GNO는 가중치를 κ(MLP)가 학습. 한 층은 <b>값이 있는 점(입력)</b>과 <b>값을 알고 싶은 점(출력)</b>을 따로 받고, 출력 점을 어디에 두느냐로 역할이 갈림.</div>
   <svg viewBox="0 0 680 290">
     <g fill="none" stroke="#cfd6e3" stroke-dasharray="5 4"><rect x="20" y="20" width="200" height="250" rx="12"/><rect x="240" y="20" width="200" height="250" rx="12"/><rect x="460" y="20" width="200" height="250" rx="12"/></g>
@@ -380,6 +389,26 @@ details{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-
 <!-- 7 -->
 <section id="s7">
   <h2><span class="n">7</span>4종 한눈 비교</h2>
+  <h3>두 축으로 정리 — "구조"와 "학습 방법"은 다른 것</h3>
+  <div class="callout red"><b>오해 ✕ "CNN·FNO·GNO는 같은 레벨의 학습 방법"</b> — 셋은 <b>구조(아키텍처)</b>: 신경망 안에서 이웃 정보를 어떻게 섞나. <b>학습 방법</b>은 무엇으로 채점하나(정답 데이터 / 물리 방정식 잔차 / 둘 다). 두 축은 독립이라 자유롭게 조합. "PI-"가 붙으면 물리 손실로 학습했다는 뜻.</div>
+  <table style="margin-top:10px">
+    <tr><th>구조 ＼ 학습</th><th>데이터만</th><th>데이터 + 물리</th></tr>
+    <tr><td>MLP (좌표 입력)</td><td>일반 회귀</td><td>PINN</td></tr>
+    <tr><td>CNN / U-Net</td><td>CNN 대리 모델</td><td>PI-CNN 류</td></tr>
+    <tr><td>FNO</td><td>FNO <span class="note">(우리 비교 실험)</span></td><td><b>PINO</b> <span class="note">(우리 본 모델)</span></td></tr>
+    <tr><td>GNO</td><td>GNO</td><td>PI-GNO (mGNO 등)</td></tr>
+  </table>
+  <p class="note">→ 월요일 "PINO vs FNO"는 <b>구조는 같고 학습 방법만 다른</b> 비교.</p>
+  <h3>같은 레벨의 구조지만 CNN만 성격이 조금 다름</h3>
+  <table>
+    <tr><th></th><th>보는 범위</th><th>학습하는 것</th><th>입력</th><th>해상도를 바꾸면</th></tr>
+    <tr><td>CNN</td><td>주변 몇 칸 (3×3)</td><td>칸 자리별 숫자</td><td>정형 격자</td><td>필터가 "칸" 단위라 보는 실제 범위가 바뀜 → <b>해상도에 묶임</b></td></tr>
+    <tr><td>FNO</td><td>격자 전체 (주파수)</td><td>주파수별 숫자 R</td><td>정형 격자</td><td>주파수는 실제 공간 기준 → 같은 가중치 사용 가능</td></tr>
+    <tr><td>GNO</td><td>실제 거리 r 안</td><td>위치 → 가중치 함수 κ</td><td>점(메시·점구름)</td><td>r이 mm 단위 → 같은 가중치 사용 가능</td></tr>
+  </table>
+  <p class="note">해상도가 바뀌어도 같은 가중치를 쓸 수 있는 구조를 <b>신경 연산자(neural operator)</b>라 부름 → FNO·GNO는 신경 연산자, 일반 CNN은 아님 [2][3]. 단 "쓸 수 있다"가 "정확도가 유지된다"를 보장하지는 않음(9절 첫 오해 참고).</p>
+
+  <h3>4종 비교표</h3>
   <table>
     <tr><th></th><th>FNO</th><th>PINO</th><th>GNO</th><th>PI-GNO (mGNO류)</th></tr>
     <tr><td>입력 형태</td><td>규칙 격자</td><td>규칙 격자</td><td>메시·점구름</td><td>메시·점구름</td></tr>
