@@ -60,7 +60,8 @@ class DeepSDF(nn.Module):
 def load_sdf(ckpt, device='cpu'):
     """체크포인트에서 DeepSDF 복원 (크기 설정 포함)"""
     c = torch.load(ckpt, map_location=device, weights_only=False)
-    m = DeepSDF(c['n'], c['lo'], c['hi'], **c.get('cfg', {})).to(device)
+    cf = {k: v for k, v in (c.get('cfg') or {}).items() if k in ('zdim', 'width', 'depth', 'nfreq')}
+    m = DeepSDF(c['n'], c['lo'], c['hi'], **cf).to(device)
     m.load_state_dict(c['model']); m.eval()
     return m, c
 

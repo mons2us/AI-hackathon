@@ -92,6 +92,8 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | `fp08/loop.py` | 전체 흐름 자동화 (단계·관문·능동학습·시연, `state.json`·`report.html`) |
 | `fp08/design_opt.py` | z 최적화 (증강 라그랑주 + Adam) + FEM 검증 |
 | `fp08/demo.py` | 시연: JSON·PNG·STL·summary.html |
+| `fp08/sweep.py` | 학습 방법 후보·점수 계산·선택 (후보는 여기만 고치면 됨) |
+| `diag_eso.bat` / `diag_eso.py` | Windows 에서 ESO·FEM 속도 진단 |
 | `fp08/pack.py` | zip 묶기/풀기, `check`(데이터 개수), `report`(학습 결과 요약) |
 | `docs/DeepSDF_study.html` | DeepSDF 공부 자료 (그림) |
 | `RUN_MONDAY.md` | 서버 1대에서 전부 돌릴 때의 원래 계획서 |
@@ -103,8 +105,9 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 ## 5. 단계별 실행
 
 ### 준비 (회사 PC, 한 번)
-1. 코드 받기: (가능하면) `git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git` → `cd AI-hackathon/08_물리AI_최적형상`
-   GitHub 접속이 막혀 있으면 `FormProof_08_code.zip` 을 풀어서 사용.
+1. 코드 받기 (회사 PC 는 GitHub 접속 가능 확인됨, 2026-11-14): `git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git` → `cd AI-hackathon/08_물리AI_최적형상`
+   이미 받아 둔 경우 `git pull origin sosopapa`. **GitHub 이 기준**이며, 다운로드 폴더의 zip·md 사본은 예비용(옛날 판일 수 있음).
+   bat 파일은 `.gitattributes` 로 CRLF 줄끝이 유지됨 → cmd 에서 그대로 실행. (LF 로 바뀌면 `'THREADS'은(는) 내부 또는 외부 명령…` 같은 오류가 남)
 2. 파이썬 패키지: `pip install -r requirements.txt` (인터넷 없으면 파일 맨 위 주석의 오프라인 방법).
 3. 확인: `python -m fp08.loop --help` 가 에러 없이 나오면 OK.
 
@@ -126,7 +129,9 @@ nohup bash handoff/step3_server_train.sh A > train.out 2>&1 &   # 계획 B 면 A
 tail -f train.out                           # 진행 보기
 python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 ```
-- 하는 일: (A면 형상·FEM 생성) → DeepSDF 6개(8층×256, 20,000스텝) → PINO 3개(30,000스텝) → 관문 → 불합격 그룹은 능동학습(200개 FEM 추가, 최대 3바퀴) → 시연.
+- 하는 일: (A면 형상·FEM 생성) → **학습 방법 고르기(sweep)** → DeepSDF 6개(20,000스텝) → PINO 3개(30,000스텝) → 관문 → 불합격 그룹은 능동학습(200개 FEM 추가, 최대 3바퀴) → 시연.
+- **sweep (기본 켜짐)**: `fp08/sweep.py` 의 후보 4개(DeepSDF: 8×256 / 8×512 / 표면점 2048 / 학습률 1e-3, PINO: 폭 24 / 폭 32 / 물리가중 0.3 / 푸리에 모드 1.5배)를 20% 스텝만 학습 → **검증 셋** 점수 1등만 끝까지 → `runs/main/sdf|pino/` 로 복사. GPU 시간 약 1.6배(추정). 끄려면 `SWEEP= bash handoff/step3_server_train.sh A`
+- 데이터 분할(형상 번호로 고정): 학습 80% / 검증 10%(학습 중 확인·sweep 선택) / **시험 10%(관문·최종 보고 전용, 고르는 데 안 씀)**
 - GPU 가 1~2장이어도 동작 (한 장에 작업 여러 개 동시 실행).
 - 시간(추정, 미측정): DeepSDF 그룹당 GPU 수십 분, PINO 제품당 수 시간. **처음 10분 동안 `runs/main/sdf_*.log` 의 step 속도를 보고 전체 시간을 다시 계산할 것.**
 - 끝나면 `results.zip` 생성 → 회사 PC 로 다운로드.
@@ -144,8 +149,8 @@ python -m fp08.pack report runs/main        # 중간 결과 요약 (언제든)
 
 | 대상 | 기준 | 상태 |
 |---|---|---|
-| PINO (코드에 들어있음, `loop.py GATE`) | 변위장 상대 L2 평균 ≤ 0.10, 판정값 오차 p90 ≤ 5%, 응력 오차 p90 ≤ 15%, 진동수 ±5% 이내 ≥ 95% | 자동 판정 |
-| DeepSDF | IoU_val ≥ 0.90, 표면 오차 ≤ 0.5칸 | **제안값, 사용자 미확정. 코드에서 자동 판정 안 함** → `pack report` 로 눈으로 확인 |
+| PINO (코드에 들어있음, `loop.py GATE`, **시험 셋**으로 판정) | 변위장 상대 L2 평균 ≤ 0.10, 판정값 오차 p90 ≤ 5%, 응력 오차 p90 ≤ 15%, 진동수 ±5% 이내 ≥ 95% | 자동 판정 |
+| DeepSDF | 시험 셋 IoU ≥ 0.90, 표면 오차 ≤ 0.5칸 (`state.json` 의 `sdf_test`, `report.html`) | **제안값, 사용자 미확정. 코드에서 자동 판정 안 함** → `pack report` 로 눈으로 확인 |
 | 최종 시연 | `status: ok` (대리 모델 결과가 FEM 검증 합격). `fallback` = FEM 직접 최적화(경로 A)로 대신했다는 뜻 | 자동 |
 
 DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 에서 이어짐, 크기 옵션은 꼭 같게):
@@ -168,7 +173,7 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 
 | 증상 | 원인 | 대응 |
 |---|---|---|
-| `ModuleNotFoundError: pypardiso` 경고 | ARM·인텔 MKL 없음 | 무시 가능. SuperLU 로 자동 대체 (느려짐, 결과 같음) |
+| `ModuleNotFoundError: pypardiso` 경고 | ARM·인텔 MKL 없음 | 무시 가능. SuperLU 로 자동 대체 (결과 같음) |
 | `GPU 가 안 보입니다` | CPU 판 torch / 드라이버 | `nvidia-smi`, `python -c "import torch;print(torch.cuda.is_available())"` |
 | `CUDA out of memory` | 한 GPU 에 작업 너무 많음 | `step3` 의 `DEV="$DEV,$DEV,$DEV"` 를 `DEV="$DEV,$DEV"` 로, 또는 `--bs` 줄이기 |
 | 학습이 중간에 죽음 | 세션 끊김 | `nohup` 으로 실행했는지 확인, 같은 명령 재실행 (이어짐) |
@@ -176,6 +181,8 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 | 시연 `fallback` | 대리 모델 예측 ≠ FEM | 정상 동작(안전장치). 사유를 summary 에 그대로 보고 |
 | `torch.load` 에러 `weights_only` | torch 버전 차이 | 코드가 `weights_only=False` 사용 중. torch ≥ 2.1 사용 |
 | Windows 에서 한글 깨짐 | 콘솔 코드페이지 | bat 첫 줄 `chcp 65001` 유지 |
+| bat 실행 시 `'cho'`, `'THREADS'` 등 조각난 명령 오류 | bat 줄끝이 LF | 편집기에서 CRLF 로 저장 (VS Code 오른쪽 아래 LF→CRLF) |
+| Windows 에서 ESO·FEM 이 매우 느림 (작업자 CPU 2~3%) | **Windows 의 pypardiso 가 SuperLU 보다 20~40배 느림** (11-14 실측: 형상당 17~43 s vs 0.6~2.7 s) | 코드가 Windows 에서는 자동으로 SuperLU 사용 (`fp08/fem.py`). 강제: `FP08_NO_PARDISO=1` / `FP08_PARDISO=1`. 확인: `diag_eso.bat` |
 
 ---
 

@@ -25,8 +25,8 @@ class GroupData:
         R = datagen.load_fem(data, group)
         self.idx = R['idx']; self.U = R['U']; self.freq = R['freq']; self.eval = R['eval']; self.cond = R['cond']
         self.occ = R['occ']
-        tr, va = train_sdf.split(self.idx)
-        self.tr, self.va = np.where(tr)[0], np.where(va)[0]
+        tr, va, te = train_sdf.split3(self.idx)
+        self.tr, self.va, self.te = np.where(tr)[0], np.where(va)[0], np.where(te)[0]
         # 정답 없는 형상 (물리 손실 전용)
         sidx, socc, smeta = datagen.load_shapes(data, group)
         lab = set(self.idx.tolist())
@@ -102,15 +102,23 @@ def validate(net, gd, ks=None, max_n=200):
 
 
 def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', physics=True, freq_mode='rayleigh',
-          tag='pino', width=24, time_limit=None, log=print, eval_every=1000, w_phys=0.1, groups=None):
+          tag='pino', width=24, time_limit=None, log=print, eval_every=1000, w_phys=0.1, groups=None, modes_scale=1.0,
+          stop_at=None):
+    """stop_at: 학습률 일정은 steps 기준, stop_at 스텝에서 멈춤 (sweep 1차 거르기). 이어하기는 저장된 설정(cfg)을 따름"""
     t0 = time.time()
     gds = [GroupData(g, data, device) for g in PRODUCTS[product] if not groups or g in groups]   # groups: 일부 그룹만(시험용)
     nb = len(gds[0].pt.basis_names)
     nfp = FREQ_PAIRS[product]
-    net = models.PINO(nb, n_freq_pairs=nfp, width=width, modes=MODES[product], cin=9).to(device)
-    net.freq_mode = freq_mode
     od = os.path.join(out, tag, product); os.makedirs(od, exist_ok=True)
     ck = os.path.join(od, 'ckpt.pt')
+    if os.path.exists(ck):                          # 이어하기: 저장된 설정으로 (sweep 으로 고른 설정이 능동학습 재학습에도 유지됨)
+        cf = torch.load(ck, map_location='cpu', weights_only=False)['cfg']
+        width, physics, freq_mode = cf['width'], cf['physics'], cf['freq_mode']
+        w_phys, lr, modes = cf.get('w_phys', w_phys), cf.get('lr', lr), tuple(cf['modes'])
+    else:
+        modes = tuple(max(2, int(round(m * modes_scale))) for m in MODES[product])
+    net = models.PINO(nb, n_freq_pairs=nfp, width=width, modes=modes, cin=9).to(device)
+    net.freq_mode = freq_mode
     opt = torch.optim.Adam(net.parameters(), lr=lr)
     step, hist = 0, []
     if os.path.exists(ck):
@@ -121,7 +129,8 @@ def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', 
         net.u_ref.copy_(torch.tensor(u_reference(gds), dtype=torch.float32))
     w = np.array([len(gd.tr) for gd in gds], float); w /= w.sum()
     rng = np.random.default_rng(step)
-    while step < steps:
+    end = min(steps, stop_at) if stop_at else steps
+    while step < end:
         gd = gds[rng.choice(len(gds), p=w)]
         k = rng.choice(gd.tr, min(bs, len(gd.tr)), replace=False)
         out, occ_t, nm, Fb = predict(net, gd, gd.occ[k], [gd.cond[i] for i in k], with_grad=True)
@@ -153,7 +162,7 @@ def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', 
         opt.zero_grad(); loss.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(), 1.0)
         opt.step(); step += 1
-        if step % eval_every == 0 or step == steps:
+        if step % eval_every == 0 or step == end:
             net.eval()
             vm = {gd.group: validate(net, gd) for gd in gds}
             net.train()
@@ -161,8 +170,8 @@ def train(product, data, out, steps=30000, bs=4, bs_u=2, lr=1e-3, device='cpu', 
             hist.append(h)
             log(f'[{tag} {product}] {json.dumps(h, ensure_ascii=False)}', flush=True) if log is print else log(f'[{tag} {product}] {json.dumps(h, ensure_ascii=False)}')
             torch.save(dict(model=net.state_dict(), opt=opt.state_dict(), step=step, hist=hist,
-                            cfg=dict(product=product, nb=nb, nfp=nfp, width=width, modes=MODES[product],
-                                     physics=physics, freq_mode=freq_mode)), ck + '.tmp')
+                            cfg=dict(product=product, nb=nb, nfp=nfp, width=width, modes=list(modes),
+                                     physics=physics, freq_mode=freq_mode, w_phys=w_phys, lr=lr)), ck + '.tmp')
             os.replace(ck + '.tmp', ck)
         if time_limit and time.time() > time_limit:
             log(f'[{tag} {product}] 시간 한도 도달 step {step}')
@@ -189,6 +198,9 @@ if __name__ == '__main__':
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     ap.add_argument('--eval-every', type=int, default=1000)
     ap.add_argument('--groups', default=None, help='쉼표로 구분, 일부 그룹만 학습(시험용)')
+    ap.add_argument('--lr', type=float, default=1e-3); ap.add_argument('--w-phys', type=float, default=0.1)
+    ap.add_argument('--modes-scale', type=float, default=1.0); ap.add_argument('--stop-at', type=int, default=None)
     a = ap.parse_args()
     train(a.product, a.data, a.out, a.steps, a.bs, device=a.device, physics=not a.no_physics, freq_mode=a.freq,
-          tag=a.tag, width=a.width, eval_every=a.eval_every, groups=a.groups.split(',') if a.groups else None)
+          tag=a.tag, width=a.width, eval_every=a.eval_every, groups=a.groups.split(',') if a.groups else None,
+          lr=a.lr, w_phys=a.w_phys, modes_scale=a.modes_scale, stop_at=a.stop_at)

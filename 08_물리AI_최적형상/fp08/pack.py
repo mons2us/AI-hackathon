@@ -81,10 +81,18 @@ def report(run):
     if not os.path.exists(sf):
         print('state.json 없음'); return
     st = json.load(open(sf))
+    for kind, d in st.get('sweep', {}).items():
+        print(f'== 학습 방법 고르기 ({kind}) — 검증 점수, 작을수록 좋음 ==')
+        for u, v in d.items():
+            print(f"  {u:13s} 선택 {v.get('chosen', '-'):12s} 1차 {json.dumps({k: round(a, 3) for k, a in v.get('screen', {}).items()})}")
+    for g, m in st.get('sdf_test', {}).items():
+        if g == list(st['sdf_test'])[0]:
+            print('== DeepSDF 시험 셋 (고르는 데 안 쓴 10%) ==')
+        print(f"  {g:13s} IoU {m['iou_test']:.3f} (하위10% {m['iou_test_p10']:.3f})  표면오차 {m['surf_err_mm_test']:.3f} mm = {m['surf_err_cell_test']:.2f}칸")
     print('== 단계 ==')
     for k, v in st.get('stages', {}).items():
         print(f"  {k:24s} {'완료' if v.get('done') else '-'} {v.get('at', '')}")
-    print('== PINO 품질 관문 (fp08/loop.py GATE) ==')
+    print('== PINO 품질 관문 (시험 셋, fp08/loop.py GATE) ==')
     for r, res in st.get('gate', {}).items():
         for g, v in res.items():
             print(f"  {r} {g:13s} {'합격' if v['passed'] else '불합격: ' + ', '.join(v['why'])}")

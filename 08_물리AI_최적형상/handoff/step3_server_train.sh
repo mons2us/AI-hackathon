@@ -24,7 +24,10 @@ if [ "$PLAN" = "B" ]; then
 else
   STAGES=shapes,fem,sdf,pino,gate,al,demo
 fi
-python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $(nproc) \
+# --sweep : 학습 방법 후보 4개(fp08/sweep.py) → 20% 학습으로 거르고 최선 1개를 끝까지 (GPU 시간 약 1.6배)
+#           시간이 모자라면 --sweep 을 지우면 기존처럼 1개 설정(8층×256, PINO 폭 24)만 학습
+SWEEP=${SWEEP---sweep --sweep-topk 1}
+python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $(nproc) $SWEEP \
   --n-shapes 5000 --n-cand 12000 --eso --n-fem 1000 \
   --sdf-steps 20000 --sdf-width 256 --sdf-depth 8 --pino-steps 30000 \
   --al-n 200 --max-rounds 3 2>&1 | tee -a runs_main.out

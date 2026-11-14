@@ -5,12 +5,15 @@
   요소 e = (k*ny + j)*nx + i,  절점 n = (k*NY + j)*NX + i,  NX = nx+1 ...
 """
 import numpy as np
+import os
 import scipy.sparse as sp
 import scipy.sparse.linalg as sla
 
 try:
     import pypardiso
-    HAVE_PARDISO = True
+    # Windows 에서는 pypardiso 가 SuperLU 보다 20~40배 느림 (11-14 실측: ESO 형상당 17~43 s vs 0.6~2.7 s) → 기본 SuperLU
+    # Linux 는 비슷하거나 빠름 → 기본 pypardiso. 강제: FP08_NO_PARDISO=1 (끔) / FP08_PARDISO=1 (켬)
+    HAVE_PARDISO = (os.environ.get('FP08_PARDISO') == '1' or (os.name != 'nt' and os.environ.get('FP08_NO_PARDISO', '') != '1'))
 except Exception:  # pragma: no cover
     HAVE_PARDISO = False
 
@@ -97,6 +100,14 @@ class Factor:
             self.ps.factorize(self.A)
         else:
             self.lu = sla.splu(self.A.tocsc())
+
+    def __del__(self):
+        # pypardiso 는 MKL 내부 분해 메모리를 스스로 풀지 않음 → 형상을 많이 풀면(ESO·FEM 정답) 작업자 메모리가 계속 늘어남
+        if HAVE_PARDISO and hasattr(self, 'ps'):
+            try:
+                self.ps.free_memory(everything=True)
+            except Exception:
+                pass
 
     def solve(self, b):
         if HAVE_PARDISO:

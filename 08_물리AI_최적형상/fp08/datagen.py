@@ -171,6 +171,8 @@ def eso_shard(args):
         if not meta0[k].get('connected', True):
             continue
         o, lg = eso.eso_prune(p, cv, occ0[k])
+        if k % 10 == 0:                         # 진행 표시 (묶음 하나가 끝나야 부모 로그가 찍혀서, 그 사이 멈춘 것처럼 보이지 않게)
+            print(f'    [ESO {group} 묶음 {s}] {k + 2}/{len(z["idx"])} ({time.time() - t0:.0f}s)', flush=True)
         if (o ^ occ0[k]).sum() == 0:
             continue
         i = ESO_BASE + int(z['idx'][k])

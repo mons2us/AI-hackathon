@@ -12,7 +12,7 @@ python -m fp08.loop --run runs/main --stages sdf,pino,gate,al,demo  # GPU 서버
 import os, sys, json, time, argparse, subprocess, datetime, html
 import numpy as np
 
-from . import problems, datagen
+from . import problems, datagen, sweep
 
 GATE = dict(relL2_mean=0.10, judge=0.05, stress=0.15, freq_within5=0.95)
 STRESS_KEYS = ('vm', 'interlayer')
@@ -58,6 +58,12 @@ class Loop:
     def mark(self, key, **kw):
         self.state['stages'][key] = dict(done=True, at=now(), **kw)
         self.save()
+
+    def pgroups(self, pr):
+        """--groups 로 일부 그룹만 돌릴 때 PINO 도 그 그룹만 (전부면 옵션 없음)"""
+        from . import train_pino
+        gs = [g for g in train_pino.PRODUCTS[pr] if g in self.groups]
+        return [] if len(gs) == len(train_pino.PRODUCTS[pr]) else ['--groups', ','.join(gs)]
 
     def left(self):
         return None if self.deadline is None else self.deadline - time.time()
@@ -124,6 +130,86 @@ class Loop:
                 if c['step'] >= self.a.sdf_steps:
                     self.mark(f'sdf:{g}', last=c['hist'][-1] if c['hist'] else None)
 
+    # ---------------------------------------------------------------- 학습 방법 고르기 (sweep)
+    def _sweep(self, kind, units, cands, mk_cmd, read_hist, score_fn, full_steps, canon):
+        """kind: 'sdf'|'pino', units: 그룹 또는 제품 목록, mk_cmd(unit, 이름, 후보, stop_at) → 명령
+        1차: 후보 전부 SCREEN_FRAC 까지 → 검증 점수 상위 top-k 를 끝까지 → 최선을 canon(unit) 위치로 복사"""
+        st = self.state.setdefault('sweep', {}).setdefault(kind, {})
+        screen = max(1, int(full_steps * sweep.SCREEN_FRAC))
+        todo = [u for u in units if not self.done(f'sweep_{kind}:{u}')]
+        if not todo:
+            return
+        self.log(f'sweep {kind}: 후보 {list(cands)} × {todo}, 1차 {screen} 스텝 → 상위 {self.a.sweep_topk} 개 {full_steps} 스텝')
+        jobs = [(f'sw_{kind}_{u}_{n}', mk_cmd(u, n, c, screen)) for u in todo for n, c in cands.items()
+                if (read_hist(u, n) or [{}])[-1].get('step', 0) < screen]
+        self.run_jobs(jobs)
+        finals = {}
+        for u in todo:
+            sc = {n: score_fn(read_hist(u, n)) for n in cands}
+            finals[u] = sweep.pick(sc, self.a.sweep_topk)
+            st.setdefault(u, {})['screen'] = sc
+            self.log(f'sweep {kind} {u}: 1차 점수 {json.dumps({k: round(v, 4) for k, v in sc.items()})} → 끝까지: {finals[u]}')
+        self.save()
+        jobs = [(f'sw_{kind}_{u}_{n}', mk_cmd(u, n, cands[n], None)) for u in todo for n in finals[u]
+                if (read_hist(u, n) or [{}])[-1].get('step', 0) < full_steps]
+        self.run_jobs(jobs)
+        for u in todo:
+            sc = {n: score_fn(read_hist(u, n)) for n in finals[u]
+                  if (read_hist(u, n) or [{}])[-1].get('step', 0) >= full_steps}
+            if not sc:
+                self.log(f'sweep {kind} {u}: 끝까지 학습된 후보 없음 (로그 확인)'); continue
+            best = sweep.pick(sc, 1)[0]
+            sweep.promote(os.path.join(self.run, f'sweep_{kind}', best, u), canon(u))
+            st[u].update(final=sc, chosen=best, cfg=cands[best])
+            self.mark(f'sweep_{kind}:{u}', chosen=best, score=sc[best])
+            self.log(f'sweep {kind} {u}: 선택 {best} (검증 점수 {sc[best]:.4f})')
+
+    def sweep_sdf(self):
+        import torch
+        def hist(g, n):
+            ck = os.path.join(self.run, 'sweep_sdf', n, g, 'ckpt.pt')
+            return torch.load(ck, map_location='cpu', weights_only=False)['hist'] if os.path.exists(ck) else []
+        def cmd(g, n, c, stop):
+            return ([sys.executable, '-m', 'fp08.train_sdf', '--group', g, '--data', self.a.data, '--out', self.run,
+                     '--tag', f'sweep_sdf/{n}', '--steps', str(self.a.sdf_steps), '--n-eval', '30',
+                     '--eval-every', str(max(self.a.sdf_steps // 10, 100))] + sweep.sdf_args(c)
+                    + (['--stop-at', str(stop)] if stop else []))
+        self._sweep('sdf', self.groups, sweep.SDF_CANDS, cmd, hist, sweep.sdf_score, self.a.sdf_steps,
+                    lambda g: os.path.join(self.run, 'sdf', g))
+        for g in self.groups:
+            if self.done(f'sweep_sdf:{g}') and not self.done(f'sdf:{g}'):
+                c = torch.load(os.path.join(self.run, 'sdf', g, 'ckpt.pt'), map_location='cpu', weights_only=False)
+                self.mark(f'sdf:{g}', last=c['hist'][-1], chosen=self.state['sweep']['sdf'][g]['chosen'])
+
+    def sweep_pino(self):
+        from . import train_pino
+        def hist(pr, n):
+            try:
+                return train_pino.load(self.run, f'sweep_pino/{n}', pr)[1]['hist']
+            except FileNotFoundError:
+                return []
+        def cmd(pr, n, c, stop):
+            return ([sys.executable, '-m', 'fp08.train_pino', '--product', pr, '--data', self.a.data, '--out', self.run,
+                     '--tag', f'sweep_pino/{n}', '--steps', str(self.a.pino_steps),
+                     '--eval-every', str(max(self.a.pino_steps // 15, 50))] + self.pgroups(pr) + sweep.pino_args(c)
+                    + (['--stop-at', str(stop)] if stop else []))
+        self._sweep('pino', self.products, sweep.PINO_CANDS, cmd, hist, sweep.pino_score, self.a.pino_steps,
+                    lambda pr: os.path.join(self.run, 'pino', pr))
+        for pr in self.products:
+            if self.done(f'sweep_pino:{pr}') and not self.done(f'pino:{pr}:r0'):
+                self.mark(f'pino:{pr}:r0', chosen=self.state['sweep']['pino'][pr]['chosen'])
+
+    def sdf_test(self):
+        """DeepSDF 시험 셋 성적 (고르는 데 안 쓴 10%) → state['sdf_test']"""
+        from . import train_sdf
+        for g in self.groups:
+            ck = os.path.join(self.run, 'sdf', g, 'ckpt.pt')
+            if os.path.exists(ck) and g not in self.state.get('sdf_test', {}):
+                m = train_sdf.test_metrics(ck, self.a.data, g)
+                self.state.setdefault('sdf_test', {})[g] = m
+                self.log(f'DeepSDF 시험 셋 {g}: {json.dumps(m)}')
+                self.save()
+
     def st_pino(self, tag='pino', extra=(), steps=None, round_=0):
         steps = steps or self.a.pino_steps
         jobs = []
@@ -132,7 +218,7 @@ class Loop:
             if not self.done(key):
                 jobs.append((f'{tag}_{pr}', [sys.executable, '-m', 'fp08.train_pino', '--product', pr, '--data', self.a.data,
                                              '--out', self.run, '--steps', str(steps), '--tag', tag,
-                                             '--eval-every', str(max(self.a.pino_steps // 15, 50))] + list(extra)))
+                                             '--eval-every', str(max(self.a.pino_steps // 15, 50))] + self.pgroups(pr) + list(extra)))
         self.run_jobs(jobs)
         from . import train_pino
         for pr in self.products:
@@ -153,7 +239,8 @@ class Loop:
                 if g not in self.groups:
                     continue
                 gd = train_pino.GroupData(g, self.a.data, 'cpu')
-                m = train_pino.validate(net, gd)
+                m = train_pino.validate(net, gd, ks=gd.te if len(gd.te) else None)   # 시험 셋 (sweep 선택에 안 쓴 10%)
+                m['set'] = 'test' if len(gd.te) else 'val'
                 why = []
                 if m['relL2_mean'] is not None and m['relL2_mean'] > GATE['relL2_mean']:
                     why.append(f"변위장 L2 {m['relL2_mean']:.3f}")
@@ -242,8 +329,11 @@ class Loop:
         self.log(f'루프 시작: 단계 {st}, 그룹 {self.groups}, 마감 {self.a.deadline}')
         if 'shapes' in st: self.st_shapes()
         if 'fem' in st: self.st_fem()
-        if 'sdf' in st: self.st_sdf()
-        if 'pino' in st: self.st_pino()
+        if 'sdf' in st:
+            self.sweep_sdf() if self.a.sweep else self.st_sdf()
+            self.sdf_test()
+        if 'pino' in st:
+            self.sweep_pino() if self.a.sweep else self.st_pino()
         if 'compare' in st:              # 부록 비교: FNO(물리 손실 없음), 레일리 대신 직접 회귀
             self.st_pino('fno', ['--no-physics'])
             self.st_pino('direct', ['--freq', 'direct'])
@@ -269,6 +359,26 @@ def now():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
+def sweep_html(state):
+    e = html.escape
+    out = ''
+    sw = state.get('sweep', {})
+    if sw:
+        out += '<h3>학습 방법 고르기 (sweep) — 검증 셋 점수, 작을수록 좋음</h3><table><tr><th>모델</th><th>대상</th><th>1차(20%) 점수</th><th>끝까지 점수</th><th>선택</th></tr>'
+        for kind, d in sw.items():
+            for u, v in d.items():
+                f2 = lambda x: e(json.dumps({k: round(a, 4) for k, a in (x or {}).items()}))
+                out += f'<tr><td>{kind}</td><td>{u}</td><td><code>{f2(v.get("screen"))}</code></td><td><code>{f2(v.get("final"))}</code></td><td><b>{e(str(v.get("chosen", "-")))}</b></td></tr>'
+        out += '</table>'
+    t = state.get('sdf_test', {})
+    if t:
+        out += '<h3>DeepSDF 시험 셋 성적 (제안 기준: IoU ≥ 0.90, 표면 오차 ≤ 0.5칸 — 미확정)</h3><table><tr><th>그룹</th><th>형상 수</th><th>IoU 평균</th><th>IoU 하위10%</th><th>표면 오차 mm</th><th>표면 오차 칸</th></tr>'
+        for g, m in t.items():
+            out += f'<tr><td>{g}</td><td>{m["n"]}</td><td>{m["iou_test"]:.3f}</td><td>{m["iou_test_p10"]:.3f}</td><td>{m["surf_err_mm_test"]:.3f}</td><td>{m["surf_err_cell_test"]:.2f}</td></tr>'
+        out += '</table>'
+    return out
+
+
 def write_report(run, state):
     """진행 보고서 HTML (서버 파일)"""
     e = html.escape
@@ -292,7 +402,8 @@ def write_report(run, state):
 <title>08 자동 루프 진행</title><style>body{{font-family:sans-serif;margin:20px;max-width:1100px}}table{{border-collapse:collapse;width:100%;margin-bottom:18px;font-size:13px}}
 td,th{{border:1px solid #ddd;padding:4px 6px}}th{{background:#f3f3f3}}code{{font-size:11px}}</style></head><body>
 <h2>08 물리 AI 자동 루프 — 진행 보고서</h2><p>시작 {e(state.get('started',''))} · 갱신 {e(state.get('updated',''))} · 끝 {e(state.get('finished','진행 중'))}</p>
-<h3>품질 관문</h3><p>기준: 변위장 상대 L2 평균 ≤ {GATE['relL2_mean']}, 판정값 오차(상위 10%) ≤ {GATE['judge']}, 응력 ≤ {GATE['stress']}, 진동수 ±5% 이내 비율 ≥ {GATE['freq_within5']}</p>
+{sweep_html(state)}
+<h3>품질 관문 (시험 셋)</h3><p>기준: 변위장 상대 L2 평균 ≤ {GATE['relL2_mean']}, 판정값 오차(상위 10%) ≤ {GATE['judge']}, 응력 ≤ {GATE['stress']}, 진동수 ±5% 이내 비율 ≥ {GATE['freq_within5']}</p>
 <table><tr><th>바퀴</th><th>그룹</th><th>결과</th><th>L2</th><th>진동수 ±5%</th><th>판정값 오차 p90</th><th>불합격 사유</th></tr>{gates}</table>
 <h3>시연 최적화 + FEM 검증</h3><table><tr><th>바퀴</th><th>그룹</th><th>조건</th><th>상태</th><th>질량 g</th><th>FEM 판정값</th><th>시간</th></tr>{demos}</table>
 <h3>단계</h3><table><tr><th>단계</th><th>완료 시각</th><th>정보</th></tr>{rows}</table></body></html>"""
@@ -312,4 +423,6 @@ if __name__ == '__main__':
     ap.add_argument('--al-n', type=int, default=200); ap.add_argument('--max-rounds', type=int, default=3)
     ap.add_argument('--n-starts', type=int, default=10); ap.add_argument('--opt-steps', type=int, default=300)
     ap.add_argument('--deadline', default=None)
+    ap.add_argument('--sweep', action='store_true', help='학습 방법 후보 여러 개 → 검증 점수로 최선 자동 선택 (fp08/sweep.py)')
+    ap.add_argument('--sweep-topk', type=int, default=1, help='1차 거르기 뒤 끝까지 학습할 후보 수 (1: GPU 시간 약 1.6배, 2: 약 2.4배)')
     Loop(ap.parse_args()).main()
