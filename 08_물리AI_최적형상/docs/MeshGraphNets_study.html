@@ -44,7 +44,30 @@ ol.ref{font-size:13px;padding-left:20px}
 </header>
 
 <section class="toc">
-  <a href="#m1">1 한 줄 요약</a><a href="#m2">2 입력</a><a href="#m3">3 구조</a><a href="#m4">4 처리 블록</a><a href="#m5">5 계산 예시</a><a href="#m6">6 출력·시간 진행</a><a href="#m7">7 학습·결과</a><a href="#m8">8 GNO와 비교</a><a href="#m9">9 우리 문제에 쓴다면</a><a href="#ref">출처</a>
+  <a href="#m0">0 아주 쉽게</a><a href="#m1">1 한 줄 요약</a><a href="#m2">2 입력</a><a href="#m3">3 구조</a><a href="#m4">4 처리 블록</a><a href="#m5">5 계산 예시</a><a href="#m6">6 출력·시간 진행</a><a href="#m7">7 학습·결과</a><a href="#m8">8 GNO와 비교</a><a href="#m9">9 우리 문제에 쓴다면</a><a href="#ref">출처</a>
+</section>
+
+<section id="m0">
+  <h2><span class="n">0</span>아주 쉽게 — 마을 전화망</h2>
+  <div class="grid">
+    <div class="box"><h3>집 = 노드</h3><p>FEM 절점. 집마다 <b>메모지</b>(숫자)가 하나 있음.</p></div>
+    <div class="box"><h3>전화선 = 엣지</h3><p>메시에서 선으로 이어진 절점 쌍. 전화선에도 <b>메모지</b>가 있음.</p></div>
+    <div class="box"><h3>한 라운드</h3><p>① 전화선마다 양쪽 집 얘기를 듣고 <b>통화 메모</b>를 새로 씀 → ② 집마다 연결된 통화 메모를 <b>다 더해</b> 자기 메모를 고침.</p></div>
+    <div class="box"><h3>15라운드 후</h3><p>각 집이 자기 메모를 보고 답(변위·속도)을 발표.</p></div>
+  </div>
+  <table style="margin-top:10px">
+    <tr><th></th><th>GNO</th><th>MeshGraphNets</th></tr>
+    <tr><td>누구에게 묻나</td><td>반지름 r 원 안의 모든 점</td><td>메시에서 <b>선으로 직접 이어진</b> 점만</td></tr>
+    <tr><td>선(엣지)의 역할</td><td>가중치 숫자를 한 번 내고 끝</td><td><b>자기 메모지</b>를 갖고 라운드마다 새로 씀</td></tr>
+  </table>
+  <h3>직접 해 보기 — 소식은 한 라운드에 전화선 한 칸</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0">
+    <button class="mx-btn" id="rn">다음 라운드 ▶</button><button class="mx-btn" id="rr">처음으로</button>
+    <span class="note" style="margin-left:8px">보기:</span><button class="mx-btn on" id="vm">MeshGraphNets</button><button class="mx-btn" id="vf">FNO라면?</button>
+  </div>
+  <svg id="rs" viewBox="0 0 680 190"></svg>
+  <div style="font-size:15px;margin:6px 0 2px" id="rt"></div><div class="note" id="rd"></div>
+  <div class="callout blue">한 줄 요약: <b>MeshGraphNets = 메시 선을 따라 이웃끼리 메모를 주고받는 일을 15번 반복</b>. 그래서 정보는 15칸까지만 감 — 동적 문제(한 걸음이 짧은 시간)에는 충분하지만, 하중이 반대편 고정점까지 전달돼야 하는 우리 정적 문제에는 부족(9절).</div>
 </section>
 
 <section id="m1">
@@ -277,6 +300,34 @@ function run(i){
 }
 document.querySelectorAll('.mx-btn').forEach(b=>b.onclick=()=>run(b.dataset.k));
 run('4');
+})();
+
+(function(){
+const n=12,X=i=>50+i*52,Y=95;let r=0,mode='m';
+const svg=document.getElementById('rs');
+function draw(){
+ let s='';
+ for(let i=0;i<n-1;i++){const lit=mode==='f'?r>=1:(n-1-i)<=r;
+  s+=`<line x1="${X(i)}" y1="${Y}" x2="${X(i+1)}" y2="${Y}" stroke="${lit?'#EF9F27':'#B4B2A9'}" stroke-width="${lit?5:3}"/>`;}
+ for(let i=0;i<n;i++){const d=n-1-i,lit=mode==='f'?r>=1:d<=r,load=i===n-1,fix=i===0;
+  const c=load?'#E24B4A':(lit?'#EF9F27':'#D3D1C7');
+  s+=`<circle cx="${X(i)}" cy="${Y}" r="13" fill="${c}" stroke="${fix?'#444441':'none'}" stroke-width="${fix?3:0}"/>`;}
+ s+=`<text x="${X(0)}" y="${Y+42}" text-anchor="middle" font-size="12" fill="#5b6475">고정(클램프)</text>`;
+ s+=`<text x="${X(n-1)}" y="${Y+42}" text-anchor="middle" font-size="12" fill="#5b6475">하중(폰 받침)</text>`;
+ s+=`<text x="${(X(0)+X(n-1))/2}" y="${Y-35}" text-anchor="middle" font-size="12" fill="#5b6475">거치대 팔 — 점 12개, 전화선 11칸</text>`;
+ svg.innerHTML=s;
+ const t=document.getElementById('rt'),d=document.getElementById('rd');
+ if(mode==='f'){t.textContent=r===0?'FNO: 아직 계산 전 (다음 라운드 ▶)':'FNO: 1층 만에 하중 소식이 팔 전체에 퍼짐';
+  d.textContent='FFT로 영역 전체를 한 번에 섞기 때문. 그래서 하중이 멀리 전달되는 정적 문제에 유리.';return;}
+ const reach=Math.min(r,n-1);
+ t.textContent=r===0?'라운드 0: 하중 소식은 아직 받침에만 있음':`라운드 ${r}: 하중 소식이 전화선 ${reach}칸까지 전달`;
+ d.textContent=r>=n-1?'고정점에 도착! 이제야 고정점이 "받침에 하중이 있다"는 걸 앎. 실제 거치대는 약 60칸(124 mm ÷ 2 mm)이라 15라운드로는 부족.':`고정점까지 남은 칸: ${n-1-r}. 고정점은 아직 하중을 모름 → 변위를 제대로 계산할 수 없음`;
+}
+document.getElementById('rn').onclick=()=>{r=Math.min(r+1,n-1);draw();};
+document.getElementById('rr').onclick=()=>{r=0;draw();};
+document.getElementById('vm').onclick=()=>{mode='m';r=0;document.getElementById('vm').classList.add('on');document.getElementById('vf').classList.remove('on');draw();};
+document.getElementById('vf').onclick=()=>{mode='f';r=0;document.getElementById('vf').classList.add('on');document.getElementById('vm').classList.remove('on');draw();};
+draw();
 })();
 </script>
 </body></html>
