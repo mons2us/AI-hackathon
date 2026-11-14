@@ -56,6 +56,18 @@ def am_adjoint(lamXI,XI,S,KS,X):   # returns dF/dX (blueprint) given dF/dXI
         L[j-1]+=back*PP*XI[j-1]**(PP-1)
     dX[0]+=np.where(FX[0],0.,L[0]); return dX
 P=3.; EMIN=1e-6; me0=rho*h**3
+RIGID=os.environ.get('RIGID')=='1'
+if RIGID:
+    tipm[:]=0.
+    MT=float(os.environ.get('MSYS','0.340'))*1e-3; CG=np.array([91.,55.,float(os.environ.get('CGZ','36.5'))])
+    Lx,Ly,Lz=[float(v) for v in os.environ.get('BOX','165,80,15').split(',')]
+    P_=np.c_[nxc,nyc,nzc][topn]-CG; nt=len(topn); TT=np.zeros((3*nt,6))
+    for i_,(rx,ry,rz) in enumerate(P_):
+        TT[3*i_:3*i_+3,:3]=np.eye(3); TT[3*i_:3*i_+3,3:]=-np.array([[0,-rz,ry],[rz,0,-rx],[-ry,rx,0]])
+    Tp=np.linalg.pinv(TT); Mrb=np.diag([MT,MT,MT,MT*(Ly**2+Lz**2)/12,MT*(Lx**2+Lz**2)/12,MT*(Lx**2+Ly**2)/12])
+    Ma=Tp.T@Mrb@Tp; dd=(3*topn[:,None]+np.arange(3)).reshape(-1)
+    MA=sp.coo_matrix((Ma.ravel(),(np.repeat(dd,len(dd)),np.tile(dd,len(dd)))),shape=(3*nn,3*nn)).tocsr()
+else: MA=None
 def interp(r):
     k=EMIN+(1-EMIN)*r**P; dk=(1-EMIN)*P*r**(P-1); m=np.where(r>0.3,r,r**3/0.09); dm=np.where(r>0.3,1.0,3*r**2/0.09); return k,dk,m,dm
 def analyse(r,neig=4):
@@ -65,10 +77,12 @@ def analyse(r,neig=4):
     mn=np.zeros(nn); np.add.at(mn,en.ravel(),np.repeat(mel*me0/8,8)); mn+=tipm; Md=np.repeat(mn,3)
     A=Kg[free][:,free].tocsr(); ps=pypardiso.PyPardisoSolver(); ps.factorize(A)
     OP=sla.LinearOperator(A.shape,matvec=lambda v: ps.solve(A,v),dtype=float)
-    lam,V=sla.eigsh(A,k=neig,M=sp.diags(Md[free]),sigma=0,OPinv=OP,tol=1e-8); ps.free_memory(everything=True); del ps; gc.collect()
+    MM=sp.diags(Md) if MA is None else (sp.diags(Md)+MA).tocsr()
+    MF=MM[free][:,free].tocsr()
+    lam,V=sla.eigsh(A,k=neig,M=MF,sigma=0,OPinv=OP,tol=1e-8); ps.free_memory(everything=True); del ps; gc.collect()
     out=[]
     for q in range(neig):
-        phi=np.zeros(3*nn); phi[free]=V[:,q]/np.sqrt(V[:,q]@(Md[free]*V[:,q]))
+        phi=np.zeros(3*nn); phi[free]=V[:,q]/np.sqrt(V[:,q]@(MF@V[:,q]))
         pe=phi[edof]; sk=np.einsum('ij,jk,ik->i',pe,KE,pe); pn=(phi.reshape(-1,3)**2).sum(1); sm=pn[en].sum(1)*me0/8
         out.append((lam[q],np.where(design,dk*sk-lam[q]*dm*sm,0.)))
     return out
@@ -101,3 +115,4 @@ for it in range(START,ITERS):
     print(json.dumps(dict(it=it,beta=be,mass_g=round(float(massg),1),f=[round(float(np.sqrt(r_[0])/2/np.pi),1) for r_ in res],t=round(time.time()-t0))),flush=True)
     if it%10==0 or it==ITERS-1:
         np.save('x_%s.npy'%TAG,x); np.save('rprint_%s.npy'%TAG,rn)
+    if os.environ.get('SNAP') and (it%4==0 or it in (2,10,30,130) or it==ITERS-1): np.save('snap_%s_%03d.npy'%(TAG,it),rn)
