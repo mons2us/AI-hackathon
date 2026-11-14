@@ -1,4 +1,4 @@
-"""문제 정의 3종 — 07 problem.npz 형식을 확장한 공통 형식.
+"""문제 정의 3종 — 10 problem.npz 형식을 확장한 공통 형식.
 
 공통 요소 라벨: 0 설계 영역 / 1 고정부품(항상 재료) / 2 빈 곳 / 3 강체
 추가 항목(설계 결정 2번): 고정부 덩어리 구분(fixed_groups), 물리 모듈(physics),
@@ -6,7 +6,7 @@
 
 단위: mm, t(톤), N, MPa, s.  1 kg = 1e-3 t,  g = 9810 mm/s^2
 출처
-- 거치대: 07 templates/bike_mount.py, 03 code_3D/opt3d.py (영역·지지·질량 절점·하중 정의를 그대로 옮김)
+- 거치대: 10 templates/bike_mount.py, 03 code_3D/opt3d.py (영역·지지·질량 절점·하중 정의를 그대로 옮김)
 - TV 양발형: 04 plate_v2/plate.py (체결 블록·발 패드·하중 3종·처짐 측정 방식) 를 3D 다리로 확장
 - TV 중앙형: 04 pedestal/ped.py (TV 블록 강체 x100·패드·하중·측정 방식), 설계 영역은 목+바닥 전체(5 mm)
 """
@@ -102,7 +102,7 @@ class Problem:
     def sample_cond(self, rng): return dict(self.default_cond)
 
     def spec(self):
-        """spec.json 형태 (설계 결정 2번: 07 형식 + 4가지 추가)"""
+        """spec.json 형태 (설계 결정 2번: 10 형식 + 4가지 추가)"""
         g = self.grid
         return dict(schema='formproof.spec/0.2-08', product=self.product, group=self.name,
                     grid=dict(h=g.h, origin=g.origin.tolist(), shape=[g.nx, g.ny, g.nz],

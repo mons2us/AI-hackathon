@@ -73,7 +73,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <h2><span class="n">★</span>최종 파이프라인 — 제품군별 대리 모델 자동 생성 + 재사용</h2>
   <svg viewBox="0 0 900 470" role="img" aria-label="요청에서 대리 모델 자동 생성과 최적 설계까지의 단계">
     <g font-size="13" text-anchor="middle">
-      <rect x="300" y="10" width="300" height="52" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="450" y="32" font-weight="700" fill="#5b37b8">① 요청 이해 (원래 LLM)</text><text x="450" y="51" font-size="11" fill="#5b6475">시연: 07 고정 시나리오로 대체</text>
+      <rect x="300" y="10" width="300" height="52" rx="10" fill="#f2ecff" stroke="#8b5cf6"/><text x="450" y="32" font-weight="700" fill="#5b37b8">① 요청 이해 (원래 LLM)</text><text x="450" y="51" font-size="11" fill="#5b6475">시연: 10 고정 시나리오로 대체</text>
       <rect x="300" y="84" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="106" font-weight="700" fill="#b35a17">② 학습 계획 자동 수립</text><text x="450" y="125" font-size="11" fill="#5b6475">바뀌는 조건·범위·샘플 수</text>
       <rect x="300" y="158" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="180" font-weight="700" fill="#b35a17">③ 데이터 자동 생성 (FEM)</text><text x="450" y="199" font-size="11" fill="#5b6475">설계 범위 안 무작위 형상 + 형상별 FEM 정답</text>
       <rect x="300" y="232" width="300" height="52" rx="10" fill="#fff1e6" stroke="#e8833a"/><text x="450" y="254" font-weight="700" fill="#b35a17">④ DeepSDF + PINO 학습</text><text x="450" y="273" font-size="11" fill="#5b6475">물리 모듈에 맞춰 헤드 자동 구성</text>
@@ -96,7 +96,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     </g>
   </svg>
   <div class="grid g2" style="margin-top:10px">
-    <div class="box"><h3>해커톤 시연 범위</h3><p>① 요청 이해는 원래 <b>LLM</b>. 사내 해커톤에서 LLM API를 못 써서 07이 <b>고정 시나리오 2개</b>(거치대 3D 진동+정적, TV 2D 정적)로 대신. <b>②~⑥은 실제로 동작</b>. LLM은 준비된 물리 모듈 선택·조건 설정까지만(코드 생성 안 함).</p></div>
+    <div class="box"><h3>해커톤 시연 범위</h3><p>① 요청 이해는 원래 <b>LLM</b>. 사내 해커톤에서 LLM API를 못 써서 10이 <b>고정 시나리오 2개</b>(거치대 3D 진동+정적, TV 2D 정적)로 대신. <b>②~⑥은 실제로 동작</b>. LLM은 준비된 물리 모듈 선택·조건 설정까지만(코드 생성 안 함).</p></div>
     <div class="box"><h3>왜 "제품군마다 생성 + 재사용"인가</h3><p>요청 1개만 보면 경로 A(약 20분)가 더 빠름 — 대리 모델은 데이터(FEM 수백 회) + 학습이 먼저 필요. 같은 제품군에 조건만 바뀐 요청이 <b>반복될 때</b> 이김 → 발표 핵심 수치 = <b>손익분기 요청 수</b>(미측정, 시연에서 측정).</p></div>
     <div class="box"><h3>③ 데이터: 설계 범위 안 무작위 형상</h3><p>DeepSDF는 최적화 결과가 아니라 <b>설계 범위 안 다양한 무작위 형상</b>으로 학습. 라벨만 쓰므로 제품 무관, 형상 생성에 FEM 불필요. ① 곧은 부재 ② 무작위 경유점 트러스 ③ 매끈한 덩어리(두 고정부에 붙은 조각만). PINO 정답은 형상마다 FEM 1회(약 7.5 s 추정), 최적점 근처는 <b>능동 학습</b>으로 보강.</p></div>
     <div class="box"><h3>④~⑤ 제품 무관 코드 + 품질 관문</h3><p>2D/3D·물리 모듈·하중 수·출력 헤드를 spec.json에서 읽어 자동 구성 → 거치대·TV를 같은 코드로. 품질 관문 미달이면 <b>경로 A로 자동 전환</b>해 항상 답을 냄. 진동수 ① 레일리+보정 vs ② 직접 학습 비교 실험 포함.</p></div>
@@ -141,7 +141,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   </div>
   <div class="box" style="border-top:4px solid #e8833a;margin-top:14px">
     <h3>🚲 거치대 · 받침 80 mm (시연 기본) <code>bike_pad80</code></h3>
-    <p>받침판이 <b>앞으로 80 mm</b>. 07 템플릿 T01·T07과 같은 위치이고 팀 FEM 최적화 결과(39.8 g / 99.4 Hz)가 있는 기준 문제.</p>
+    <p>받침판이 <b>앞으로 80 mm</b>. 10 템플릿 T01·T07과 같은 위치이고 팀 FEM 최적화 결과(39.8 g / 99.4 Hz)가 있는 기준 문제.</p>
     <table style="margin:8px 0;font-size:12.5px">
       <tr><td style="width:90px"><b>설계 영역</b></td><td>설계 영역 124 × 40 × 78 mm (절반 모델 62×10×39)</td></tr>
       <tr><td><b>하중</b></td><td>위아래·옆 48.5 g 충격(자갈길, ISBS 2020) + 진동 · 폰 200 g + 홀더 50 g이 폰 기둥 꼭대기에</td></tr>
@@ -273,18 +273,18 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   </svg>
   <table style="margin-top:8px">
     <tr><th>#</th><th>왜 받침을 고정할 수밖에 없나</th></tr>
-    <tr><td>1</td><td><b>사용 요구다</b> — 폰을 어디서 볼지(시야·손 위치)는 사용자가 정함. 07도 스케치·텍스트에서 받침 위치를 정함</td></tr>
+    <tr><td>1</td><td><b>사용 요구다</b> — 폰을 어디서 볼지(시야·손 위치)는 사용자가 정함. 10도 스케치·텍스트에서 받침 위치를 정함</td></tr>
     <tr><td>2</td><td><b>풀면 답이 뻔하다</b> — 무게 최소 + 진동수 기준이면 받침을 당길수록 유리 → 항상 "최대한 당겨라". 근거: 짧은 팔 T02 31.7 Hz vs 긴 팔 T03 10.4 Hz (07 1차 설계 표)</td></tr>
     <tr><td>3</td><td><b>미분이 안 된다</b> — 받침이 움직이면 고정·빈 곳·질량 절점이 2 mm 칸 단위로 불연속 변화 → 몇 개 값을 시도하는 바깥 루프로만 가능</td></tr>
     <tr><td>4</td><td><b>데이터가 위치 수만큼 는다</b> — DeepSDF·PINO 학습 데이터가 위치마다 필요 → 이틀에 3~5개가 한계</td></tr>
-    <tr><td>5</td><td><b>받침판 각도는 필요도 낮다</b> — 07 템플릿에 각도 변수 없음(수평 4 mm 판). 폰 각도는 시판 홀더가 조절하고, 무게중심 이동은 하중 조건으로 반영</td></tr>
+    <tr><td>5</td><td><b>받침판 각도는 필요도 낮다</b> — 10 템플릿에 각도 변수 없음(수평 4 mm 판). 폰 각도는 시판 홀더가 조절하고, 무게중심 이동은 하중 조건으로 반영</td></tr>
   </table>
   <p class="note">받침 위치 허용 범위는 확장 항목(07 수정 필요). 템플릿은 옆모습을 폭 20 mm로 압출한 2.5D, 최적화 결과는 폭 방향까지 바뀌는 3D.</p>
 </section>
 
 <section>
   <h2><span class="n">0-1</span>받침 위치 그룹 — 10종이 7개 위치로</h2>
-  <p class="sub">08은 팔을 새로 설계하므로 문제를 정하는 것은 템플릿 ID가 아니라 <b>받침 위치</b>. 07의 스케치 매칭용 10종은 그대로 유지.</p>
+  <p class="sub">08은 팔을 새로 설계하므로 문제를 정하는 것은 템플릿 ID가 아니라 <b>받침 위치</b>. 10의 스케치 매칭용 10종은 그대로 유지.</p>
   <svg viewBox="0 0 900 250" role="img" aria-label="받침 위치 그룹 산점도">
     <line x1="80" y1="210" x2="860" y2="210" stroke="#5b6475"/><line x1="80" y1="20" x2="80" y2="210" stroke="#5b6475"/>
     <text x="470" y="242" text-anchor="middle" font-size="12" fill="#5b6475">앞 거리 pad_x0 (mm): 40 → 130</text>
@@ -335,10 +335,10 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 
 <section>
   <h2><span class="n">1</span>파이프라인에서 08의 위치</h2>
-  <svg viewBox="0 0 900 230" role="img" aria-label="07 입력에서 08 물리 AI를 거쳐 검증 출력으로">
+  <svg viewBox="0 0 900 230" role="img" aria-label="10 입력에서 08 물리 AI를 거쳐 검증 출력으로">
     <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#5b6475"/></marker></defs>
     <rect x="10" y="20" width="250" height="80" rx="12" fill="#f2ecff" stroke="#8b5cf6"/>
-    <text x="135" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#5b37b8">07 입력 · 1차 설계</text>
+    <text x="135" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#5b37b8">10 입력 · 1차 설계</text>
     <text x="135" y="74" text-anchor="middle" font-size="12" fill="#5b6475">규칙 + 템플릿 매칭 (LLM·GPU 없음)</text>
     <rect x="325" y="20" width="250" height="80" rx="12" fill="#fff1e6" stroke="#e8833a" stroke-width="2"/>
     <text x="450" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#b35a17">08 물리 AI (여기)</text>
@@ -362,7 +362,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
       <text x="655" y="192">판정은 항상 이 값</text>
     </g>
   </svg>
-  <p class="note">입력 형식·연결 어댑터(<code>opt3d_namespace</code>)는 07 README 기준. ❓ = 출력 형식 합의 필요.</p>
+  <p class="note">입력 형식·연결 어댑터(<code>opt3d_namespace</code>)는 10 README 기준. ❓ = 출력 형식 합의 필요.</p>
 </section>
 
 <section>
@@ -484,7 +484,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   <div class="kan">
     <div class="col done"><h3>✅ 완료</h3><ul>
       <li>거치대 FEM 위상최적화·강건 최적화·1 mm 재검증</li>
-      <li>07 → opt3d 연결 어댑터 (07)</li>
+      <li>10 → opt3d 연결 어댑터 (07)</li>
       <li>최종 방향: 제품군별 대리 모델 자동 생성 + 재사용</li>
       <li>설계 범위·받침 위치 그룹·폰 각도 처리</li>
       <li>모델 구조: DeepSDF + 마스크 + PINO(변위 + 진동수 2단)</li>
@@ -524,16 +524,16 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><th>#</th><th>요청</th><th>대상</th></tr>
     <tr><td>1</td><td>서버 <b>코어 수·GPU 유무</b></td><td>전원</td></tr>
     <tr><td>2</td><td>주말 <b>서버 사전 실행 허용 여부</b> (허용 시 데이터 미리 축적)</td><td>전원</td></tr>
-    <tr><td>3</td><td><b>TV 스탠드용 problem.npz</b> 생성 가능 여부 (07 템플릿은 현재 거치대 10종)</td><td>07</td></tr>
-    <tr><td>4</td><td>출력 파일 형식 합의 (result.json 예측 vs FEM)</td><td>07·화면</td></tr>
+    <tr><td>3</td><td><b>TV 스탠드용 problem.npz</b> 생성 가능 여부 (07 템플릿은 현재 거치대 10종)</td><td>10</td></tr>
+    <tr><td>4</td><td>출력 파일 형식 합의 (result.json 예측 vs FEM)</td><td>10·화면</td></tr>
     <tr><td>5</td><td>발표 문구 통일: <b>원래 앞단은 LLM, 시연은 API 제약으로 고정 시나리오</b></td><td>발표</td></tr>
     <tr><td>6</td><td>TV 처짐 기준·스탠드 3 kg 근거 확인 (가정값)</td><td>TV</td></tr>
     <tr><td>7</td><td>외부 데이터셋(ShapeNet 등) 미사용 원칙 · 사내 오픈소스 규정 확인</td><td>전원</td></tr>
-    <tr><td>8</td><td><b>받침 위치를 넘기는 형태</b> 합의 (템플릿 ID / pad_x0·pad_z0 값 / 허용 범위), 각도 변수 여부</td><td>07</td></tr>
+    <tr><td>8</td><td><b>받침 위치를 넘기는 형태</b> 합의 (템플릿 ID / pad_x0·pad_z0 값 / 허용 범위), 각도 변수 여부</td><td>10</td></tr>
     <tr><td>9</td><td><b>기존 opt3d run(a~d)</b>의 snaps_*.bin · hist_*.json · x_*.npy 공유 (저장소에 없음)</td><td>거치대</td></tr>
-    <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>07</td></tr>
-    <tr><td>11</td><td><b>폰 각도별 질량 절점</b> 생성 옵션 (형상 불변, point_masses 위치만 이동)</td><td>07</td></tr>
-    <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>07·거치대</td></tr>
+    <tr><td>10</td><td>템플릿 파라미터를 바꿔 problem.npz·형상을 대량 생성하는 방법 (build_spec 직접 호출 가능 여부)</td><td>10</td></tr>
+    <tr><td>11</td><td><b>폰 각도별 질량 절점</b> 생성 옵션 (형상 불변, point_masses 위치만 이동)</td><td>10</td></tr>
+    <tr><td>12</td><td><b>앞뒤(x) 방향 충격 하중</b> 필요 여부 (현재 위아래·옆만)</td><td>10·거치대</td></tr>
     <tr><td>13</td><td><b>TV 처짐 기준값 확정</b> (README 1·2 mm vs plate.py 0.10·1.0), 넘어짐이 형상과 무관한지, <b>TV에서 바뀌는 조건과 범위</b></td><td>TV</td></tr>
     <tr><td>14</td><td>sosopapa에 master(TV plate_v2) 병합 여부</td><td>소소파파</td></tr>
     <tr><td>15</td><td><b>TV 양발형 두 번째 발끝 길이</b> — L220 넘어짐 불합격. 후보 260 / 340 mm</td><td>소소파파·TV</td></tr>
@@ -599,7 +599,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <tr><td>2026-11-13 (4)</td><td>진동수 설계: 한 모델에 변위 헤드 + 진동수 헤드, 1차 = 레일리(u) × 보정, 2차 = 직접 회귀, 같이 학습 시 주의점. 폰 회전 관성 확인 제외(팀 판단)</td></tr>
     <tr><td>2026-11-13 (3)</td><td>0-1 받침 위치 그룹(10종 → 7개 위치, MVP 50·80·120 mm), 0-2 폰 기둥·홀더 그림과 폰 각도 = 하중 조건, 격자 2 mm 유지 근거, 요청 11·12</td></tr>
     <tr><td>2026-11-13 (2)</td><td>0절 설계 범위(받침·클램프 고정, 팔 최적화)와 고정 이유 5가지, 경로 B를 DeepSDF(z)+라벨 마스크+PINO로 변경, 마스크 그림·학습 데이터 표, opt3d 확인 사항, 요청 8~10</td></tr>
-    <tr><td>2026-11-13</td><td>신규 작성 — 기존 Model.html(데모 아이템 검토) 대체. 07 인터페이스 반영, 경로 A/B, PINO 설계안, DeepSDF 보류·2D 검증, 진행·필요 사항·일정</td></tr></table>
+    <tr><td>2026-11-13</td><td>신규 작성 — 기존 Model.html(데모 아이템 검토) 대체. 10 인터페이스 반영, 경로 A/B, PINO 설계안, DeepSDF 보류·2D 검증, 진행·필요 사항·일정</td></tr></table>
 </section>
 
 <section>
@@ -613,7 +613,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
     <li>Svanberg, MMA, IJNME 24 (1987) · Bendsøe & Sigmund, <i>Topology Optimization</i>, Springer 2003</li>
     <li>Rao, <i>Mechanical Vibrations</i> 6th ed., 2017</li>
     <li><a href="https://www.shapenet.org/terms">ShapeNet Terms of Use</a></li>
-    <li>저장소 mons2us/AI-hackathon, feature/input-spec (64ce6cb): <code>07_입력_1차설계/README.md</code> (sosopapa 브랜치에는 없음), 루트 <code>README.md</code></li>
+    <li>저장소 mons2us/AI-hackathon, feature/input-spec (64ce6cb): <code>10_입력_1차설계/README.md</code> (sosopapa 브랜치에는 없음), 루트 <code>README.md</code></li>
   </ol>
 </section>
 

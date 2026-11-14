@@ -39,7 +39,7 @@
 
 1. Git push 는 **`sosopapa` 브랜치에만**. main·다른 사람 브랜치 금지.
 2. 커밋 메시지에 **변경 포인트**를 목록으로 (무엇을/왜/영향 범위). 예시는 §9.
-3. **물리 상수·하중 조건·판정 기준**(`fp08/problems.py`의 재료값, 하중, 허용응력, `loop.py`의 `GATE`, `DEMO`)은 **사용자 확인 없이 바꾸지 말 것**. 07 담당(공동 작업자)과 맞춘 값입니다.
+3. **물리 상수·하중 조건·판정 기준**(`fp08/problems.py`의 재료값, 하중, 허용응력, `loop.py`의 `GATE`, `DEMO`)은 **사용자 확인 없이 바꾸지 말 것**. 10 담당(공동 작업자)과 맞춘 값입니다.
 4. 확인 안 된 수치를 사실처럼 쓰지 말 것. 이 문서의 시간은 대부분 **추정**이라고 표시했습니다.
 5. 학습이 끊겨도 **같은 명령을 다시 실행**하면 `runs/main/state.json`·`ckpt.pt` 로 이어집니다. 폴더를 지우고 처음부터 하지 말 것.
 6. 실패하면 **로그 마지막 30줄**(`runs/main/*.log`, `runs_main.out`)을 먼저 읽고 §8 표를 보고 대응.
@@ -222,19 +222,21 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 변경 포인트
 - runs/main 요약을 docs/results_2026-11-16.md 에 추가 (IoU 그룹별 표)
 - loop.py: --sdf-steps 기본 20000 → 30000 (IoU 0.90 미달 대응)
-영향: 08 폴더만. 07 입력 스펙(formproof.spec/0.2-08) 변경 없음
+영향: 08 폴더만. 10 입력 스펙(formproof.spec/0.2-08) 변경 없음
 ```
 - 체크포인트(`*.pt`)·데이터(`data/`)·zip 은 **커밋하지 말 것** (용량).
 - push: `git push origin sosopapa`
 
 ---
 
-## 10. 07(입력 스펙)과의 연결
+## 10. 10(입력 스펙)과의 연결
 
-- 07 은 사용자 입력을 스펙 JSON 으로 만듦. 08 은 `problems.py` 의 `Problem.spec()` 이 같은 형식(`schema: formproof.spec/0.2-08`)으로 문제를 내보냄.
-- 시연 조건 `DEMO` (`loop.py`) 는 07 고정 시나리오와 맞춘 값 (거치대 휴대폰 200 g, TV 20.8 kg 등).
-- 07 쪽 스펙이 바뀌면 08 을 고치기 전에 사용자에게 먼저 확인.
-- 07 문서: https://github.com/mons2us/AI-hackathon/blob/feature/input-spec/07_%EC%9E%85%EB%A0%A5_1%EC%B0%A8%EC%84%A4%EA%B3%84/README.md
+- 10 은 사용자 입력을 스펙 JSON 으로 만듦. 08 은 `problems.py` 의 `Problem.spec()` 이 같은 형식(`schema: formproof.spec/0.2-08`)으로 문제를 내보냄.
+- 시연 조건 `DEMO` (`loop.py`) 는 10 고정 시나리오와 맞춘 값 (거치대 휴대폰 200 g, TV 20.8 kg 등).
+- 10 쪽 스펙이 바뀌면 08 을 고치기 전에 사용자에게 먼저 확인.
+- 입력 단계 폴더는 `10_입력_1차설계` (예전 이름 `07_입력_1차설계`). 템플릿 22종 중 08 이 처리 가능한 것은 **T01·T02·T03·T07·T08·T17** (받침 50·80·120 mm, 높이 16 mm). 이 6종은 요소 라벨이 08 과 완전히 일치함(11-14 확인).
+- 08 이 아직 다루지 않는 입력 요구: `free_angle`(`keepout` 마스크·관절 제약), `sun_heat`, `min_feature` 5 mm. 시연에서 쓸지는 미정(README §11 요청 18~23).
+- 10 문서: https://github.com/mons2us/AI-hackathon/blob/feature/input-spec/10_%EC%9E%85%EB%A0%A5_1%EC%B0%A8%EC%84%A4%EA%B3%84/README.md
 
 ---
 
