@@ -212,6 +212,25 @@ ol.ref{font-size:13px;padding-left:20px}
 </section>
 
 <section>
+  <h2><span class="n">E</span>ESO — "일 안 하는 재료를 조금씩 버린다"</h2>
+  <p><b>ESO = Evolutionary Structural Optimization</b> (Xie &amp; Steven, 1993). 학습 재료 중 절반을 이 방법으로 2번 다듬어서 최적 설계에 가까운 형상을 추가함 (<code>fp08/eso.py</code>, 사용자 제안).</p>
+  <ol style="font-size:14px">
+    <li>지금 형상으로 FEM → 칸마다 얼마나 힘을 받는지(우리는 <b>변형 에너지</b>, 기본 하중별로 나눠 합침)</li>
+    <li><b>가장 적게 일하는 칸 15%를 지움</b> → 정리(한쪽 덩어리 삭제·다듬기·대칭). 고정부가 끊기면 비율 절반으로 재시도</li>
+    <li>다시 FEM → 반복 (우리는 2번). 계속하면 하중이 흐르는 길만 남은 가는 트러스 모양에 가까워짐</li>
+  </ol>
+  <table>
+    <tr><th></th><th>ESO</th><th>SIMP (팀 opt3d.py, 경로 A)</th></tr>
+    <tr><td>칸</td><td>있다/없다 (0·1)</td><td>0~1 밀도</td></tr>
+    <tr><td>바꾸는 법</td><td>순위 낮은 칸 삭제 (규칙)</td><td>기울기로 모든 칸 밀도 조정 (수학적 최적화)</td></tr>
+    <tr><td>장단점</td><td>단순 · 지운 칸은 못 되살림, 최적 보장 없음</td><td>엄밀하고 결과가 좋음 · 계산 복잡</td></tr>
+  </table>
+  <div class="callout">왜 응력이 아니라 변형 에너지? 거치대는 기준이 진동수라, 응력만 보면 진동에 중요한 칸을 지울 수 있음.<br>
+  시험(거치대 80, 20개): 질량 중앙값 <b>−20%</b>, 최저 진동수 <b>−4%</b> <span class="tag m">실측</span> → 같은 진동수를 더 가볍게. 원본은 그대로 두고 다듬은 형상을 새 형상으로 추가(다양성 유지).</div>
+  <p class="note">참고: Y. M. Xie, G. P. Steven, "A simple evolutionary procedure for structural optimization," Computers &amp; Structures 49(5), 1993.</p>
+</section>
+
+<section>
   <h2><span class="n">5</span>우리 파이프라인에서 쓰는 방법</h2>
   <svg viewBox="0 0 900 200" role="img" aria-label="z에서 PINO와 판정까지 연결">
     <g font-size="12.5" text-anchor="middle">
@@ -295,6 +314,7 @@ ol.ref{font-size:13px;padding-left:20px}
     <li>V. Sitzmann et al., “Implicit Neural Representations with Periodic Activation Functions (SIREN),” NeurIPS 2020. <a href="https://arxiv.org/abs/2006.09661">arXiv:2006.09661</a></li>
     <li>M. Tancik et al., “Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains,” NeurIPS 2020. <a href="https://arxiv.org/abs/2006.10739">arXiv:2006.10739</a></li>
     <li>W. E. Lorensen, H. E. Cline, “Marching Cubes: A High Resolution 3D Surface Construction Algorithm,” SIGGRAPH 1987</li>
+    <li>Y. M. Xie, G. P. Steven, “A simple evolutionary procedure for structural optimization,” Computers &amp; Structures 49(5), 1993 (ESO)</li>
     <li>M. P. Bendsøe, O. Sigmund, <i>Topology Optimization: Theory, Methods and Applications</i>, Springer 2003</li>
     <li>우리 코드: <code>08_물리AI_최적형상/fp08/models.py</code>(DeepSDF), <code>train_sdf.py</code>, <code>design_opt.py</code> — sosopapa 브랜치</li>
   </ol>
