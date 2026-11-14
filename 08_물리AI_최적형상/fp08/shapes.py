@@ -10,7 +10,19 @@ import numpy as np
 from scipy import ndimage
 
 MIX = {'bike': [('B', .35), ('Ctri', .25), ('A', .15), ('D', .15), ('Cquad', .10)],
-       'tv': [('A', .25), ('B', .25), ('Ctri', .125), ('Cquad', .125), ('D', .25)]}
+       'tv': [('A', .25), ('B', .30), ('Ctri', .175), ('Cquad', .175), ('D', .10)]}   # 11-14: D 25→10% (사용자 결정)
+MIX_UNIFORM = [('A', .2), ('B', .2), ('Ctri', .2), ('Cquad', .2), ('D', .2)]
+
+
+def auto_sym_axes(p):
+    """문제(라벨: 설계·고정·빈 곳·강체)를 각 축으로 뒤집어 똑같으면 그 축은 대칭 → 형상도 대칭으로 만듦.
+    절반 모델의 대칭면 축은 이미 거울 복원되므로 제외. 반환: eshape (z, y, x) 축 번호 목록.
+    (spec 의 conditions 에 'free_asymmetry': True 가 있으면 끔 — 사용자가 비대칭을 원할 때)"""
+    if p.conditions.get('free_asymmetry'):
+        return []
+    L = p.grid.eshape(p.label)
+    skip = None if p.sym_axis is None else 2 - p.sym_axis
+    return [a for a in range(3) if a != skip and np.array_equal(L, np.flip(L, a))]
 
 
 def seed_of(group, idx):
@@ -64,6 +76,8 @@ class Canvas:
         self.lo, self.hi = lo, hi
         self.h = g.h
         self.product = 'bike' if p.product == 'bike_mount' else 'tv'
+        self.sym_axes = auto_sym_axes(p)          # 11-14: 라벨이 뒤집어도 같은 축 = 형상도 대칭으로 생성
+        self.mix = MIX_UNIFORM                    # 11-14: 후보는 모든 형식을 같은 비율로, 선택 단계에서 자동 조정
 
     def rand_anchor(self, rng, c):
         return self.P[rng.choice(self.anchor[c])]
@@ -290,7 +304,7 @@ def make_shape(p, group, idx, cv=None, max_try=12):
     """반환: occ_design (ne,) bool, meta dict"""
     cv = cv or Canvas(p)
     rng = np.random.default_rng(seed_of(group, idx))
-    fams, w = zip(*MIX[cv.product])
+    fams, w = zip(*cv.mix)
     for attempt in range(max_try):
         fam = fams[rng.choice(len(fams), p=np.array(w) / sum(w))]
         _TS[0] = float(rng.uniform(1.0, 2.2))
@@ -305,6 +319,8 @@ def make_shape(p, group, idx, cv=None, max_try=12):
         reinf = rng.random() < 0.5
         if reinf:
             m = gen_E(cv, rng, m)
+        for a in cv.sym_axes:
+            m = m | np.flip(cv.g.eshape(m), a).ravel()
         m &= cv.design
         want_broken = rng.random() < 0.05
         if want_broken:
@@ -314,6 +330,8 @@ def make_shape(p, group, idx, cv=None, max_try=12):
         occ = fill_cavities(cv, occ | cv.fixed) & cv.design
         if CLEAN[0] and not want_broken:
             occ = clean_shape(cv, occ)
+        for a in cv.sym_axes:       # 연결 보정·정리 뒤에도 대칭 유지 (보정 막대가 한쪽에만 생기는 것 방지)
+            occ = (occ | np.flip(cv.g.eshape(occ), a).ravel()) & cv.design
         vf = occ.sum() / cv.design.sum()
         if 0.05 <= vf <= 0.50 and (ok or want_broken):
             return occ, dict(group=group, idx=int(idx), family=fam, reinforced=bool(reinf), vf=float(vf), tscale=_TS[0],
@@ -360,3 +378,22 @@ def _coords_for(g, q):
     if test.shape == (g.nz, g.ny, g.nx):
         return np.stack([q[:, 2], q[:, 1], q[:, 0]])
     return np.stack([q[:, 0], q[:, 1], q[:, 2]])
+
+
+# ---------------------------------------------------------------- 품질 지표 (걸러내기용, FEM 불필요)
+def quality(cv, occ):
+    """tips: 고정부에서 먼 골격 끝점 수(허공에 뜬 가지), rough: 표면 칸면 수 / 부피^(2/3) (울퉁불퉁·얇은 판 정도),
+    ncomp: 설계 재료 덩어리 수, vf: 재료 비율"""
+    from skimage.morphology import skeletonize
+    g = cv.g
+    A = g.eshape((occ & cv.design) | cv.fixed)
+    sk = skeletonize(A).astype(bool)
+    k = np.ones((3, 3, 3), np.int16); k[1, 1, 1] = 0
+    nb = ndimage.convolve(sk.astype(np.int16), k, mode='constant')
+    far = ~ndimage.binary_dilation(g.eshape(cv.fixed), iterations=3)
+    tips = int((sk & (nb == 1) & far).sum())
+    D = g.eshape(occ & cv.design)
+    faces = sum(int(np.abs(np.diff(D.astype(np.int8), axis=a)).sum()) for a in range(3))
+    vol = max(int(D.sum()), 1)
+    ncomp = ndimage.label(D)[1]
+    return dict(tips=tips, rough=float(faces / vol ** (2 / 3)), ncomp=int(ncomp), vf=float(D.sum() / cv.design.sum()))

@@ -37,6 +37,96 @@ def cond_of(p, group, idx):
     return c
 
 
+def cand_shard(args):
+    """후보 형상 묶음: 형상 + 품질 지표만 (SDF 없음)"""
+    group, s, out = args
+    path = os.path.join(out, group, 'cand', f'cand_{s:05d}.npz')
+    if os.path.exists(path):
+        return path, 0.0
+    t0 = time.time()
+    p, cv = _prob(group)
+    idx = np.arange(s * SHARD, (s + 1) * SHARD)
+    occ, meta = [], []
+    for i in idx:
+        o, m = shapes.make_shape(p, group, int(i), cv)
+        m.update(shapes.quality(cv, o))
+        occ.append(np.packbits(o)); meta.append(m)
+    tmp = path + '.tmp.npz'
+    np.savez_compressed(tmp, idx=idx, occ=np.stack(occ), meta=json.dumps(meta))
+    os.replace(tmp, path)
+    return path, time.time() - t0
+
+
+def select(group, out, n_keep, broken_frac=0.05, max_tips=2, rough_pct=90, log=print):
+    """후보에서 n_keep 개 고르기 (설계 결정 3번 + 11-14 걸러내기). 결정적: 같은 후보면 항상 같은 선택.
+    1) 생성 실패 제외  2) 끊긴 형상은 5%까지만  3) 허공 가지(골격 끝점) > max_tips 제외
+    4) 울퉁불퉁 지표가 그룹 상위 (100-rough_pct)% 인 것 제외  5) 형식 비율(MIX) 맞춰 재료 비율이 고르게 퍼지도록 뽑기"""
+    d = os.path.join(out, group, 'cand')
+    fs = sorted(f for f in os.listdir(d) if f.endswith('.npz') and '.tmp' not in f)
+    meta = []
+    for f in fs:
+        meta += json.loads(str(np.load(os.path.join(d, f))['meta']))
+    M = {m['idx']: m for m in meta}
+    reason = {}
+    ok = [m for m in meta if not m.get('failed')]
+    for m in meta:
+        if m.get('failed'):
+            reason[m['idx']] = 'failed'
+    conn = [m for m in ok if m['connected']]
+    broken = [m for m in ok if not m['connected']]
+    r_cut = float(np.percentile([m['rough'] for m in conn], rough_pct))
+    good = []
+    for m in conn:
+        if m['tips'] > max_tips:
+            reason[m['idx']] = 'tips'
+        elif m['rough'] > r_cut:
+            reason[m['idx']] = 'rough'
+        else:
+            good.append(m)
+    n_broken = min(len(broken), int(round(broken_frac * n_keep)))
+    keep = [m['idx'] for m in sorted(broken, key=lambda m: m['idx'])[:n_broken]]
+    for m in broken[n_broken:]:
+        reason[m['idx']] = 'broken_over_quota'
+    # 11-14: 형식 비율 자동 결정 = 형식별 "걸러지지 않고 남은 비율"에 비례 (최소 5%)
+    fams = sorted({m['family'] for m in ok})
+    tot = {f: sum(1 for m in conn if m['family'] == f) for f in fams}
+    good_n = {f: sum(1 for m in good if m['family'] == f) for f in fams}
+    rate = {f: good_n[f] / max(tot[f], 1) for f in fams}
+    w = {f: max(rate[f], 1e-6) for f in fams}
+    ws = sum(w.values()); w = {f: max(v / ws, 0.05) for f, v in w.items()}; ws = sum(w.values())
+    mix = {f: v / ws for f, v in w.items()}
+    need = n_keep - len(keep)
+    byfam = {f: sorted([m for m in good if m['family'] == f], key=lambda m: (m['vf'], m['idx'])) for f in mix}
+    quota = {f: int(round(need * w_)) for f, w_ in mix.items()}
+    short = 0
+    for f in mix:                                     # 모자라는 형식은 있는 만큼, 남는 몫은 다른 형식으로
+        if quota[f] > len(byfam[f]):
+            short += quota[f] - len(byfam[f]); quota[f] = len(byfam[f])
+    for f in sorted(mix, key=lambda f: -len(byfam[f]) + quota[f]):
+        add = min(short, len(byfam[f]) - quota[f]); quota[f] += add; short -= add
+    diff = need - sum(quota.values())
+    quota[max(mix, key=lambda f: len(byfam[f]) - quota[f])] += diff
+    for f, q in quota.items():
+        L = byfam[f]
+        pick = np.unique(np.linspace(0, len(L) - 1, q).round().astype(int)) if q > 0 else []
+        keep += [L[i]['idx'] for i in pick]
+        for j, m in enumerate(L):
+            if j not in set(pick):
+                reason.setdefault(m['idx'], 'not_sampled')
+    keep = sorted(keep)[:n_keep]
+    rep = dict(group=group, n_cand=len(meta), n_keep=len(keep), rough_cut=r_cut, max_tips=max_tips,
+               dropped={r: sum(1 for v in reason.values() if v == r) for r in set(reason.values())},
+               family_keep={f: sum(1 for i in keep if M[i]['family'] == f) for f in mix},
+               broken_keep=n_broken, keep_rate={f: round(v, 3) for f, v in rate.items()},
+               mix_auto={f: round(v, 3) for f, v in mix.items()}, sym_axes=_prob(group)[1].sym_axes, keep=keep)
+    with open(os.path.join(out, group, 'selection.json'), 'w') as f:
+        json.dump(rep, f)
+    with open(os.path.join(out, group, 'drop_reason.json'), 'w') as f:
+        json.dump({str(k): v for k, v in reason.items()}, f)
+    log(f'  [{group}] 후보 {len(meta)} → {len(keep)}개 선택, 제외 {rep["dropped"]}')
+    return rep
+
+
 def shapes_shard(args):
     group, s, out, n_pts = args
     path = os.path.join(out, group, f'shapes_{s:05d}.npz')
@@ -44,10 +134,14 @@ def shapes_shard(args):
         return path, 0.0
     t0 = time.time()
     p, cv = _prob(group)
-    idx = np.arange(s * SHARD, (s + 1) * SHARD)
+    sel = os.path.join(out, group, 'selection.json')
+    if os.path.exists(sel):
+        idx = np.array(json.load(open(sel))['keep'][s * SHARD:(s + 1) * SHARD])
+    else:
+        idx = np.arange(s * SHARD, (s + 1) * SHARD)
     occ, meta, X, S = [], [], [], []
     for i in idx:
-        o, m = shapes.make_shape(p, group, int(i), cv)
+        o, m = shapes.make_shape(p, group, int(i), cv)       # 시드 고정 → 후보 때와 같은 형상
         rng = np.random.default_rng(shapes.seed_of(group, int(i)) ^ 0xd5df)
         x, d = shapes.sample_sdf(p, o | cv.fixed, rng, n=n_pts)
         occ.append(np.packbits(o)); meta.append(m); X.append(x.astype(np.float16)); S.append(d.astype(np.float16))
@@ -143,12 +237,18 @@ def run_pool(fn, tasks, workers, log=print):
         pool.close(); pool.join()
 
 
-def make_shapes(group, n, out, workers, n_pts=4000, log=print):
+def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, log=print):
+    """n_cand 를 주면: 후보 n_cand 개 생성 → 걸러서 n 개 선택 → 선택된 것만 SDF 점 샘플"""
     os.makedirs(os.path.join(out, group), exist_ok=True)
     p, _ = _prob(group)
     p.save_npz(os.path.join(out, group, 'problem.npz'))
     with open(os.path.join(out, group, 'spec.json'), 'w') as f:
         json.dump(p.spec(), f, ensure_ascii=False, indent=1)
+    if n_cand:
+        os.makedirs(os.path.join(out, group, 'cand'), exist_ok=True)
+        run_pool(cand_shard, [(group, s, out) for s in range((n_cand + SHARD - 1) // SHARD)], workers, log)
+        if not os.path.exists(os.path.join(out, group, 'selection.json')):
+            select(group, out, n, log=log)
     tasks = [(group, s, out, n_pts) for s in range((n + SHARD - 1) // SHARD)]
     run_pool(shapes_shard, tasks, workers, log)
 
@@ -184,12 +284,13 @@ if __name__ == '__main__':
     ap.add_argument('--n', type=int, default=100)
     ap.add_argument('--n-shapes', type=int, default=5000)
     ap.add_argument('--n-fem', type=int, default=1000)
+    ap.add_argument('--n-cand', type=int, default=None, help='후보 형상 수 (주면 걸러서 n-shapes 개 선택)')
     ap.add_argument('--workers', type=int, default=os.cpu_count())
     ap.add_argument('--out', default='data')
     a = ap.parse_args()
     groups = [a.group] if a.group else list(problems.GROUPS)
     for gname in groups:
         if a.what in ('shapes', 'all'):
-            make_shapes(gname, a.n if a.what == 'shapes' else a.n_shapes, a.out, a.workers)
+            make_shapes(gname, a.n if a.what == 'shapes' else a.n_shapes, a.out, a.workers, n_cand=a.n_cand)
         if a.what in ('fem', 'all'):
             make_fem(gname, a.n if a.what == 'fem' else a.n_fem, a.out, a.workers)

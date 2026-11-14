@@ -15,7 +15,8 @@ python -m fp08.problems                                  # 6개 그룹 격자·�
 
 | 작업 | 실측 (CPU 1코어당) | 월요일 규모 | 추정 |
 |---|---|---|---|
-| 무작위 형상 + SDF 점 4,000개 | 100개 묶음 2~4 s | 그룹당 5,000 × 6 = 3만 | 약 15분·코어 → 32코어 1분 미만 |
+| 후보 형상 + 품질 지표 | 100개 묶음 1.2~1.6 s | 그룹당 12,000 × 6 = 7.2만 | 약 20분·코어 → 32코어 1분 |
+| 선택된 형상 + SDF 점 4,000개 | 100개 묶음 2~4 s | 그룹당 5,000 × 6 = 3만 | 약 15분·코어 → 32코어 1분 미만 |
 | FEM 정답 (정적 + 진동) | 형상 1개 1.1~1.7 s | 그룹당 1,000 × 6 = 6,000 | 약 2.5시간·코어 → 32코어 약 5분 |
 | DeepSDF | 0.2 s/스텝 (CPU 1스레드, 32형상×1024점) | 그룹당 2만 스텝 | GPU 실측 필요 |
 | PINO | 약 1.8 s/스텝 (CPU 1스레드, 폭 16, 배치 4+2) | 제품당 3만 스텝 | GPU 실측 필요 |
@@ -27,7 +28,8 @@ python -m fp08.problems                                  # 6개 그룹 격자·�
 
 ```bash
 python -m fp08.loop --run runs/main --data data --stages shapes,fem --workers $(nproc) \
-       --n-shapes 5000 --n-fem 1000
+       --n-shapes 5000 --n-cand 12000 --n-fem 1000
+# 후보 12,000개를 만들어 허공 가지·울퉁불퉁한 것을 거르고 5,000개 선택 (data/<그룹>/selection.json, drop_reason.json)
 # 진행: runs/main/report.html, runs/main/loop.log, data/<그룹>/spec.json
 rsync -a data/ <GPU서버>:<경로>/08_물리AI_최적형상/data/      # 서버 간 SSH 전송 (사내망)
 ```

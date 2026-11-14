@@ -16,6 +16,7 @@ plt.rcParams['font.family'] = 'Noto Sans CJK JP'
 OUT = os.path.join(ROOT, 'docs', 'groups'); os.makedirs(OUT, exist_ok=True)
 DATA = sys.argv[1] if len(sys.argv) > 1 else 'data'
 FAM = {'A': 'A 직접 부재', 'B': 'B 트러스', 'Ctri': 'C 삼각 판', 'Cquad': 'C 사각 판', 'D': 'D 열린 껍데기'}
+SMOOTH = [True]   # 그림 표면 다듬기 (데이터·FEM 은 칸 그대로)
 VIEW = {'bike': (22, -58), 'tvfeet': (18, -35), 'tvped': (28, -55)}
 
 
@@ -29,9 +30,15 @@ def mesh(ax3, p, mask, color, alpha=1.0):
     A = mirror(p, g.eshape(mask)).astype(float)
     if A.sum() == 0:
         return
-    A = np.pad(A, 1)
-    v, f, _, _ = measure.marching_cubes(A, 0.5)
-    v = (v - 1) * g.h                          # (z, y, x) mm, 원점 = 거울 복원 격자 시작
+    A = np.pad(A, 2)
+    if SMOOTH[0]:   # 표시만 다듬기: 칸 경계를 흐린 뒤(σ 0.7칸) 2배 촘촘히 보간해서 등위면 → 깍둑 모양 완화
+        from scipy import ndimage
+        A = ndimage.zoom(ndimage.gaussian_filter(A, 0.7), 2, order=1)
+        v, f, _, _ = measure.marching_cubes(A, 0.5)
+        v = v / 2.0
+    else:
+        v, f, _, _ = measure.marching_cubes(A, 0.5)
+    v = (v - 2) * g.h                          # (z, y, x) mm, 원점 = 거울 복원 격자 시작
     o = g.origin.copy(); n = [g.nx, g.ny, g.nz]
     o[p.sym_axis] -= n[p.sym_axis] * g.h
     X, Y, Z = v[:, 2] + o[0], v[:, 1] + o[1], v[:, 0] + o[2]
