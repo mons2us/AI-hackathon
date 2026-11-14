@@ -285,10 +285,10 @@ details{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-
   <table>
     <tr><th>설정</th><th>값 (손계산용으로 줄임)</th><th>실제 GNO</th></tr>
     <tr><td>점 (mm)</td><td>A(0,0) B(3,0) C(0,3) D(2,2) E(7,1)</td><td>메시 절점 수만 개</td></tr>
-    <tr><td>입력 a(x)</td><td>재료(1/0), 하중(1/0) — C는 빈 곳, B에 하중</td><td>재료·고정·하중 등 여러 채널</td></tr>
+        <tr><td>a(x) — 입력 함수</td><td>점마다 문제에서 <b>주어지는 값</b> 묶음 = (재료, 하중). 예: a(A)=(1,0), a(B)=(1,1), a(C)=(0,0). κ에는 이 중 <b>이웃의 재료 값</b>만 넣음</td><td>우리 PINO 입력 9채널(밀도·요소 라벨·고정·하중·질량 등). 층이 지나도 <b>변하지 않음</b>, 학습 대상 아님</td></tr>
     <tr><td>들어 올리기 P</td><td>v₀ = <span class="lw">1</span>×재료 + <span class="lw">2</span>×하중 (숫자 1개)</td><td>채널 수십 개(예: 24)짜리 벡터</td></tr>
     <tr><td>반지름 r</td><td>4 mm</td><td>설계 선택 — <b>학습 안 함</b>(사람이 정하는 값)</td></tr>
-    <tr><td>κ</td><td><span class="lw">0.5</span> + <span class="lw">0.10</span>·Δx − <span class="lw">0.05</span>·Δy + <span class="lw">0.3</span>·a(이웃) (직선식)</td><td>MLP, 출력은 행렬</td></tr>
+    <tr><td>κ</td><td><span class="lw">0.5</span> + <span class="lw">0.10</span>·Δx − <span class="lw">0.05</span>·Δy + <span class="lw">0.3</span>·재료(이웃) (직선식)</td><td>MLP, 출력은 행렬</td></tr>
     <tr><td>W, 활성화, 내리기 Q</td><td>W = <span class="lw">0.8</span>, ReLU, u = <span class="lw">0.5</span> × v₁</td><td>행렬, GELU 등, MLP</td></tr>
     <tr><td>층 수</td><td>1층</td><td>여러 층 반복</td></tr>
   </table>
@@ -333,7 +333,7 @@ function run(sel){
  let h=`<div class="gx-s">① 입력 → 들어 올리기: v₀(${sel}) = <span class="lw">1</span>×재료 + <span class="lw">2</span>×하중 = <span class="lw">1</span>×${mat[sel]} + <span class="lw">2</span>×${load[sel]} = <b>${f(v0[sel])}</b></div>`;
  h+=`<div class="gx-s">② 이웃 찾기 (거리 ≤ 4 mm): ${rows.length?rows.map(r=>r[0]).join(', '):'<b>없음</b> — 원 안에 아무도 없어 이번 층에선 정보를 못 받음'}</div>`;
  if(rows.length){
-  h+=`<div class="gx-s">③ 이웃마다 κ 가중치 = <span class="lw">0.5</span> + <span class="lw">0.10</span>·Δx − <span class="lw">0.05</span>·Δy + <span class="lw">0.3</span>·a(이웃), 그리고 κ × v₀(이웃)</div><table class="gx-t"><tr><th>이웃</th><th>Δ=(Δx,Δy)</th><th>거리</th><th>a(이웃)</th><th>κ</th><th>v₀(이웃)</th><th>κ×v₀</th></tr>`;
+  h+=`<div class="gx-s">③ 이웃마다 κ 가중치 = <span class="lw">0.5</span> + <span class="lw">0.10</span>·Δx − <span class="lw">0.05</span>·Δy + <span class="lw">0.3</span>·재료(이웃), 그리고 κ × v₀(이웃)</div><table class="gx-t"><tr><th>이웃</th><th>Δ=(Δx,Δy)</th><th>거리</th><th>재료(이웃)</th><th>κ</th><th>v₀(이웃)</th><th>κ×v₀</th></tr>`;
   for(const r of rows)h+=`<tr><td>${r[0]}</td><td>(${r[1]}, ${r[2]})</td><td>${f(r[3])}</td><td>${r[4]}</td><td>${f(r[5],3)}</td><td>${f(r[6])}</td><td>${f(r[7],3)}</td></tr>`;
   h+=`</table><div class="gx-s">④ 평균 = (${rows.map(r=>f(r[7],3)).join(' + ')}) ÷ ${rows.length} = <b>${f(agg,3)}</b></div>`;}
  h+=`<div class="gx-s">⑤ 자기 값 + 이웃 평균 → 활성화: v₁ = ReLU(<span class="lw">0.8</span> × ${f(v0[sel])} + ${f(agg,3)}) = ReLU(${f(pre,3)}) = <b>${f(v1,3)}</b></div>`;
