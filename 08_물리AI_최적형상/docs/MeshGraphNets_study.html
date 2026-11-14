@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeshGraphNets 정리 — FormProof 08</title>
+<style>
+:root{--ink:#1d2330;--sub:#5b6475;--line:#e3e6ec;--a:#2f6fed;--b:#12a37f;--c:#e8833a;--d:#8b5cf6;--r:#d9455f}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f7f8fa;color:var(--ink);line-height:1.65}
+.wrap{max-width:940px;margin:0 auto;padding:22px 16px 60px}
+header{padding:24px 20px;border-radius:16px;background:linear-gradient(135deg,#4c2a8a,#8b5cf6 55%,#12a37f);color:#fff}
+header h1{margin:4px 0 8px;font-size:24px}header p{margin:0;opacity:.95}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
+h2{font-size:18px;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+h2 .n{display:inline-grid;place-items:center;min-width:26px;height:26px;border-radius:8px;background:var(--d);color:#fff;font-size:13px}
+h3{font-size:15px;margin:14px 0 6px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}th{background:#f3f5f9}
+.formula{font-size:18px;text-align:center;margin:10px 0;font-family:Georgia,serif}
+.callout{border-left:4px solid var(--c);background:#fff8f1;padding:10px 14px;font-size:14px;margin-top:10px}
+.callout.red{border-left-color:var(--r);background:#fdf1f3}.callout.green{border-left-color:var(--b);background:#effaf6}.callout.blue{border-left-color:var(--a);background:#f0f5ff}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.box{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfcfe}.box h3{margin:0 0 6px;font-size:15px}.box p{margin:0;font-size:14px;color:var(--sub)}
+svg{width:100%;height:auto;display:block}
+.note{font-size:12.5px;color:var(--sub)} code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:13px}
+ol.ref{font-size:13px;padding-left:20px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eef3ff;color:#1f3b8a;margin-left:6px}
+.tag.m{background:#e7f7f1;color:#0d7a5f}.tag.e{background:#fff1e6;color:#b35a17}
+.lw{color:#d9455f;font-weight:bold}
+.toc a{color:var(--a);text-decoration:none;margin-right:10px;font-size:14px}
+.mx-btn{padding:4px 12px;border:1px solid #b4b2a9;background:#fff;border-radius:8px;cursor:pointer;font-size:14px}
+.mx-btn.on{background:#eef3ff;color:#1f3b8a;border-color:#2f6fed}
+.mx-s{font-size:14px;margin:10px 0 4px}
+.mx-t{width:100%;border-collapse:collapse;font-size:13px}.mx-t th,.mx-t td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:right}.mx-t th:first-child,.mx-t td:first-child{text-align:left}
+</style>
+</head>
+<body><div class="wrap">
+
+<header>
+  <div style="font-size:12px;opacity:.85">FormProof · 08_물리AI · 공부 노트</div>
+  <h1>MeshGraphNets — FEM 메시를 그대로 그래프로 쓰는 신경망</h1>
+  <p>입력(노드·엣지) · 인코딩 → 처리(메시지 전달 15번) → 디코딩 · 계산 예시 · GNO와 차이 · 우리 문제에 쓴다면</p>
+  <div style="font-size:12px;margin-top:10px;opacity:.9">2026-11-14 작성 · 표시: <span class="tag">논문</span> 원 논문 값 <span class="tag m">실측</span> 우리 값 <span class="tag e">추정·가정</span> 아직 확인 안 됨 · <span style="color:#ffd0d8;font-weight:bold">빨간 글씨</span> = 학습으로 정해지는 값 · 짝 노트: <a href="NeuralOperator_study.html" style="color:#fff">NeuralOperator_study.html</a></div>
+</header>
+
+<section class="toc">
+  <a href="#m1">1 한 줄 요약</a><a href="#m2">2 입력</a><a href="#m3">3 구조</a><a href="#m4">4 처리 블록</a><a href="#m5">5 계산 예시</a><a href="#m6">6 출력·시간 진행</a><a href="#m7">7 학습·결과</a><a href="#m8">8 GNO와 비교</a><a href="#m9">9 우리 문제에 쓴다면</a><a href="#ref">출처</a>
+</section>
+
+<section id="m1">
+  <h2><span class="n">1</span>한 줄 요약</h2>
+  <p><b>FEM 메시의 절점 = 노드, 요소 변 = 엣지</b>로 보고, 이웃끼리 정보를 주고받는 일(메시지 전달)을 <b>15번</b> 반복해 각 절점의 다음 상태(속도·가속도 등)를 예측하는 GNN. DeepMind, ICLR 2021 [1].</p>
+  <table>
+    <tr><th>입력 형식 ＼ 보는 범위</th><th>이웃만 (국소)</th><th>전체 (전역)</th></tr>
+    <tr><td>정형 격자</td><td>CNN</td><td>FNO</td></tr>
+    <tr><td>아무 점 (메시·점구름)</td><td>GNO · <b>MeshGraphNets</b></td><td>GINO · Transolver</td></tr>
+  </table>
+  <p class="note">GNO와 같은 칸(메시 + 국소). 차이는 8절. NVIDIA PhysicsNeMo 예제 목록에도 "MeshGraphNet for transient vortex shedding", "MeshGraphNet with Lagrangian mesh" 등이 있음 [3].</p>
+</section>
+
+<section id="m2">
+  <h2><span class="n">2</span>입력 — 노드 특징과 엣지 특징 <span class="tag">논문</span></h2>
+  <svg viewBox="0 0 680 230">
+    <g stroke="#8b5cf6" stroke-width="2"><path d="M90 170L210 170L150 70Z M210 170L270 70L150 70"/></g>
+    <g fill="#888780"><circle cx="90" cy="170" r="8"/><circle cx="210" cy="170" r="8"/><circle cx="150" cy="70" r="8"/><circle cx="270" cy="70" r="8"/></g>
+    <g font-size="12" fill="#1d2330"><text x="60" y="195">노드 = 절점</text><text x="215" y="120">메시 엣지 = 요소의 변</text></g>
+    <g transform="translate(330,0)">
+      <path d="M40 60 Q120 30 200 70 Q250 100 300 80" stroke="#888780" stroke-width="2" fill="none"/>
+      <path d="M40 150 Q120 120 200 160 Q250 185 300 165" stroke="#888780" stroke-width="2" fill="none"/>
+      <g fill="#888780"><circle cx="120" cy="45" r="6"/><circle cx="200" cy="70" r="6"/><circle cx="120" cy="133" r="6"/><circle cx="210" cy="164" r="6"/></g>
+      <line x1="200" y1="70" x2="210" y2="164" stroke="#e8833a" stroke-width="2" stroke-dasharray="5 4"/>
+      <circle cx="200" cy="70" r="40" fill="none" stroke="#e8833a" stroke-dasharray="3 3" opacity=".6"/>
+      <text x="40" y="215" font-size="12" fill="#1d2330">월드 엣지 = 메시로는 안 이어졌지만 공간상 가까운 점(r<tspan font-size="9">W</tspan> 안) — 충돌·접촉용</text>
+    </g>
+  </svg>
+  <table>
+    <tr><th>무엇</th><th>담는 정보</th><th>비고</th></tr>
+    <tr><td><b>노드</b> v<sub>i</sub></td><td>노드 종류(one-hot: 일반·고정·유입 경계 등) + 동적 값(위치·속도·운동량 등)</td><td>판 변형 문제(DeformingPlate)는 <b>노드 종류만</b> 입력</td></tr>
+    <tr><td><b>메시 엣지</b> e<sup>M</sup><sub>ij</sub></td><td>메시 공간 상대 위치 u<sub>ij</sub> = u<sub>i</sub> − u<sub>j</sub> 와 길이 |u<sub>ij</sub>| (+ 변형체는 월드 공간 x<sub>ij</sub>, |x<sub>ij</sub>|)</td><td>절대 위치가 아니라 <b>상대 위치</b> → 평행이동 불변 (GNO의 Δx와 같은 발상)</td></tr>
+    <tr><td><b>월드 엣지</b> e<sup>W</sup><sub>ij</sub></td><td>x<sub>ij</sub>, |x<sub>ij</sub>|. 메시 엣지가 없는 쌍 중 |x<sub>i</sub> − x<sub>j</sub>| &lt; r<sub>W</sub> 이면 추가</td><td>r<sub>W</sub> = 0.03 (판), 0.05 (천). 빼면 오차 51~92% 증가 [1]</td></tr>
+  </table>
+  <p class="note">모든 입력·정답은 데이터셋 통계로 평균 0, 분산 1 정규화 [1].</p>
+</section>
+
+<section id="m3">
+  <h2><span class="n">3</span>구조 — 인코딩 → 처리 × 15 → 디코딩 <span class="tag">논문</span></h2>
+  <svg viewBox="0 0 900 170">
+    <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b6475"/></marker></defs>
+    <rect x="10" y="55" width="120" height="60" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="70" y="82" text-anchor="middle" font-size="13">메시 + 입력</text><text x="70" y="100" text-anchor="middle" font-size="11" fill="#5b6475">노드·엣지 특징</text>
+    <line x1="130" y1="85" x2="160" y2="85" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="165" y="45" width="150" height="80" rx="10" fill="#eef3ff" stroke="#2f6fed"/><text x="240" y="72" text-anchor="middle" font-size="14" font-weight="bold">인코더 <tspan fill="#d9455f">ε</tspan></text><text x="240" y="92" text-anchor="middle" font-size="11" fill="#5b6475">노드·엣지 각각 MLP</text><text x="240" y="108" text-anchor="middle" font-size="11" fill="#5b6475">→ 128차원 잠재값</text>
+    <line x1="315" y1="85" x2="345" y2="85" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="350" y="25" width="260" height="120" rx="12" fill="#f3efff" stroke="#8b5cf6" stroke-dasharray="5 4"/>
+    <text x="480" y="48" text-anchor="middle" font-size="14" font-weight="bold" fill="#4c2a8a">처리 블록 × L (= 15)</text>
+    <rect x="365" y="62" width="110" height="60" rx="8" fill="#8b5cf6"/><text x="420" y="88" text-anchor="middle" font-size="13" fill="#fff">① 엣지 갱신</text><text x="420" y="106" text-anchor="middle" font-size="11" fill="#fff"><tspan fill="#ffd0d8">f</tspan>(e, v<tspan font-size="9">i</tspan>, v<tspan font-size="9">j</tspan>)</text>
+    <line x1="475" y1="92" x2="490" y2="92" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="495" y="62" width="105" height="60" rx="8" fill="#8b5cf6"/><text x="547" y="88" text-anchor="middle" font-size="13" fill="#fff">② 노드 갱신</text><text x="547" y="106" text-anchor="middle" font-size="11" fill="#fff"><tspan fill="#ffd0d8">f</tspan>(v, Σe′)</text>
+    <line x1="610" y1="85" x2="640" y2="85" stroke="#5b6475" marker-end="url(#ar)"/>
+    <rect x="645" y="45" width="120" height="80" rx="10" fill="#eef3ff" stroke="#2f6fed"/><text x="705" y="72" text-anchor="middle" font-size="14" font-weight="bold">디코더 <tspan fill="#d9455f">δ</tspan></text><text x="705" y="92" text-anchor="middle" font-size="11" fill="#5b6475">노드마다 MLP</text><text x="705" y="108" text-anchor="middle" font-size="11" fill="#5b6475">→ 변화율 p<tspan font-size="9">i</tspan></text>
+    <line x1="765" y1="85" x2="795" y2="85" stroke="#5b6475" marker-end="url(#ar)"/>
+    <text x="800" y="80" font-size="13">적분기</text><text x="800" y="98" font-size="11" fill="#5b6475">다음 상태</text>
+    <text x="480" y="163" text-anchor="middle" font-size="12" fill="#5b6475">15개 블록은 <tspan font-weight="bold">각자 다른 가중치</tspan> · MLP = ReLU, 은닉 2층 × 128 + LayerNorm · 갱신에 잔차(residual) 연결</text>
+  </svg>
+</section>
+
+<section id="m4">
+  <h2><span class="n">4</span>처리 블록 하나 = "엣지 먼저, 그다음 노드" <span class="tag">논문</span></h2>
+  <div class="formula">① e′<sub>ij</sub> = e<sub>ij</sub> + <span class="lw">f<sup>M</sup></span>( e<sub>ij</sub>, v<sub>i</sub>, v<sub>j</sub> )</div>
+  <div class="formula">② v′<sub>i</sub> = v<sub>i</sub> + <span class="lw">f<sup>V</sup></span>( v<sub>i</sub>, Σ<sub>j</sub> e′<sub>ij</sub> )</div>
+  <div class="grid">
+    <div class="box"><h3>① 엣지 갱신</h3><p>엣지마다 "내 값 + 양 끝 노드 값"을 MLP에 넣어 엣지 값을 새로 씀. 엣지가 <b>자기 상태를 가지고 다음 블록으로 넘김</b>(GNO에는 없는 부분).</p></div>
+    <div class="box"><h3>② 노드 갱신</h3><p>노드로 들어오는 엣지 값들을 <b>합(Σ)</b>해서, 내 값과 함께 MLP에 넣어 노드 값을 새로 씀. 월드 엣지가 있으면 그 합도 따로 넣음.</p></div>
+    <div class="box"><h3>잔차 연결</h3><p>"새 값 = 옛 값 + 바뀐 양". 15블록을 깊게 쌓아도 학습이 안정되도록 하는 장치.</p></div>
+  </div>
+  <div class="callout blue"><b>한 블록에서 정보가 가는 거리 = 엣지 1개</b>. 15블록이면 각 노드는 <b>엣지 15개 거리</b>까지 정보를 받음 → 9절에서 이게 우리 문제의 핵심 제약이 됨.</div>
+</section>
+
+<section id="m5">
+  <h2><span class="n">5</span>실제 계산 예시 — 삼각형 메시 4절점, 처리 블록 1개 (직접 눌러 보기)</h2>
+  <table>
+    <tr><th>설정</th><th>예시 값 (손계산용으로 줄임)</th><th>실제 MeshGraphNets</th></tr>
+    <tr><td>노드 (mm)</td><td>1(0,0) 고정 · 2(2,0) · 3(1,2) · 4(3,2) 하중</td><td>절점 수천 개 (판 문제 평균 1,271개)</td></tr>
+    <tr><td>메시 엣지</td><td>1–2, 1–3, 2–3, 2–4, 3–4 (삼각형 2개의 변)</td><td>요소 변 전부, 양방향</td></tr>
+    <tr><td>노드 인코더</td><td>v = <span class="lw">1</span>×고정 + <span class="lw">2</span>×하중 + <span class="lw">0.5</span></td><td>MLP → 128차원</td></tr>
+    <tr><td>엣지 인코더</td><td>e<sub>ij</sub> = <span class="lw">0.3</span> × 엣지 길이 |u<sub>ij</sub>|</td><td>MLP(u<sub>ij</sub>, |u<sub>ij</sub>|) → 128차원</td></tr>
+    <tr><td>① 엣지 갱신</td><td>e′ = e + (<span class="lw">0.5</span>·e + <span class="lw">0.4</span>·v<sub>i</sub> + <span class="lw">0.6</span>·v<sub>j</sub>)</td><td>MLP + 잔차</td></tr>
+    <tr><td>② 노드 갱신</td><td>v′ = v + ReLU(<span class="lw">0.7</span>·v + <span class="lw">0.2</span>·Σe′)</td><td>MLP + 잔차</td></tr>
+    <tr><td>디코더</td><td>출력 = <span class="lw">0.1</span> × v′</td><td>MLP</td></tr>
+    <tr><td>블록 수</td><td>1</td><td>15</td></tr>
+  </table>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px">
+    <span class="note"><span class="lw">빨간 숫자</span> = 학습되는 값 (모든 노드·엣지가 공유) · 계산할 노드:</span>
+    <button class="mx-btn" data-k="1">1</button><button class="mx-btn" data-k="2">2</button><button class="mx-btn" data-k="3">3</button><button class="mx-btn" data-k="4">4</button>
+  </div>
+  <svg id="mx-svg" viewBox="0 0 680 230"></svg>
+  <div id="mx-out"></div>
+  <table style="margin-top:8px">
+    <tr><th>노드</th><th>인코딩 v</th><th>들어오는 엣지</th><th>Σe′</th><th>v′</th><th>출력</th></tr>
+    <tr><td>1 (고정)</td><td>1.5</td><td>2, 3</td><td>3.706</td><td>3.291</td><td>0.329 → 경계조건으로 0</td></tr>
+    <tr><td>2</td><td>0.5</td><td>1, 3, 4</td><td>6.212</td><td>2.092</td><td>0.209</td></tr>
+    <tr><td>3</td><td>0.5</td><td>1, 2, 4</td><td>6.212</td><td>2.092</td><td>0.209</td></tr>
+    <tr><td>4 (하중)</td><td>2.5</td><td>2, 3</td><td>4.506</td><td>5.151</td><td>0.515</td></tr>
+  </table>
+  <div class="callout"><b>예시에서 볼 것</b> — ① 노드 2·3이 같은 결과(2.092)인 것은 <b>우연</b>: 둘 다 이웃 값이 1.5·0.5·2.5이고 엣지 길이 조합(2, 2.236)이 엇갈려 있어, 예시의 직선식에서는 합이 같아짐. 실제 MLP(비선형)에서는 일반적으로 다름. ② 하중 노드 4의 정보(v=2.5)는 <b>엣지로 이어진 2·3에만</b> 1블록 만에 전달, <b>고정 노드 1에는 아직 안 닿음</b>(1의 이웃은 2·3) → 블록을 하나 더 쌓아야 1이 4의 하중을 "앎". ③ 고정 노드 1의 출력은 노드 종류로 구분해 경계조건으로 덮어씀 <span class="tag e">예시의 단순화</span>. ④ 학습 = 출력과 정답(다음 시점 상태 또는 FEM 해)의 차이를 줄이도록 <span class="lw">빨간 숫자</span>를 수정.</div>
+  <p class="note">숫자는 이해용으로 정한 값이며 학습된 가중치가 아님. 표 값은 Python으로 계산해 버튼 결과와 대조함. 실제 MLP는 직선식이 아니라 ReLU 은닉층 2개.</p>
+</section>
+
+<section id="m6">
+  <h2><span class="n">6</span>출력·시간 진행 — "변화율"을 예측해 한 걸음씩 <span class="tag">논문</span></h2>
+  <table>
+    <tr><th>문제</th><th>디코더가 내는 것</th><th>다음 상태 계산</th></tr>
+    <tr><td>천(cloth)</td><td>가속도 ẍ</td><td>2차 적분: q<sup>t+1</sup> = p + 2q<sup>t</sup> − q<sup>t−1</sup></td></tr>
+    <tr><td>초탄성 판(DeformingPlate)</td><td>속도 ẋ + 보조 출력 von Mises 응력</td><td>1차 적분: q<sup>t+1</sup> = p + q<sup>t</sup></td></tr>
+    <tr><td>유동(CylinderFlow, Airfoil)</td><td>운동량 변화 + 압력</td><td>1차 적분</td></tr>
+  </table>
+  <svg viewBox="0 0 680 120">
+    <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5b6475"/></marker></defs>
+    <g font-size="13" text-anchor="middle">
+      <rect x="20" y="35" width="90" height="44" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="65" y="62">상태 t</text>
+      <rect x="160" y="35" width="90" height="44" rx="8" fill="#8b5cf6"/><text x="205" y="62" fill="#fff">MGN</text>
+      <rect x="300" y="35" width="90" height="44" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="345" y="62">상태 t+1</text>
+      <rect x="440" y="35" width="90" height="44" rx="8" fill="#8b5cf6"/><text x="485" y="62" fill="#fff">MGN</text>
+      <rect x="580" y="35" width="90" height="44" rx="8" fill="#f3f5f9" stroke="#5b6475"/><text x="625" y="62">t+2 …</text>
+    </g>
+    <g stroke="#5b6475"><line x1="110" y1="57" x2="155" y2="57" marker-end="url(#ar2)"/><line x1="250" y1="57" x2="295" y2="57" marker-end="url(#ar2)"/><line x1="390" y1="57" x2="435" y2="57" marker-end="url(#ar2)"/><line x1="530" y1="57" x2="575" y2="57" marker-end="url(#ar2)"/></g>
+    <text x="340" y="105" text-anchor="middle" font-size="12" fill="#5b6475">자기 예측을 다시 입력으로 넣으며 수백 걸음 진행(rollout) → 작은 오차가 쌓이는 게 최대 위험</text>
+  </svg>
+  <div class="callout"><b>오차 누적 대책 — 잡음 주입</b>: 학습 때 입력에 일부러 작은 가우스 잡음(위치 1e-3~3e-3 등)을 넣어, "조금 틀린 입력에서도 제자리로 돌아오는" 법을 배우게 함 [1]. 그래도 천 시뮬레이션은 약 50걸음 뒤 정답과 어긋나기 시작(혼돈 거동)이라고 저자들이 보고.</div>
+</section>
+
+<section id="m7">
+  <h2><span class="n">7</span>학습 설정과 결과 <span class="tag">논문</span></h2>
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>손실</td><td>다음 한 걸음의 출력 p와 정답의 L2 (한 걸음만 채점)</td></tr>
+    <tr><td>최적화</td><td>Adam 1,000만 스텝, 학습률 1e-4 → 1e-6 (500만 스텝에 걸쳐 감소), V100 1장</td></tr>
+    <tr><td>데이터</td><td>데이터셋마다 학습 궤적 1,000 / 검증 100 / 시험 100 (판 문제: COMSOL, 사면체 3D, 400걸음)</td></tr>
+  </table>
+  <h3>속도 — 한 걸음 계산 시간 (ms)</h3>
+  <table>
+    <tr><th>데이터셋</th><th>MeshGraphNets</th><th>원래 시뮬레이터</th></tr>
+    <tr><td>DeformingPlate (판 변형, COMSOL)</td><td>24</td><td>2,893</td></tr>
+    <tr><td>CylinderFlow (유동)</td><td>21</td><td>820</td></tr>
+    <tr><td>Airfoil (압축성 유동)</td><td>37</td><td>11,015</td></tr>
+    <tr><td>FlagSimple (천)</td><td>19</td><td>4,166</td></tr>
+  </table>
+  <div class="callout red"><b>숫자 읽을 때 주의</b>: 비교한 시뮬레이터(ArcSim·COMSOL·SU2)는 GPU를 쓰지 않아 <b>하드웨어 조건이 다른 비교</b>라고 저자들도 밝힘. 부록 기준 GPU에서 11~290배, CPU에서 4~22배 [1].</div>
+  <h3>정적(steady) 문제도 됨</h3>
+  <p>부록의 AirfoilSteady: 마하수·받음각에서 <b>정상 상태 장을 한 번에(1 step) 예측</b> — RMSE 0.116 vs GCN 기준 0.159 [1]. → 우리 같은 정적 문제는 "시간 진행" 없이 <b>한 번 통과로 변위장 예측</b>하는 방식으로 쓰게 됨.</p>
+</section>
+
+<section id="m8">
+  <h2><span class="n">8</span>GNO와 무엇이 다른가</h2>
+  <table>
+    <tr><th></th><th>GNO</th><th>MeshGraphNets</th></tr>
+    <tr><td>엣지 만드는 법</td><td>반지름 r 안의 점 전부</td><td><b>메시 연결</b>(요소 변) + 필요시 월드 엣지(r<sub>W</sub>)</td></tr>
+    <tr><td>엣지의 역할</td><td>κ(Δ, a)로 <b>가중치 숫자</b>를 계산하고 끝</td><td><b>자기 상태(128차원)</b>를 갖고 블록마다 갱신·전달</td></tr>
+    <tr><td>모으는 방식</td><td>가중 평균 (적분의 근사)</td><td>합(Σ) 후 MLP</td></tr>
+    <tr><td>층(블록)</td><td>보통 수 층</td><td>15블록, 블록마다 다른 가중치</td></tr>
+    <tr><td>해상도 변경</td><td>설계 목표(이산화 불변, 신경 연산자)</td><td>메시 연결에 의존 — 원 논문은 적응 리메싱으로 대응, "신경 연산자" 이론 틀 밖</td></tr>
+    <tr><td>주 용도</td><td>정적·파라메트릭 PDE의 해 연산자</td><td><b>시간 진행</b>(동적) 시뮬레이션 + 정적도 가능</td></tr>
+  </table>
+  <div class="callout blue">한 줄로: <b>GNO = "적분을 그래프로 근사"</b>(수학에서 출발), <b>MeshGraphNets = "FEM 메시 위에서 메시지 전달"</b>(GNN에서 출발). 계산 모양은 비슷하지만 엣지가 상태를 가지느냐, 무엇을 이웃으로 보느냐가 다름.</div>
+</section>
+
+<section id="m9">
+  <h2><span class="n">9</span>우리 문제(거치대·TV 스탠드)에 쓴다면</h2>
+  <h3>그래프 만들기는 쉬움</h3>
+  <p>우리 FEM은 2 mm hex8 복셀 → 절점 = 노드, 요소 변 = 엣지로 바로 그래프가 됨(거치대 약 2.4만 칸). 재료 칸만 남기면 형상마다 그래프 모양이 달라지는 것도 자연스럽게 표현됨.</p>
+  <h3>핵심 제약 — 정보가 닿는 거리</h3>
+  <div class="formula">닿는 거리 ≈ 블록 수 × 엣지 길이 = 15 × 2 mm = <b>30 mm</b></div>
+  <table>
+    <tr><th></th><th>필요한 거리</th><th>15블록이면</th></tr>
+    <tr><td>거치대 bike_pad80 (받침 ↔ 클램프)</td><td>설계 영역 길이 124 mm</td><td><b>부족</b> (약 1/4)</td></tr>
+    <tr><td>TV 중앙형 (5 mm 칸)</td><td>400 mm</td><td>15 × 5 = 75 mm → <b>부족</b></td></tr>
+  </table>
+  <p class="note">계산은 단순 산수이며, 실제로는 대각 엣지·형상에 따라 다름 <span class="tag e">추정</span>. 정적 탄성은 하중점의 힘이 지지점까지 한 번에 전달돼야 답이 정해지는 <b>전역 문제</b>. 동적 문제는 한 걸음(짧은 시간)에 정보가 멀리 갈 필요가 없어 15블록으로 충분했던 것.</p>
+  <table>
+    <tr><th>대응 방법</th><th>대가</th></tr>
+    <tr><td>블록 수를 60개 이상으로</td><td>계산·메모리 증가, 깊은 GNN의 학습 불안정</td></tr>
+    <tr><td>다중 해상도 그래프(거친 그래프에서 멀리, 고운 그래프에서 세부)</td><td>구현 복잡 — 후속 연구들이 있으나 이번에 세부를 확인하지 않음 <span class="tag e">확인 필요</span></td></tr>
+    <tr><td>GINO처럼 가운데를 FNO로</td><td>결국 격자가 필요 → 우리 데이터는 이미 격자라 FNO 직접이 더 단순</td></tr>
+  </table>
+  <div class="callout green"><b>결론</b>: 해커톤에서는 <b>FNO 기반 PINO 유지</b>가 맞음 — 데이터가 정형 격자이고, 정적 탄성의 전역 전달을 FNO가 한 층에서 처리. MeshGraphNets는 ① STEP·곡면 메시 입력, ② 진동 응답의 <b>시간 이력</b>(과도 응답) 예측처럼 메시 + 동적 문제가 될 때 후보. PhysicsNeMo에 구현이 있어 시작 비용은 낮음 [3].</div>
+  <div class="callout red"><b>오해 ✕ "FEM 메시를 그대로 쓰니 FEM과 같은 정확도"</b> — 아님. 메시는 입력 형식일 뿐이고, 계산은 학습된 MLP의 근사. 판 문제 한 걸음 오차는 작지만(0.25×10⁻³) 전체 진행 오차는 15.1×10⁻³로 커짐 [1]. 최종 판정은 여전히 FEM.</div>
+</section>
+
+<section id="ref">
+  <h2><span class="n">R</span>출처</h2>
+  <ol class="ref">
+    <li>T. Pfaff, M. Fortunato, A. Sanchez-Gonzalez, P. W. Battaglia, “Learning Mesh-Based Simulation with Graph Networks,” ICLR 2021. <a href="https://arxiv.org/abs/2010.03409">arXiv:2010.03409</a> — 입력 특징, 인코더·처리·디코더 구조(128차원, 15블록, 잔차, LayerNorm), 적분기, 잡음 주입, 학습 설정, 데이터셋, 표 1 속도, 부록 AirfoilSteady·GPU/CPU 배속</li>
+    <li>Z. Li et al., “Neural Operator: Graph Kernel Network for PDEs (GNO),” 2020. <a href="https://arxiv.org/abs/2003.03485">arXiv:2003.03485</a></li>
+    <li>NVIDIA PhysicsNeMo 문서 — 예제 목록 “MeshGraphNet for transient vortex shedding”, “MeshGraphNet with Lagrangian mesh”, “MeshGraphNet for Reduced-Order cardiovascular simulations”. <a href="https://docs.nvidia.com/physicsnemo/latest/">docs.nvidia.com/physicsnemo</a></li>
+    <li>우리 실측·설정: <code>08_물리AI_최적형상/README.md</code> (격자 크기·설계 영역), 짝 노트 <code>docs/NeuralOperator_study.html</code></li>
+  </ol>
+</section>
+</div>
+
+<script>
+(function(){
+const N={'1':[0,0],'2':[2,0],'3':[1,2],'4':[3,2]};
+const fix={'1':1,'2':0,'3':0,'4':0}, load={'1':0,'2':0,'3':0,'4':1};
+const E=[['1','2'],['1','3'],['2','3'],['2','4'],['3','4']];
+const nb={};for(const k in N)nb[k]=[];E.forEach(([a,b])=>{nb[a].push(b);nb[b].push(a);});
+const v={};for(const k in N)v[k]=1*fix[k]+2*load[k]+0.5;
+const L=(i,j)=>Math.hypot(N[i][0]-N[j][0],N[i][1]-N[j][1]);
+const f=(n,d=3)=>(+n.toFixed(d)).toString();
+const X=x=>140+x*110, Y=y=>190-y*75;
+const lw=s=>`<span class="lw">${s}</span>`;
+function draw(sel){
+ let s='';
+ E.forEach(([a,b])=>{const hot=(a===sel||b===sel);s+=`<line x1="${X(N[a][0])}" y1="${Y(N[a][1])}" x2="${X(N[b][0])}" y2="${Y(N[b][1])}" stroke="${hot?'#8b5cf6':'#cfd6e3'}" stroke-width="${hot?3:2}"/>`;});
+ for(const k in N){const c=k===sel?'#d9455f':'#888780';
+  s+=`<circle cx="${X(N[k][0])}" cy="${Y(N[k][1])}" r="11" fill="${c}" style="cursor:pointer" data-k="${k}"/>`;
+  s+=`<text x="${X(N[k][0])}" y="${Y(N[k][1])+4}" text-anchor="middle" font-size="12" fill="#fff" style="pointer-events:none">${k}</text>`;
+  s+=`<text x="${X(N[k][0])+16}" y="${Y(N[k][1])-12}" font-size="12" fill="#5b6475">(${N[k][0]},${N[k][1]})${fix[k]?' 고정':''}${load[k]?' 하중':''}</text>`;}
+ document.getElementById('mx-svg').innerHTML=s;
+ document.querySelectorAll('#mx-svg circle[data-k]').forEach(c=>c.onclick=()=>run(c.dataset.k));
+}
+function run(i){
+ document.querySelectorAll('.mx-btn').forEach(b=>b.classList.toggle('on',b.dataset.k===i));
+ draw(i);
+ let h=`<div class="mx-s">① 노드 인코딩: v(${i}) = ${lw(1)}×고정 + ${lw(2)}×하중 + ${lw(0.5)} = ${lw(1)}×${fix[i]} + ${lw(2)}×${load[i]} + ${lw(0.5)} = <b>${f(v[i])}</b></div>`;
+ h+=`<div class="mx-s">② 들어오는 엣지마다: 인코딩 e = ${lw(0.3)}×길이, 갱신 e′ = e + (${lw(0.5)}·e + ${lw(0.4)}·v(${i}) + ${lw(0.6)}·v(이웃))</div>`;
+ h+=`<table class="mx-t"><tr><th>이웃 j</th><th>길이 |u<sub>ij</sub>|</th><th>e</th><th>v(${i})</th><th>v(j)</th><th>e′</th></tr>`;
+ let s=0;
+ nb[i].forEach(j=>{const l=L(i,j),e=0.3*l,e2=e+(0.5*e+0.4*v[i]+0.6*v[j]);s+=e2;
+  h+=`<tr><td>${j}</td><td>${f(l)}</td><td>${f(e)}</td><td>${f(v[i])}</td><td>${f(v[j])}</td><td>${f(e2)}</td></tr>`;});
+ h+=`</table>`;
+ const pre=0.7*v[i]+0.2*s, v2=v[i]+Math.max(0,pre), out=0.1*v2;
+ h+=`<div class="mx-s">③ 합: Σe′ = <b>${f(s)}</b> (이웃 ${nb[i].length}개 — 평균이 아니라 합)</div>`;
+ h+=`<div class="mx-s">④ 노드 갱신(잔차): v′ = ${f(v[i])} + ReLU(${lw(0.7)}×${f(v[i])} + ${lw(0.2)}×${f(s)}) = ${f(v[i])} + ${f(Math.max(0,pre))} = <b>${f(v2)}</b></div>`;
+ h+=`<div class="mx-s">⑤ 디코더: 출력 = ${lw(0.1)} × ${f(v2)} = <b>${f(out)}</b>${fix[i]?' → 고정 노드라 경계조건(0)으로 덮어씀':''}</div>`;
+ const far=Object.keys(N).filter(k=>k!==i&&!nb[i].includes(k));
+ h+=`<div class="mx-s" style="color:#5b6475">이번 블록에서 정보를 못 받은 노드: ${far.length?far.join(', ')+' — 블록을 더 쌓아야 닿음':'없음 (모든 노드가 직접 이웃)'}</div>`;
+ document.getElementById('mx-out').innerHTML=h;
+}
+document.querySelectorAll('.mx-btn').forEach(b=>b.onclick=()=>run(b.dataset.k));
+run('4');
+})();
+</script>
+</body></html>

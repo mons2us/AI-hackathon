@@ -414,7 +414,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
   </svg>
   <div class="callout red" style="margin-top:8px">⚠️ 레일리 몫은 항상 실제 이상(λ₁ ≤ R(u)) → 그대로 판정하면 위험해서 <b>보정 비율을 학습</b>. 고유값 문제 자체는 물리 손실로 학습하지 않음(모드 교차·부호·중복). 같이 학습 시: 손실은 상대오차로 크기 맞춤, 정답 없는 샘플은 마스크 손실(기존 run엔 진동수만 있음), 레일리 층으로 흐르는 기울기는 처음엔 stop-gradient. 먼저 기존 결과로 레일리 근사 오차를 확인(예: 10% 이내면 2단 구조 채택). 물리 손실의 데이터 절감 효과는 <b>미검증</b>.</div>
   <p class="note">학습 데이터: <code>opt3d.py</code> 반복마다 푸는 FEM 결과(ρ, u, f, 응력)를 저장 → 추가 계산 없음. 폰 기종·템플릿·기준을 바꿔 병렬 실행. 한 최적화 안 샘플은 서로 비슷하므로 범위 밖 형상은 FEM 확인 필수.</p>
-<div class="callout" style="margin-top:10px">📘 신경 연산자 공부 노트(FNO·PINO·GNO·PI-GNO 비교, 우리가 FNO 기반 PINO를 쓰는 이유): <a href="docs/NeuralOperator_study.html">docs/NeuralOperator_study.html</a> · DeepSDF 노트: <a href="docs/DeepSDF_study.html">docs/DeepSDF_study.html</a></div>
+<div class="callout" style="margin-top:10px">📘 신경 연산자 공부 노트(FNO·PINO·GNO·PI-GNO 비교, 우리가 FNO 기반 PINO를 쓰는 이유): <a href="docs/NeuralOperator_study.html">docs/NeuralOperator_study.html</a> · DeepSDF 노트: <a href="docs/DeepSDF_study.html">docs/DeepSDF_study.html</a> · MeshGraphNets 노트: <a href="docs/MeshGraphNets_study.html">docs/MeshGraphNets_study.html</a></div>
 </section>
 
 <section>
@@ -572,6 +572,7 @@ code{background:#f3f5f9;padding:1px 5px;border-radius:4px;font-size:12.5px}
 <section>
   <h2><span class="n">9</span>변경 이력</h2>
   <table><tr><th>날짜</th><th>변경포인트</th></tr>
+    <tr><td>2026-11-14 (23)</td><td><b>MeshGraphNets 공부 노트 추가</b>: 구조·계산 예시·GNO 비교·우리 문제 적용 시 전달 거리 제약(15블록 × 2 mm ≈ 30 mm)</td></tr>
     <tr><td>2026-11-14 (22)</td><td><b>학습 방법 자동 선택(sweep)</b>: 후보 4개 → 20% 학습 → 검증 1등만 끝까지, 데이터 학습80/검증10/시험10, 관문은 시험 셋. bat 줄끝 CRLF 수정, Windows ESO 진단</td></tr>
     <tr><td>2026-11-14 (22)</td><td>신경 연산자 노트: 2×2 분류표, "GINO 격자 채우기 = 입력 재현 학습" 오해 정정</td></tr>
     <tr><td>2026-11-14 (21)</td><td>GNO 계산 예시 ⑦ 채점·⑧ 학습 단계, "u = v₀" 오해 정정, 8절 FEM 결과가 있는데 모델이 왜 필요한가</td></tr>

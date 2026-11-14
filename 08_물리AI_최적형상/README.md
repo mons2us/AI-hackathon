@@ -1,7 +1,7 @@
 # 08_물리AI — 요청에서 대리 모델을 자동으로 만들고, 그 모델로 최적 설계를 찾는 단계
 
 > 담당: 물리 엔진·물리 AI (소소파파) · 최종 갱신 2026-11-14 (토) · 해커톤 2026-11-16 (월) 시작
-> 상태 표시: ✅ 완료 · 🔄 진행 · ⏳ 예정 · ❓ 확인 필요 · ⛔ 보류 · 그림 버전: `README.html` · 공부 노트: [`docs/DeepSDF_study.html`](docs/DeepSDF_study.html), [`docs/NeuralOperator_study.html`](docs/NeuralOperator_study.html) (FNO·PINO·GNO·PI-GNO)
+> 상태 표시: ✅ 완료 · 🔄 진행 · ⏳ 예정 · ❓ 확인 필요 · ⛔ 보류 · 그림 버전: `README.html` · 공부 노트: [`docs/DeepSDF_study.html`](docs/DeepSDF_study.html), [`docs/NeuralOperator_study.html`](docs/NeuralOperator_study.html) (FNO·PINO·GNO·PI-GNO), [`docs/MeshGraphNets_study.html`](docs/MeshGraphNets_study.html)
 
 ## 한 줄 요약
 **처음 보는 제품군의 요청이 오면, 08이 학습 계획 → FEM 데이터 생성 → DeepSDF + PINO 학습 → 품질 검사까지 자동으로 해서 대리 모델을 만들고, 그 모델로 최적 설계를 찾은 뒤 FEM으로 검증합니다. 같은 제품군의 다음 요청은 저장된 모델로 즉시 답합니다.**
@@ -345,6 +345,7 @@ f₁ = f_R × c
 
 | 날짜 | 변경포인트 |
 |---|---|
+| 2026-11-14 (23) | **공부 노트 `docs/MeshGraphNets_study.html` 추가**: 입력(노드 종류·메시 엣지 상대 위치·월드 엣지), 인코딩 → 처리 블록 15개(엣지 갱신 → 노드 합·갱신, 잔차) → 디코딩·적분기, 4절점 계산 예시(직접 눌러 보기, 학습 값 빨간 글씨), 잡음 주입·학습 설정·속도표(하드웨어 조건 주의), GNO와 비교, 우리 문제 적용 시 "15블록 × 2 mm ≈ 30 mm < 설계 영역 124 mm" 전역 전달 제약 → 해커톤은 FNO 기반 PINO 유지. 코드 변경 없음 |
 | 2026-11-14 (22) | **학습 방법 자동 선택(sweep)** `fp08/sweep.py` + `loop.py --sweep`: DeepSDF·PINO 각각 후보 4개를 20% 학습 → 검증 점수 1등만 끝까지 → 정식 위치로 복사. 데이터 분할을 학습 80 / 검증 10 / **시험 10**으로 바꾸고 관문·DeepSDF 최종 성적은 시험 셋으로(선택 편향 방지). 이어하기 때 저장된 설정 사용(능동학습 재학습도 고른 설정 유지). `--stop-at`, `--lr`, `--w-phys`, `--modes-scale` 옵션. **bat 줄끝 CRLF 수정**(LF 라 cmd 에서 깨짐) + `.gitattributes`. Windows ESO 느림 진단 `diag_eso.bat`, `FP08_NO_PARDISO=1`, pypardiso 메모리 해제, ESO 진행 표시 |
 | 2026-11-14 (22) | 신경 연산자 노트: 7절 2×2 분류표(입력 형식 × 보는 범위: CNN·FNO·GNO·GINO, "FNO–GINO" 짝 정정), 5절 오해 정정 "GINO의 GNO는 입력 재현을 따로 학습해 격자를 채운다" ✕ → 격자값은 정답 없는 잠재 특징, 전체를 최종 출력 오차로 한 번에 학습. 코드 변경 없음 |
 | 2026-11-14 (21) | 신경 연산자 노트: GNO 계산 예시에 ⑦ 가상 정답과 비교(오차) ⑧ 학습(손실 0.414를 줄이도록 빨간 숫자 수정) 단계·결과표 열 추가, 오해 정정 "u가 v₀와 같을수록 정확"(비교 대상은 u<sub>FEM</sub>), 8절 "FEM 결과가 있는데 모델이 왜 필요한가" 표. 코드 변경 없음 |
