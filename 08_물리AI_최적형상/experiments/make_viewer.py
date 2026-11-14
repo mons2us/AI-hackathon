@@ -1,6 +1,7 @@
 """선택된 무작위 형상을 브라우저에서 넘겨 보는 뷰어(HTML, 파일 하나) 생성.
 
-python experiments/make_viewer.py <data 폴더> <출력 폴더>
+python experiments/make_viewer.py <data 폴더> <출력 폴더>          # 선택 5,000 + 제외 예시
+python experiments/make_viewer.py <data 폴더> <출력 폴더> --full   # 후보 12,000개 전부(선택/제외 이유) + 위에서 깎기 형상
 - 그룹마다 <그룹>.html (형상 데이터를 gzip+base64로 넣음, 인터넷 불필요) + index.html
 - 그룹마다 <그룹>_shapes.npz (idx, occ 비트, meta) — 파이썬으로 직접 열어 보기용
 표시: 칸(복셀) 경계를 한 번 흐리게(가우시안 근사) 한 뒤 표면 그물(surface nets)로 그려 깍둑 모양을 줄임.
@@ -15,7 +16,7 @@ from fp08 import problems, datagen, shapes
 NAMES = {'bike_pad50': '거치대 · 받침 50 mm', 'bike_pad80': '거치대 · 받침 80 mm (시연 기본)',
          'bike_pad120': '거치대 · 받침 120 mm', 'bike_pad80_free': '거치대 · 받침 80 mm · 화면 각도 자유(기둥 60 mm)', 'tvfeet_L300': 'TV 양발형 · 발끝 300 mm (다리 하나)',
          'tvfeet_L220': 'TV 양발형 · 발끝 220 mm (넘어짐 불합격 그룹)', 'tvped': 'TV 중앙형(받침대형)'}
-FAM = {'A': 'A 직접 부재', 'B': 'B 트러스', 'Ctri': 'C 삼각 판', 'Cquad': 'C 사각 판', 'D': 'D 열린 껍데기'}
+FAM = {'A': 'A 직접 부재', 'B': 'B 트러스', 'Ctri': 'C 삼각 판', 'Cquad': 'C 사각 판', 'D': 'D 열린 껍데기', 'T': 'T 위에서 깎기'}
 
 
 def b64gz(a):
@@ -61,6 +62,47 @@ def build(data, group, outdir, n_dropped=300):
     return dict(group=group, keep=len(meta), dropped_shown=len(drop), sel=cfg['sel'])
 
 
+def build_full(data, group, outdir):
+    """후보 12,000개 전부 + 선택 여부·제외 이유 (+ 위에서 깎기 형상). 형상은 후보 파일(cand/)에서 읽음 → FEM 없이도 생성 가능"""
+    p = problems.get(group); g = p.grid
+    sel = json.load(open(os.path.join(data, group, 'selection.json'), encoding='utf-8'))
+    reason = json.load(open(os.path.join(data, group, 'drop_reason.json'), encoding='utf-8'))
+    keep = set(map(int, sel['keep']))
+    M, OC = [], []
+    d = os.path.join(data, group, 'cand')
+    for f in sorted(os.listdir(d)):
+        if not f.endswith('.npz') or '.tmp' in f:
+            continue
+        z = np.load(os.path.join(d, f)); ms = json.loads(str(z['meta']))
+        for i, o, m in zip(z['idx'], z['occ'], ms):
+            i = int(i); k = i in keep
+            M.append([i, m.get('family', ''), round(m.get('vf', 0), 4), m.get('tips', -1), round(m.get('rough', 0), 1),
+                      int(bool(m.get('connected', True))), int(k), '' if k else reason.get(str(i), 'failed')])
+            OC.append(o)
+    nb = len(OC[0])
+    for sub in ('top',):                                   # 위에서 깎기 (화면 각도 자유 그룹)
+        dd = os.path.join(data, group, sub)
+        if not os.path.isdir(dd):
+            dd = os.path.join(data, group)
+        for f in sorted(os.listdir(dd)):
+            if f.startswith('shapes_t') and f.endswith('.npz') and '.tmp' not in f:
+                z = np.load(os.path.join(dd, f)); ms = json.loads(str(z['meta']))
+                for i, o, m in zip(z['idx'], z['occ'], ms):
+                    M.append([int(i), 'T', round(m.get('vf', 0), 4), -1, 0, 1, 2, f"top {m.get('seq')}-{m.get('step')}"])
+                    OC.append(o[:nb])
+    allocc = np.stack(OC)
+    nt = sum(1 for m in M if m[6] == 2)
+    cfg = dict(group=group, name=NAMES[group], nx=g.nx, ny=g.ny, nz=g.nz, h=g.h, sym=int(p.sym_axis),
+               ne=g.ne, nbytes=int(allocc.shape[1]), n=len(M), fam=FAM, full=1, ntop=nt,
+               sel={k: v for k, v in sel.items() if k != 'keep'})
+    html = TEMPLATE.replace('__CFG__', json.dumps(cfg, ensure_ascii=False)) \
+        .replace('__META__', json.dumps(M, ensure_ascii=False)) \
+        .replace('__LABEL__', b64gz(p.label.astype(np.int8))).replace('__OCC__', b64gz(allocc))
+    with open(os.path.join(outdir, f'{group}.html'), 'w', encoding='utf-8') as f:
+        f.write(html)
+    return dict(group=group, keep=len(keep), cand=len(M) - nt, top=nt, sel=cfg['sel'])
+
+
 TEMPLATE = r'''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>무작위 형상 뷰어</title>
 <style>
 body{margin:0;font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;background:#f6f7f9;color:#1d2330}
@@ -68,14 +110,14 @@ header{padding:12px 16px;background:#fff;border-bottom:1px solid #e3e6ec;positio
 h1{font-size:18px;margin:0 0 6px} .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px}
 select,button,input{font-size:13px;padding:3px 6px} #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:12px 16px}
 .t{background:#fff;border:1px solid #e3e6ec;border-radius:8px;padding:4px;cursor:pointer} .t canvas{width:100%;display:block}
-.c{font-size:11.5px;color:#5b6475;padding:2px 4px} .drop{border-color:#d9455f} .drop .c{color:#d9455f}
+.c{font-size:11.5px;color:#5b6475;padding:2px 4px} .drop{border-color:#d9455f} .drop .c{color:#d9455f} .ns{border-color:#c9cdd6;opacity:.85} .ns .c{color:#8a92a3} .top{border-color:#2c7a3f} .top .c{color:#2c7a3f}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
 #box{background:#fff;border-radius:10px;padding:10px;max-width:95vw} #big{cursor:grab;display:block;max-width:92vw}
 .note{font-size:12px;color:#5b6475;margin-top:4px} .leg span{display:inline-block;width:10px;height:10px;margin:0 3px 0 8px;vertical-align:middle}
 </style></head><body>
 <header><h1 id="ttl"></h1>
 <div class="bar">
- 보기 <select id="show"><option value="keep">선택된 형상</option><option value="drop">제외된 예시</option><option value="all">전부</option></select>
+ 보기 <select id="show"><option value="keep">선택된 형상</option><option value="drop">제외(품질 미달)</option><option value="ns">품질 통과·비율상 안 뽑힘</option><option value="top">위에서 깎기</option><option value="all">후보 전부</option></select>
  형식 <select id="fam"><option value="">전체</option></select>
  정렬 <select id="sort"><option value="idx">번호</option><option value="vf">재료 비율 ↑</option><option value="-vf">재료 비율 ↓</option><option value="-rough">울퉁불퉁 ↓</option><option value="-tips">허공 가지 ↓</option></select>
  <label><input type="checkbox" id="raw"> 칸 원본(다듬지 않음)</label>
@@ -155,10 +197,13 @@ function draw(cv, M, yaw, pitch){
 }
 const YAW0=CFG.group.startsWith('bike')?-0.55:-0.75, PITCH0=0.45;
 function cap(m){const fam=CFG.fam[m[1]]||m[1];
- return `#${m[0]} · ${fam} · 재료 ${(100*m[2]).toFixed(1)}% · 가지 ${m[3]} · 울퉁 ${m[4]}`+(m[5]?'':' · 끊김')+(m[6]?'':` · 제외(${({tips:'허공 가지',rough:'울퉁불퉁',broken_over_quota:'끊김 초과'})[m[7]]||m[7]})`);}
+ return `#${m[0]} · ${fam} · 재료 ${(100*m[2]).toFixed(1)}% · 가지 ${m[3]} · 울퉁 ${m[4]}`+(m[5]?'':' · 끊김')+(m[6]==2?` · 위에서 깎기 순서열-단계 ${m[7].slice(4)}`:m[6]?' · 선택':` · ${({tips:'제외: 허공 가지',rough:'제외: 울퉁불퉁',broken_over_quota:'제외: 끊김 초과',not_sampled:'품질 통과, 비율상 안 뽑힘',failed:'생성 실패'})[m[7]]||m[7]}`);}
+function cls(m){return m[6]==2?'top':m[6]?'':(m[7]=='not_sampled'?'ns':'drop');}
+function want(m,sh){if(sh=='all')return m[6]!=2; if(sh=='keep')return m[6]==1; if(sh=='top')return m[6]==2;
+ if(sh=='ns')return !m[6]&&m[7]=='not_sampled'; return !m[6]&&m[7]!='not_sampled';}
 function refresh(){
  const sh=document.getElementById('show').value, fam=document.getElementById('fam').value, so=document.getElementById('sort').value;
- view=META.map((m,k)=>[m,k]).filter(([m])=>(sh=='all'||(sh=='keep')==!!m[6])&&(!fam||m[1]==fam));
+ view=META.map((m,k)=>[m,k]).filter(([m])=>want(m,sh)&&(!fam||m[1]==fam));
  const key={idx:m=>m[0],vf:m=>m[2],'-vf':m=>-m[2],'-rough':m=>-m[4],'-tips':m=>-m[3]}[so];
  view.sort((a,b)=>key(a[0])-key(b[0])); page=0; render();}
 let token=0;
@@ -167,7 +212,7 @@ function render(){
  const np=Math.max(1,Math.ceil(view.length/per)); page=Math.min(page,np-1);
  document.getElementById('pg').textContent=` ${page+1} / ${np} 쪽 (${view.length}개) `;
  const items=view.slice(page*per,(page+1)*per), my=++token, raw=document.getElementById('raw').checked;
- const cvs=items.map(([m,k])=>{const d=document.createElement('div'); d.className='t'+(m[6]?'':' drop');
+ const cvs=items.map(([m,k])=>{const d=document.createElement('div'); d.className='t '+cls(m);
   const c=document.createElement('canvas'); c.width=300; c.height=200; d.appendChild(c);
   const p=document.createElement('div'); p.className='c'; p.textContent=cap(m); d.appendChild(p);
   d.onclick=()=>openBig(m,k); g.appendChild(d); return [c,k];});
@@ -182,7 +227,9 @@ function openBig(m,k){BIG=mesh(field(k,document.getElementById('raw').checked));
  window.onmousemove=e=>{if(!d)return; yaw=d[2]+(e.clientX-d[0])*0.01; pitch=Math.max(-1.5,Math.min(1.5,d[3]+(e.clientY-d[1])*0.01)); draw(c,BIG,yaw,pitch);};
  document.getElementById('modal').onclick=e=>{if(e.target.id=='modal')e.target.style.display='none';};})();
 (async()=>{
- document.getElementById('ttl').textContent=`${CFG.name} — 무작위 형상 ${META.filter(m=>m[6]).length}개 (${CFG.group})`;
+ document.getElementById('ttl').textContent=CFG.full?`${CFG.name} — 후보 ${(META.length-CFG.ntop).toLocaleString()}개 중 선택 ${META.filter(m=>m[6]==1).length.toLocaleString()}개`+(CFG.ntop?` + 위에서 깎기 ${CFG.ntop}개`:'')+` (${CFG.group})`:`${CFG.name} — 무작위 형상 ${META.filter(m=>m[6]).length}개 (${CFG.group})`;
+ if(!CFG.ntop){const o=document.querySelector('#show option[value=top]'); if(o)o.remove();}
+ if(!CFG.full){const o=document.querySelector('#show option[value=ns]'); if(o)o.remove();}
  const s=CFG.sel; document.getElementById('sel').textContent=`후보 ${s.n_cand}개 → ${s.n_keep}개 선택 · 제외: 허공 가지(골격 끝점 > ${s.max_tips}) ${s.dropped.tips||0}, 울퉁불퉁(상위 10%) ${s.dropped.rough||0}, 끊김 초과 ${s.dropped.broken_over_quota||0}, 비율 맞추며 안 뽑힘 ${s.dropped.not_sampled||0} · 선택 형식 ${JSON.stringify(s.family_keep)} · 표시는 칸 경계를 다듬은 모습(데이터·FEM은 칸 그대로)`;
  const fs=document.getElementById('fam'); for(const [k,v] of Object.entries(CFG.fam)){const o=document.createElement('option');o.value=k;o.textContent=v;fs.appendChild(o);}
  LABEL=new Int8Array((await gun(LB64)).buffer); OCC=await gun(OB64);
@@ -195,9 +242,10 @@ function openBig(m,k){BIG=mesh(field(k,document.getElementById('raw').checked));
 
 INDEX = '''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>08 무작위 형상</title>
 <style>body{font-family:"Malgun Gothic",sans-serif;max-width:860px;margin:24px auto;color:#1d2330}td,th{border-bottom:1px solid #ddd;padding:6px 8px;font-size:14px}table{border-collapse:collapse;width:100%}</style></head><body>
-<h2>FormProof 08 — 학습용 무작위 형상 (그룹당 5,000개)</h2>
+<h2>FormProof 08 — 학습용 무작위 형상 (그룹당 후보 12,000 → 선택 5,000)</h2>
 <p>그룹 이름을 누르면 뷰어가 열립니다 (인터넷 불필요, Chrome·Edge 권장). 썸네일을 누르면 크게 보고 마우스로 돌려 볼 수 있습니다.
 보이는 표면은 칸 경계를 한 번 다듬은 모습이고, 학습·FEM 데이터는 칸 그대로입니다("칸 원본" 체크로 비교).</p>
+<p>뷰어 위쪽 '보기'에서 <b>선택된 형상 / 제외(품질 미달: 허공 가지·울퉁불퉁·끊김 초과) / 품질 통과·비율상 안 뽑힘 / 위에서 깎기 / 후보 전부</b>를 고를 수 있습니다.</p>
 <table><tr><th>그룹</th><th>후보 → 선택</th><th>제외 (허공 가지 / 울퉁불퉁 / 끊김 초과)</th><th>선택된 형식</th></tr>__ROWS__</table>
 <p style="font-size:13px;color:#5b6475">파이썬으로 보기: <code>np.load("그룹_shapes.npz")</code> → occ_bits(np.unpackbits 후 [:ne]), label(0 설계 1 고정 2 빈곳 3 강체), shape(nx,ny,nz, 요소 번호 e=(k*ny+j)*nx+i), meta.
 같은 번호는 <code>fp08.shapes.make_shape(problem, 그룹, 번호)</code>로 언제든 똑같이 다시 만들어짐.</p>
@@ -205,15 +253,19 @@ INDEX = '''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>08 
 
 if __name__ == '__main__':
     data, out = sys.argv[1], sys.argv[2]
+    full = '--full' in sys.argv
     os.makedirs(out, exist_ok=True)
     rows = ''
     for k in problems.GROUPS:
-        r = build(data, k, out)
+        if not os.path.isdir(os.path.join(data, k)):
+            continue
+        r = build_full(data, k, out) if full else build(data, k, out)
         s = r['sel']; dr = s['dropped']
         rows += (f'<tr><td><a href="{k}.html">{NAMES[k]}</a></td><td>{s["n_cand"]:,} → {s["n_keep"]:,}</td>'
                  f'<td>{dr.get("tips",0)} / {dr.get("rough",0)} / {dr.get("broken_over_quota",0)}</td>'
-                 f'<td style="font-size:12px">{", ".join(f"{FAM[f]} {n}" for f, n in s["family_keep"].items())}</td></tr>')
-        print(k, r['keep'], r['dropped_shown'], flush=True)
+                 f'<td style="font-size:12px">{", ".join(f"{FAM[f]} {n}" for f, n in s["family_keep"].items())}'
+                 + (f' · 위에서 깎기 {r["top"]}' if full and r.get('top') else '') + '</td></tr>')
+        print(k, r, flush=True) if full else print(k, r['keep'], r['dropped_shown'], flush=True)
     import datetime
     open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(
         INDEX.replace('__ROWS__', rows).replace('__DATE__', datetime.date.today().isoformat()))
