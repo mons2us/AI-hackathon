@@ -82,7 +82,7 @@ def main():
     gate = {}
     sf = os.path.join(a.run, 'state.json')
     if os.path.exists(sf):
-        G = json.load(open(sf)).get('gate', {})
+        G = json.load(open(sf, encoding='utf-8')).get('gate', {})
         if G:
             gate = G[sorted(G)[-1]]                    # 마지막 관문 결과의 오차 → 최적화 여유
     rows, nets = [], {}
@@ -111,7 +111,7 @@ def main():
                 V, F = full_mesh(p, best); write_stl(os.path.join(a.out, tag + '.stl'), V, F)
                 e = rec['fem']
                 render_png(os.path.join(a.out, tag + '.png'), p, best, f"{g} {cond}\n{e['mass_g']:.0f} g · FEM 합격")
-            json.dump(rec, open(os.path.join(a.out, tag + '.json'), 'w'), ensure_ascii=False, indent=1, default=float)
+            json.dump(rec, open(os.path.join(a.out, tag + '.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=float)
             rows.append(rec)
             print(f'[demo] {tag}: {rec["status"]} {rec["sec"]} s', flush=True)
     E = html.escape

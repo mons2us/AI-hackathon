@@ -7,7 +7,8 @@
 """
 import zlib
 import numpy as np
-from scipy import ndimage
+from scipy import ndimage, sparse
+from scipy.sparse import csgraph
 
 MIX = {'bike': [('B', .35), ('Ctri', .25), ('A', .15), ('D', .15), ('Cquad', .10)],
        'tv': [('A', .25), ('B', .30), ('Ctri', .175), ('Cquad', .175), ('D', .10)]}   # 11-14: D 25→10% (사용자 결정)
@@ -38,6 +39,23 @@ def seg_dist(P, a, b):
 
 def capsule(P, a, b, r):
     return seg_dist(P, a, b) <= r
+
+
+def bar(cv, a, b, r):
+    """막대 a→b. 금지 공간이 있고 곧은 막대가 그곳을 지나면 돌아가는 경로를 따라 그림 (없으면 capsule 과 같음)"""
+    if cv.avoid is None:
+        return capsule(cv.P, a, b, r)
+    n = max(2, int(np.linalg.norm(b - a) / (cv.h / 2)) + 1)
+    pts = a[None] + np.linspace(0, 1, n)[:, None] * (b - a)[None]
+    if not cv.avoid[cv.cell_of(pts)].any():
+        return capsule(cv.P, a, b, r)
+    way = cv.route(a, b)
+    if way is None:
+        return capsule(cv.P, a, b, r)
+    m = np.zeros(len(cv.P), bool)
+    for p0, p1 in zip(way[:-1], way[1:]):
+        m |= capsule(cv.P, p0, p1, r)
+    return m
 
 
 def tri_plate(P, a, b, c, t):
@@ -78,6 +96,57 @@ class Canvas:
         self.product = 'bike' if p.product == 'bike_mount' else 'tv'
         self.sym_axes = auto_sym_axes(p)          # 11-14: 라벨이 뒤집어도 같은 축 = 형상도 대칭으로 생성
         self.mix = MIX_UNIFORM                    # 11-14: 후보는 모든 형식을 같은 비율로, 선택 단계에서 자동 조정
+        # 11-14: 금지 공간(keepout, 예: 폰이 회전하며 지나가는 공간)이 있으면 막대를 그 공간을 돌아가게 그림.
+        # 금지 공간이 없는 그룹은 예전과 똑같은 형상(같은 시드 → 같은 형상) 유지
+        ko = getattr(p, 'keepout', None)
+        self.avoid = ko if ko is not None and ko.any() else None
+        self._graph = None
+
+    def cell_of(self, X):
+        """좌표(…,3) → 요소 번호 (격자 밖은 가장자리로)"""
+        g = self.g
+        q = np.floor((np.asarray(X) - g.origin) / g.h).astype(int)
+        i = np.clip(q[..., 0], 0, g.nx - 1); j = np.clip(q[..., 1], 0, g.ny - 1); k = np.clip(q[..., 2], 0, g.nz - 1)
+        return (k * g.ny + j) * g.nx + i
+
+    def _build_graph(self):
+        """설계+고정 칸 그래프 (6이웃). 금지 공간 가장자리에서 멀수록 싸게 → 경로가 금지 공간에서 떨어져 지나감"""
+        g = self.g
+        ok = self.design | self.fixed
+        d = ndimage.distance_transform_edt(g.eshape(ok)).ravel() * g.h        # 막힌 칸까지 거리 [mm]
+        cost = 1.0 + 3.0 * np.exp(-d / (2 * g.h))
+        idx = np.arange(g.ne).reshape(g.nz, g.ny, g.nx)
+        okg = g.eshape(ok)
+        rows, cols, w = [], [], []
+        for ax in range(3):
+            a = [slice(None)] * 3; b = [slice(None)] * 3
+            a[ax] = slice(0, -1); b[ax] = slice(1, None)
+            m = okg[tuple(a)] & okg[tuple(b)]
+            i0, i1 = idx[tuple(a)][m], idx[tuple(b)][m]
+            ww = 0.5 * (cost[i0] + cost[i1])
+            rows += [i0, i1]; cols += [i1, i0]; w += [ww, ww]
+        self._graph = sparse.csr_matrix((np.concatenate(w), (np.concatenate(rows), np.concatenate(cols))), shape=(g.ne, g.ne))
+        self._ok = ok
+
+    def route(self, a, b):
+        """a→b 를 금지 공간을 피해 잇는 경유점 목록 (설계+고정 칸만 지나는 최단 경로를 4칸마다 끊음). 길 없으면 None"""
+        if self._graph is None:
+            self._build_graph()
+        ia, ib = int(self.cell_of(a)), int(self.cell_of(b))
+        okidx = np.where(self._ok)[0]
+        if not self._ok[ia]:
+            ia = int(okidx[np.argmin(np.linalg.norm(self.P[okidx] - a, axis=1))])
+        if not self._ok[ib]:
+            ib = int(okidx[np.argmin(np.linalg.norm(self.P[okidx] - b, axis=1))])
+        dist, pred = csgraph.dijkstra(self._graph, indices=ia, return_predecessors=True)
+        if not np.isfinite(dist[ib]):
+            return None
+        path = [ib]
+        while path[-1] != ia:
+            path.append(int(pred[path[-1]]))
+        path = path[::-1]
+        keep = path[::4] + ([path[-1]] if (len(path) - 1) % 4 else [])
+        return [a] + [self.P[c] for c in keep[1:-1]] + [b]
 
     def rand_anchor(self, rng, c):
         return self.P[rng.choice(self.anchor[c])]
@@ -107,9 +176,9 @@ def gen_A(cv, rng):
             r = _radius(rng, h)
             if rng.random() < 0.3:
                 mid = (a + b) / 2 + rng.normal(0, 0.15, 3) * (cv.hi - cv.lo)
-                m |= capsule(P, a, mid, r) | capsule(P, mid, b, r)
+                m |= bar(cv, a, mid, r) | bar(cv, mid, b, r)
             else:
-                m |= capsule(P, a, b, r)
+                m |= bar(cv, a, b, r)
     return m
 
 
@@ -131,14 +200,14 @@ def gen_B(cv, rng):
     while hi > lo and not has_anchor[hi]:
         hi -= 1
     for a, j in links:
-        m |= capsule(P, a, hubs[j], _radius(rng, h))
+        m |= bar(cv, a, hubs[j], _radius(rng, h))
     for i in range(lo + 1, hi + 1):
-        m |= capsule(P, hubs[i - 1], hubs[i], _radius(rng, h))
+        m |= bar(cv, hubs[i - 1], hubs[i], _radius(rng, h))
     nodes += [hubs[i] for i in range(lo, hi + 1) if has_anchor[i] or lo < i < hi]
     for _ in range(rng.integers(0, 4)):            # 대각 보강선 (양 끝 모두 기존 마디)
         a, b = nodes[rng.integers(len(nodes))], nodes[rng.integers(len(nodes))]
         if np.linalg.norm(a - b) > 3 * h:
-            m |= capsule(P, a, b, _radius(rng, h, 1.0, 2.0))
+            m |= bar(cv, a, b, _radius(rng, h, 1.0, 2.0))
     return m
 
 
@@ -166,7 +235,7 @@ def gen_C(cv, rng, kind):
                 # (11-14 수정) 막대의 다른 끝은 판 위의 점 → 끝이 허공에 뜬 막대가 생기지 않음
                 idx = np.where(m)[0]
                 b = P[rng.choice(idx)] if len(idx) else cv.rand_anchor(rng, (c + 1) % nf)
-                m |= capsule(P, cv.rand_anchor(rng, c), b, _radius(rng, h))
+                m |= bar(cv, cv.rand_anchor(rng, c), b, _radius(rng, h))
     return m
 
 
@@ -192,7 +261,7 @@ def gen_D(cv, rng):
         a = cv.rand_anchor(rng, c)
         if m.any():
             q = P[m][np.argmin(np.linalg.norm(P[m] - a, axis=1))]
-            m = m | capsule(P, a, q, _radius(rng, h, 1.0, 2.5))
+            m = m | bar(cv, a, q, _radius(rng, h, 1.0, 2.5))
     return m
 
 
@@ -207,7 +276,7 @@ def gen_E(cv, rng, base):
         a = P[rng.choice(idx)]
         b = cv.rand_anchor(rng, rng.integers(len(cv.anchor))) if rng.random() < .5 else P[rng.choice(idx)]
         if np.linalg.norm(a - b) > 3 * h:
-            m |= capsule(P, a, b, _radius(rng, h, 1.0, 2.0))
+            m |= bar(cv, a, b, _radius(rng, h, 1.0, 2.0))
     return m
 
 
@@ -253,7 +322,7 @@ def repair(cv, rng, m):
             sb = B[rng.choice(len(B), min(400, len(B)), replace=False)]
             d = np.linalg.norm(sa[:, None] - sb[None], axis=2)
             i, j = np.unravel_index(np.argmin(d), d.shape)
-            m = m | capsule(P, sa[i], sb[j], _radius(rng, h, 1.0, 2.0))
+            m = m | bar(cv, sa[i], sb[j], _radius(rng, h, 1.0, 2.0))
             main = main | cs
     full = (m & cv.design) | cv.fixed
     ok, lab = connected_groups(cv, full)
@@ -280,6 +349,14 @@ def drop_dead_blobs(cv, occ):
         if len(touch) >= 2:
             keep |= m
     return keep
+
+
+def drop_floating(cv, occ):
+    """고정부와 붙지 않은 조각 삭제 (FEM 에서 0 Hz 가짜 모드를 만듦)"""
+    lab, n = ndimage.label(cv.g.eshape(occ | cv.fixed))
+    lab = lab.ravel()
+    keep = set(np.unique(lab[cv.fixed])) - {0}
+    return occ & np.isin(lab, list(keep))
 
 
 def smooth(cv, occ, sigma=0.6):

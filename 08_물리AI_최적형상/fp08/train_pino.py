@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from . import problems, datagen, models, train_sdf
 
-PRODUCTS = {'bike': ['bike_pad50', 'bike_pad80', 'bike_pad120'],
+PRODUCTS = {'bike': ['bike_pad50', 'bike_pad80', 'bike_pad120', 'bike_pad80_free'],
             'tvfeet': ['tvfeet_L300', 'tvfeet_L220'],
             'tvped': ['tvped']}
 MODES = {'bike': (12, 5, 10), 'tvfeet': (4, 16, 12), 'tvped': (10, 12, 6)}

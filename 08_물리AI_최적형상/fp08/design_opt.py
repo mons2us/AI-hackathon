@@ -174,7 +174,7 @@ def optimize(group, cond, sdf_ckpt, pino_net, data, margins=None, n_starts=10, s
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
         tag = f'{group}_' + '_'.join(f'{k}{v:g}' for k, v in sorted(cond.items()))
-        with open(os.path.join(out_dir, f'opt_{tag}.json'), 'w') as f:
+        with open(os.path.join(out_dir, f'opt_{tag}.json'), 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=1, default=float)
         if best:
             np.save(os.path.join(out_dir, f'opt_{tag}.npy'), best[0])

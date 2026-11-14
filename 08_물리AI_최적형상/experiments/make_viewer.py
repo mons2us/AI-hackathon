@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(HERE, '..'))
 from fp08 import problems, datagen, shapes
 
 NAMES = {'bike_pad50': '거치대 · 받침 50 mm', 'bike_pad80': '거치대 · 받침 80 mm (시연 기본)',
-         'bike_pad120': '거치대 · 받침 120 mm', 'tvfeet_L300': 'TV 양발형 · 발끝 300 mm (다리 하나)',
+         'bike_pad120': '거치대 · 받침 120 mm', 'bike_pad80_free': '거치대 · 받침 80 mm · 화면 각도 자유(기둥 60 mm)', 'tvfeet_L300': 'TV 양발형 · 발끝 300 mm (다리 하나)',
          'tvfeet_L220': 'TV 양발형 · 발끝 220 mm (넘어짐 불합격 그룹)', 'tvped': 'TV 중앙형(받침대형)'}
 FAM = {'A': 'A 직접 부재', 'B': 'B 트러스', 'Ctri': 'C 삼각 판', 'Cquad': 'C 사각 판', 'D': 'D 열린 껍데기'}
 
@@ -25,8 +25,8 @@ def b64gz(a):
 def build(data, group, outdir, n_dropped=300):
     p = problems.get(group); g = p.grid
     idx, occ, meta = datagen.load_shapes(data, group)
-    sel = json.load(open(os.path.join(data, group, 'selection.json')))
-    reason = json.load(open(os.path.join(data, group, 'drop_reason.json')))
+    sel = json.load(open(os.path.join(data, group, 'selection.json'), encoding='utf-8'))
+    reason = json.load(open(os.path.join(data, group, 'drop_reason.json'), encoding='utf-8'))
     # 제외된 예시 (허공 가지 / 울퉁불퉁 / 끊김) 일부도 함께 — 걸러낸 기준을 눈으로 확인
     cand, cmeta = {}, {}
     d = os.path.join(data, group, 'cand')

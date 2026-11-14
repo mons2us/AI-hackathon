@@ -133,4 +133,4 @@ if __name__ == '__main__':
     st = {}
     for k in problems.GROUPS:
         setup_fig(k); st[k] = reps_fig(k); print(k, st[k], flush=True)
-    json.dump(st, open(os.path.join(OUT, 'stats.json'), 'w'))
+    json.dump(st, open(os.path.join(OUT, 'stats.json'), 'w', encoding='utf-8'))

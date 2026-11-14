@@ -81,7 +81,7 @@ def report(run):
     sf = os.path.join(run, 'state.json')
     if not os.path.exists(sf):
         print('state.json 없음'); return
-    st = json.load(open(sf))
+    st = json.load(open(sf, encoding='utf-8'))
     for kind, d in st.get('sweep', {}).items():
         print(f'== 학습 방법 고르기 ({kind}) — 검증 점수, 작을수록 좋음 ==')
         for u, v in d.items():

@@ -119,9 +119,9 @@ def select(group, out, n_keep, broken_frac=0.05, max_tips=2, rough_pct=90, log=p
                family_keep={f: sum(1 for i in keep if M[i]['family'] == f) for f in mix},
                broken_keep=n_broken, keep_rate={f: round(v, 3) for f, v in rate.items()},
                mix_auto={f: round(v, 3) for f, v in mix.items()}, sym_axes=_prob(group)[1].sym_axes, keep=keep)
-    with open(os.path.join(out, group, 'selection.json'), 'w') as f:
+    with open(os.path.join(out, group, 'selection.json'), 'w', encoding='utf-8') as f:
         json.dump(rep, f)
-    with open(os.path.join(out, group, 'drop_reason.json'), 'w') as f:
+    with open(os.path.join(out, group, 'drop_reason.json'), 'w', encoding='utf-8') as f:
         json.dump({str(k): v for k, v in reason.items()}, f)
     log(f'  [{group}] 후보 {len(meta)} → {len(keep)}개 선택, 제외 {rep["dropped"]}')
     return rep
@@ -136,7 +136,7 @@ def shapes_shard(args):
     p, cv = _prob(group)
     sel = os.path.join(out, group, 'selection.json')
     if os.path.exists(sel):
-        idx = np.array(json.load(open(sel))['keep'][s * SHARD:(s + 1) * SHARD])
+        idx = np.array(json.load(open(sel, encoding='utf-8'))['keep'][s * SHARD:(s + 1) * SHARD])
     else:
         idx = np.arange(s * SHARD, (s + 1) * SHARD)
     occ, meta, X, S = [], [], [], []
@@ -152,6 +152,91 @@ def shapes_shard(args):
 
 
 ESO_BASE = 10_000_000     # ESO 로 다듬은 형상의 번호 = 원본 번호 + ESO_BASE
+TOP_BASE = 50_000_000     # 위에서 깎기(top-down) 형상 번호 = TOP_BASE + 순서열 번호 × TOP_STEP + 단계
+TOP_STEP = 24
+TOP_PER_SHARD = 4         # 파일 하나에 순서열 4개
+
+
+def topdown_seq(group, j, cv=None):
+    """위에서 깎기 순서열 하나: 설계 영역을 (거의) 꽉 채운 형상에서 시작해 ESO 로 힘 안 받는 칸을 조금씩 지우며
+    단계마다 형상을 저장. 무작위 형상이 기준(예: 진동수)에 한참 못 미치는 어려운 그룹(금지 공간 그룹)에서
+    합격 근처 형상을 학습 데이터에 넣기 위한 것. 같은 (그룹, j) → 같은 결과."""
+    from . import eso
+    p, cv0 = _prob(group)
+    cv = cv or cv0
+    base = TOP_BASE + j * TOP_STEP
+    rng = np.random.default_rng(shapes.seed_of(group, base) ^ 0x70d0)
+    occ = cv.design.copy()
+    if rng.random() < 0.3:                    # 시작 형상 다양화: 매끈한 무작위 구멍 3~15% (합격 영역이 꽉 찬 쪽에 좁게 있어서 작게)
+        P, span = cv.P, cv.hi - cv.lo
+        f = np.zeros(len(P))
+        for _ in range(rng.integers(2, 6)):
+            c = cv.lo + rng.random(3) * span; sd = (0.08 + 0.15 * rng.random()) * span
+            f += np.exp(-0.5 * (((P - c) / sd) ** 2).sum(1))
+        hole = f > np.quantile(f[cv.design], 1 - rng.uniform(0.03, 0.15))
+        trial = shapes.drop_dead_blobs(cv, occ & ~hole)
+        for a in cv.sym_axes:
+            trial = (trial | np.flip(cv.g.eshape(trial), a).ravel()) & cv.design
+        if shapes.connected_groups(cv, trial | cv.fixed)[0]:
+            occ = trial
+    cond = cond_of(p, group, base)
+    frac = float(rng.uniform(0.06, 0.15))      # 한 번에 지우는 비율: 작게 → 합격 경계 근처를 촘촘히
+    out = []
+    for step in range(TOP_STEP):
+        vf = occ.sum() / cv.design.sum()
+        if 0.05 <= vf <= 0.8:
+            out.append((base + step, occ.copy(), dict(group=group, idx=base + step, family='T', seq=j, step=step,
+                                                      vf=float(vf), frac=frac, cond=cond, connected=True)))
+        if vf < 0.10:
+            break
+        new, lg = eso.eso_prune(p, cv, occ, cond=cond, frac=frac, iters=1, min_vf=0.05)
+        if lg and lg[-1].get('stopped'):
+            break
+        occ = new
+    return out, cond
+
+
+def topdown_shard(args):
+    group, s, out, n_pts = args
+    path = os.path.join(out, group, f'shapes_t{s:05d}.npz')
+    if os.path.exists(path):
+        return path, 0.0
+    t0 = time.time()
+    p, cv = _prob(group)
+    idx, occ, meta, X, S = [], [], [], [], []
+    for j in range(s * TOP_PER_SHARD, (s + 1) * TOP_PER_SHARD):
+        for i, o, m in topdown_seq(group, j, cv)[0]:
+            rng = np.random.default_rng(shapes.seed_of(group, i) ^ 0xd5df)
+            x, d = shapes.sample_sdf(p, o | cv.fixed, rng, n=n_pts)
+            idx.append(i); occ.append(np.packbits(o)); meta.append(m); X.append(x.astype(np.float16)); S.append(d.astype(np.float16))
+        print(f'    [위에서 깎기 {group} 파일 {s}] 순서열 {j} 끝 ({time.time() - t0:.0f}s)', flush=True)
+    tmp = path + '.tmp.npz'
+    np.savez_compressed(tmp, idx=np.array(idx), occ=np.stack(occ), meta=json.dumps(meta), sdf_xyz=np.stack(X), sdf=np.stack(S))
+    os.replace(tmp, path)
+    return path, time.time() - t0
+
+
+def fem_top_shard(args):
+    """위에서 깎기 형상 전부의 FEM 정답 (순서열의 조건 그대로) → femtop_#####.npz"""
+    group, s, out = args
+    path = os.path.join(out, group, f'femtop_{s:05d}.npz')
+    src = os.path.join(out, group, f'shapes_t{s:05d}.npz')
+    if os.path.exists(path) or not os.path.exists(src):
+        return path, 0.0
+    t0 = time.time()
+    p, cv = _prob(group)
+    z = np.load(src)
+    occ = np.unpackbits(z['occ'], axis=1)[:, :p.grid.ne].astype(bool)
+    meta = json.loads(str(z['meta']))
+    _fem_write(path, group, z['idx'], occ, meta, [m['cond'] for m in meta])
+    return path, time.time() - t0
+
+
+def make_topdown(group, n_seq, out, workers, n_pts=4000, log=print):
+    """위에서 깎기 순서열 n_seq 개 (약 10단계씩) → 형상 + FEM 정답"""
+    ns = (n_seq + TOP_PER_SHARD - 1) // TOP_PER_SHARD
+    run_pool(topdown_shard, [(group, s, out, n_pts) for s in range(ns)], workers, log)
+    run_pool(fem_top_shard, [(group, s, out) for s in range(ns)], workers, log)
 
 
 def eso_shard(args):
@@ -300,7 +385,7 @@ def make_shapes(group, n, out, workers, n_pts=4000, n_cand=None, eso=False, log=
     os.makedirs(os.path.join(out, group), exist_ok=True)
     p, _ = _prob(group)
     p.save_npz(os.path.join(out, group, 'problem.npz'))
-    with open(os.path.join(out, group, 'spec.json'), 'w') as f:
+    with open(os.path.join(out, group, 'spec.json'), 'w', encoding='utf-8') as f:
         json.dump(p.spec(), f, ensure_ascii=False, indent=1)
     if n_cand:
         os.makedirs(os.path.join(out, group, 'cand'), exist_ok=True)
@@ -341,11 +426,11 @@ def extend_selection(group, out, n, log=print):
     """형상 수를 늘릴 때: 기존 선택은 그대로 두고(묶음 번호 유지), 품질 기준은 통과했지만 안 뽑혔던 후보(not_sampled)에서
     고르게 더 뽑아 뒤에 붙임. 후보가 모자라면 있는 만큼만."""
     sf = os.path.join(out, group, 'selection.json')
-    rep = json.load(open(sf))
+    rep = json.load(open(sf, encoding='utf-8'))
     keep = rep['keep']
     if len(keep) >= n:
         return len(keep)
-    reason = json.load(open(os.path.join(out, group, 'drop_reason.json')))
+    reason = json.load(open(os.path.join(out, group, 'drop_reason.json'), encoding='utf-8'))
     have = set(keep)
     pool = sorted(int(k) for k, v in reason.items() if v == 'not_sampled' and int(k) not in have)
     q = min(n - len(keep), len(pool))
@@ -354,7 +439,7 @@ def extend_selection(group, out, n, log=print):
     rep['keep'] = keep + add; rep['n_keep'] = len(rep['keep']); rep.setdefault('extended', []).append(len(add))
     for i in add:
         reason.pop(str(i), None)
-    json.dump(rep, open(sf, 'w')); json.dump(reason, open(os.path.join(out, group, 'drop_reason.json'), 'w'))
+    json.dump(rep, open(sf, 'w', encoding='utf-8')); json.dump(reason, open(os.path.join(out, group, 'drop_reason.json'), 'w', encoding='utf-8'))
     log(f'  [{group}] 형상 추가 선택 {len(add)}개 → 총 {len(rep["keep"])}개 (요청 {n}, 남은 후보 {len(pool) - len(add)})')
     return len(rep['keep'])
 

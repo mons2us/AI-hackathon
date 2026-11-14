@@ -98,7 +98,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | `docs/DeepSDF_study.html` | DeepSDF 공부 자료 (그림) |
 | `RUN_MONDAY.md` | 서버 1대에서 전부 돌릴 때의 원래 계획서 |
 
-6개 그룹: `bike_pad50`, `bike_pad80`, `bike_pad120` (자전거 거치대, 2 mm 격자) · `tvfeet_L300`, `tvfeet_L220` (TV 양발, 2.5 mm) · `tvped` (TV 중앙 스탠드, 5 mm). 제품 3개: `bike`, `tvfeet`, `tvped` (PINO 는 제품별).
+7개 그룹: `bike_pad50`, `bike_pad80`, `bike_pad120`, **`bike_pad80_free`**(화면 각도 자유: 폰 기둥 60 mm, 폰 회전 공간을 비움, 위에서 깎기 형상 약 1,500개 + FEM 정답 추가 — README §3-1c) (자전거 거치대, 2 mm 격자) · `tvfeet_L300`, `tvfeet_L220` (TV 양발, 2.5 mm) · `tvped` (TV 중앙 스탠드, 5 mm). 제품 3개: `bike`(4그룹), `tvfeet`, `tvped` (PINO 는 제품별).
 
 ---
 
@@ -235,7 +235,7 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 - 시연 조건 `DEMO` (`loop.py`) 는 10 고정 시나리오와 맞춘 값 (거치대 휴대폰 200 g, TV 20.8 kg 등).
 - 10 쪽 스펙이 바뀌면 08 을 고치기 전에 사용자에게 먼저 확인.
 - 입력 단계 폴더는 `10_입력_1차설계` (예전 이름 `07_입력_1차설계`). 템플릿 22종 중 08 이 처리 가능한 것은 **T01·T02·T03·T07·T08·T17** (받침 50·80·120 mm, 높이 16 mm). 이 6종은 요소 라벨이 08 과 완전히 일치함(11-14 확인).
-- 08 이 아직 다루지 않는 입력 요구: `free_angle`(`keepout` 마스크·관절 제약), `sun_heat`, `min_feature` 5 mm. 시연에서 쓸지는 미정(README §11 요청 18~23).
+- `free_angle`(화면 각도 자유)은 시연에 넣기로 결정 → 08 그룹 `bike_pad80_free`(기둥 60 mm, 입력 단계 T01 + post_h 60 과 라벨 일치). 관절 제약은 08 미지원. `sun_heat`, `min_feature` 5 mm 는 미정(README §11 요청 18~24).
 - 10 문서: https://github.com/mons2us/AI-hackathon/blob/feature/input-spec/10_%EC%9E%85%EB%A0%A5_1%EC%B0%A8%EC%84%A4%EA%B3%84/README.md
 
 ---

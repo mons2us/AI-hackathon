@@ -42,4 +42,4 @@ if __name__ == '__main__':
             ax.set_title(f"{lab} #{r['idx']} {G.FAM[r['fam']]}\n{fmt(e)}", fontsize=10, color='#0d7a5f' if e['pass'] else '#d9455f')
     plt.tight_layout(); plt.savefig(out, dpi=80, bbox_inches='tight')
     json.dump(dict(S, rows=[dict(idx=r['idx'], fam=r['fam'], before=r['before'], after=r['after'], log=r['log']) for r in rows]),
-              open(out.replace('.png', '.json'), 'w'), ensure_ascii=False, default=float)
+              open(out.replace('.png', '.json'), 'w', encoding='utf-8'), ensure_ascii=False, default=float)

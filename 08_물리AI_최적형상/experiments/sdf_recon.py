@@ -55,4 +55,4 @@ if __name__ == '__main__':
         recon_mesh(ax, p, model, zv[k:k + 1])
         G.frame(ax, p); ax.view_init(*G.VIEW[problems.PRODUCT_OF[group]]); ax.set_title(f'DeepSDF 복원 · IoU {ious[k]:.2f}', fontsize=10)
     plt.tight_layout(); plt.savefig(out, dpi=80, bbox_inches='tight')
-    json.dump(dict(group=group, step=int(c['step']), iou=[float(x) for x in ious]), open(out.replace('.png', '.json'), 'w'))
+    json.dump(dict(group=group, step=int(c['step']), iou=[float(x) for x in ious]), open(out.replace('.png', '.json'), 'w', encoding='utf-8'))

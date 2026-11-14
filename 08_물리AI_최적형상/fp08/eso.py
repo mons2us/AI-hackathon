@@ -43,6 +43,7 @@ def eso_prune(p, cv, occ, cond=None, frac=0.15, iters=2, min_vf=0.04):
             for a in cv.sym_axes:
                 new = (new | np.flip(cv.g.eshape(new), a).ravel()) & cv.design
             new = shapes.fill_cavities(cv, new | cv.fixed) & cv.design
+            new = shapes.drop_floating(cv, new)     # 11-14: 다듬기 뒤 떠 있는 작은 조각(진동수 0 Hz 원인) 삭제
             ok = shapes.connected_groups(cv, new | cv.fixed)[0] and new.sum() >= min_vf * cv.design.sum()
             if ok:
                 break

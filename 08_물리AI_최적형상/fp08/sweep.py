@@ -74,5 +74,5 @@ def promote(src_dir, dst_dir):
     os.makedirs(dst_dir, exist_ok=True)
     shutil.copy2(os.path.join(src_dir, 'ckpt.pt'), os.path.join(dst_dir, 'ckpt.pt.tmp'))
     os.replace(os.path.join(dst_dir, 'ckpt.pt.tmp'), os.path.join(dst_dir, 'ckpt.pt'))
-    with open(os.path.join(dst_dir, 'chosen.json'), 'w') as f:
+    with open(os.path.join(dst_dir, 'chosen.json'), 'w', encoding='utf-8') as f:
         json.dump(dict(from_=src_dir), f)

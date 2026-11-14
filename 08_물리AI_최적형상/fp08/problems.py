@@ -10,7 +10,7 @@
 - TV 양발형: 04 plate_v2/plate.py (체결 블록·발 패드·하중 3종·처짐 측정 방식) 를 3D 다리로 확장
 - TV 중앙형: 04 pedestal/ped.py (TV 블록 강체 x100·패드·하중·측정 방식), 설계 영역은 목+바닥 전체(5 mm)
 """
-import json
+import json, os
 import numpy as np
 from scipy import ndimage
 from . import fem
@@ -29,6 +29,7 @@ def _snap(v, h, mode='near'):
 
 class Problem:
     """격자·라벨·지지·대칭·하중·질량·판정 기준을 담는 공통 문제 객체."""
+    keepout_meta = None   # 금지 공간(입력 단계 keepout) 정보, 없으면 None
     product = ''
     material = {}
     physics = ('static',)
@@ -131,8 +132,11 @@ class BikeMount(Problem):
     material = dict(name='PETG', E=1700.0, nu=0.38, rho=1.27e-9, yield_mpa=39.0, interlayer_mpa=16.4,
                     source='Prusament PETG TDS (팀 v7)')
 
-    def __init__(self, pad_x0=80.0, pad_z0=16.0, h=2.0):
-        self.name = f'bike_pad{int(pad_x0)}_{int(pad_z0)}'
+    def __init__(self, pad_x0=80.0, pad_z0=16.0, h=2.0, keepout=None, z_min=None, post_h=22.0):
+        """keepout: 금지 공간 마스크 파일 이름(fp08/assets/<이름>.npz). 주면 그 칸의 설계 영역을 '빈 곳'으로 바꿈
+        (입력 단계 '화면 각도 자유' 요구: 폰이 360° 회전·−30~+60° 기울며 지나가는 공간 + 3 mm)
+        z_min: 설계 영역 아래쪽 끝 [mm] (입력 단계 domain_z_min 과 같음). 금지 공간이 클램프~받침 사이를 막으면 아래로 돌아갈 공간"""
+        self.name = f'bike_pad{int(pad_x0)}_{int(pad_z0)}' + (f'_post{int(post_h)}' if post_h != 22.0 else '') + ('_free' if keepout else '')
         Y = 55.0
         bore, ro = 16.1, 20.6
         yw, ypost = Y + 10.0, Y + 6.0
@@ -140,11 +144,13 @@ class BikeMount(Problem):
         ear_top = _snap(-bore + 2.0, h)
         ear_bot = ear_top - 20.0
         z0 = _snap(min(ear_bot, -ro) - 2.0, h, 'down')
+        if z_min is not None:
+            z0 = min(z0, _snap(z_min, h, 'down'))
         px0, px1 = _snap(pad_x0, h), _snap(pad_x0 + 20.0, h)
         pz0, pz1 = _snap(pad_z0, h), _snap(pad_z0 + 4.0, h)
         qx0, qx1 = _snap(px0 + 6.0, h), _snap(px0 + 16.0, h)
         z_above = max(pz1 + 4.0, _snap(ro + 2.0, h, 'up'))
-        z_top = max(_snap(pz1 + 22.0, h), z_above + 2 * h)
+        z_top = max(_snap(pz1 + post_h, h), z_above + 2 * h)    # post_h: 폰 기둥(강체) 높이 = 폰 무게중심 지렛대
         nx = int(round((px1 - x0) / h)); ny = 10; nz = int(round((z_top - z0) / h))
         g = self.grid = fem.Grid((nx, ny, nz), h, (x0, Y, z0))
         xc, yc, zc = g.xc, g.yc, g.zc
@@ -162,6 +168,15 @@ class BikeMount(Problem):
         lab[(contact | ears | pad) & ~void] = 1
         lab[post & ~void] = 3
         lab[void] = 2
+        self.keepout_meta = None
+        if keepout:
+            z = np.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', f'{keepout}.npz'))
+            km = np.unpackbits(z['mask'])[:int(z['n'])].astype(bool)
+            assert len(km) == g.ne, '금지 공간 마스크 격자 불일치'
+            assert not (km & np.isin(lab, [1, 3])).any(), '금지 공간이 고정부품과 겹침 → 받침 위치를 바꿔야 함'
+            lab[km & (lab == 0)] = 2
+            self.keepout_meta = json.loads(str(z['meta']))
+            self.keepout = km
         self.label = lab
         self._geo = dict(bore=bore, qx=(qx0, qx1), ypost=ypost, z_top=z_top)
         self.conditions = dict(
@@ -177,7 +192,8 @@ class BikeMount(Problem):
             dict(id='interlayer', quantity='적층 방향(y) 인장 수직응력 상위 0.5% [MPa]', op='<=', value=10.9,
                  how='위아래·옆 충격', source='층간 16.4 / 1.5, 옆으로 눕혀 출력 가정'),
             dict(id='mass', quantity='질량 [g]', op='min', how='재료 칸 수 × 밀도 (대칭 복원)')]
-        self.assumptions = ['클램프 내면 핸들바 완전 고정', '폰 + 홀더 질량은 폰 기둥 꼭대기 집중(홀더 50 g)',
+        self.assumptions = ([f'화면 각도 자유: 폰 기둥 {post_h:.0f} mm, 폰이 지나가는 공간(입력 단계 keepout)을 빈 곳으로. 기둥은 강체(PETG×20) 가정, 관절 강성·유지 토크는 시판 관절 사양으로 충족 가정(08 미검증)']
+                            if keepout else []) + ['클램프 내면 핸들바 완전 고정', '폰 + 홀더 질량은 폰 기둥 꼭대기 집중(홀더 50 g)',
                             '폰 각도는 기둥 꼭대기 질량 무게중심을 앞뒤로 이동(22 mm × sinθ, 기둥 폭 안으로 제한)',
                             '앞뒤(x) 방향 충격 미포함', '거치대 자체 관성 미포함(팀 v7과 동일)']
         self.finalize()
@@ -480,11 +496,15 @@ GROUPS = {
     'bike_pad50': lambda: BikeMount(50.0, 16.0),
     'bike_pad80': lambda: BikeMount(80.0, 16.0),
     'bike_pad120': lambda: BikeMount(120.0, 16.0),
+    # 화면 각도 자유 요구 (입력 T01 + free_angle, 폰 기둥 22 → 60 mm). 기둥을 높여 폰 회전 공간을 팔 위로 올림:
+    # 기둥 22 mm 는 회전 공간이 클램프·받침과 겹쳐 불가능, 80 mm 이상은 영역을 다 채워도 진동수 미달(81 Hz), 60 mm 는 다 채우면 101 Hz.
+    # 받침 120 + 영역 아래로 확장(−80 mm) 안보다 합격 형상이 가벼움(위에서 깎기 약 186 g vs 250 g, 11-14 FEM)
+    'bike_pad80_free': lambda: BikeMount(80.0, 16.0, keepout='keepout_bike_pad80_free', post_h=60.0),
     'tvfeet_L300': lambda: TVFeet(300.0),
     'tvfeet_L220': lambda: TVFeet(220.0),
     'tvped': lambda: TVPedestal(),
 }
-PRODUCT_OF = {'bike_pad50': 'bike', 'bike_pad80': 'bike', 'bike_pad120': 'bike',
+PRODUCT_OF = {'bike_pad50': 'bike', 'bike_pad80': 'bike', 'bike_pad120': 'bike', 'bike_pad80_free': 'bike',
               'tvfeet_L300': 'tvfeet', 'tvfeet_L220': 'tvfeet', 'tvped': 'tvped'}
 
 

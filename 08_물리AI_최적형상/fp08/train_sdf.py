@@ -23,7 +23,13 @@ def split3(idx, frac=0.1):
     """번호로 결정되는 고정 분할 (다시 실행해도 같음): 학습 80% / 검증 10% / 시험 10%
     검증 = 학습 중 성능 확인·학습 방법 고르기(sweep) / 시험 = 고르는 데 쓰지 않은 최종 성적표(관문·보고)"""
     # ESO 로 깎은 형상(번호 = 부모 + ESO_BASE)은 부모와 같은 쪽으로 (닮은 형상이 학습/시험에 갈라져 들어가는 것 방지)
-    par = lambda i: i - datagen.ESO_BASE if datagen.ESO_BASE <= i < 2 * datagen.ESO_BASE else i
+    # 위에서 깎기 형상은 같은 순서열끼리 같은 쪽으로
+    def par(i):
+        if datagen.ESO_BASE <= i < 2 * datagen.ESO_BASE:
+            return i - datagen.ESO_BASE
+        if datagen.TOP_BASE <= i < datagen.TOP_BASE + datagen.ESO_BASE:
+            return datagen.TOP_BASE + (i - datagen.TOP_BASE) // datagen.TOP_STEP * datagen.TOP_STEP
+        return i
     h = np.array([shapes.seed_of('split', par(int(i))) % 1000 for i in idx])
     return h >= 2 * frac * 1000, h < frac * 1000, (h >= frac * 1000) & (h < 2 * frac * 1000)
 

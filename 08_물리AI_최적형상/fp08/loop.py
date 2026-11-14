@@ -20,6 +20,7 @@ DEMO = {  # 시연 조건 (07 고정 시나리오와 맞춤)
     'bike_pad80': [dict(phone_mass_g=200.0, phone_angle_deg=0.0), dict(phone_mass_g=220.0, phone_angle_deg=15.0)],
     'bike_pad50': [dict(phone_mass_g=200.0, phone_angle_deg=0.0)],
     'bike_pad120': [dict(phone_mass_g=200.0, phone_angle_deg=0.0)],
+    'bike_pad80_free': [dict(phone_mass_g=200.0, phone_angle_deg=0.0)],    # 화면 각도 자유 (기둥 60 mm, 폰 회전 공간 비움)
     'tvfeet_L300': [dict(tv_mass_kg=20.8, leg_span_mm=1200.0)],
     'tvfeet_L220': [dict(tv_mass_kg=20.8, leg_span_mm=1200.0)],
     'tvped': [dict(tv_mass_kg=20.8)],
@@ -32,7 +33,7 @@ class Loop:
         self.run = a.run
         os.makedirs(self.run, exist_ok=True)
         self.sf = os.path.join(self.run, 'state.json')
-        self.state = json.load(open(self.sf)) if os.path.exists(self.sf) else dict(stages={}, rounds=[], started=now())
+        self.state = json.load(open(self.sf, encoding='utf-8')) if os.path.exists(self.sf) else dict(stages={}, rounds=[], started=now())
         self.deadline = time.mktime(time.strptime(a.deadline, '%Y-%m-%d %H:%M')) if a.deadline else None
         self.groups = a.groups.split(',') if a.groups else list(problems.GROUPS)
         self.products = sorted({problems.PRODUCT_OF[g] for g in self.groups})
@@ -42,12 +43,12 @@ class Loop:
     def log(self, msg):
         line = f'[{now()}] {msg}'
         print(line, flush=True)
-        with open(os.path.join(self.run, 'loop.log'), 'a') as f:
+        with open(os.path.join(self.run, 'loop.log'), 'a', encoding='utf-8') as f:
             f.write(line + '\n')
 
     def save(self):
         self.state['updated'] = now()
-        with open(self.sf + '.tmp', 'w') as f:
+        with open(self.sf + '.tmp', 'w', encoding='utf-8') as f:
             json.dump(self.state, f, ensure_ascii=False, indent=1, default=float)
         os.replace(self.sf + '.tmp', self.sf)
         write_report(self.run, self.state)
@@ -77,8 +78,8 @@ class Loop:
             for slot, dv in slots:
                 if slot not in procs and queue:
                     name, cmd = queue.pop(0)
-                    lf = open(os.path.join(self.run, f'{name}.log'), 'a')
-                    env = dict(os.environ)
+                    lf = open(os.path.join(self.run, f'{name}.log'), 'a', encoding='utf-8')
+                    env = dict(os.environ, PYTHONUTF8='1')       # Windows(cp949)에서 한글·기호 로그 깨짐/오류 방지
                     if dv == 'cpu':
                         env['OMP_NUM_THREADS'] = str(max(1, (os.cpu_count() or 2) // len(self.devices)))
                     procs[slot] = (name, subprocess.Popen(cmd + ['--device', dv], stdout=lf, stderr=subprocess.STDOUT, env=env), lf)
@@ -103,6 +104,16 @@ class Loop:
             datagen.make_shapes(g, self.a.n_shapes, self.a.data, self.a.workers, n_cand=self.a.n_cand, eso=self.a.eso, log=self.log)
             self.mark(k, sec=round(time.time() - t, 1), n=self.a.n_shapes, eso=bool(self.a.eso or prev.get('eso')),
                       total=datagen.count_shapes(self.a.data, g))
+        # 금지 공간 그룹: 무작위 형상이 기준에 한참 못 미침 → '위에서 깎기' 형상(꽉 찬 형상 → ESO 단계별)과 그 FEM 정답 추가
+        for g in self.groups:
+            k = f'topdown:{g}'
+            if self.a.topdown <= 0 or problems.get(g).keepout_meta is None:
+                continue
+            if self.state['stages'].get(k, {}).get('n', 0) >= self.a.topdown:
+                continue
+            t = time.time()
+            datagen.make_topdown(g, self.a.topdown, self.a.data, self.a.workers, log=self.log)
+            self.mark(k, sec=round(time.time() - t, 1), n=self.a.topdown, total=datagen.count_shapes(self.a.data, g))
 
     def st_fem(self):
         for g in self.groups:
@@ -445,7 +456,7 @@ td,th{{border:1px solid #ddd;padding:4px 6px}}th{{background:#f3f3f3}}code{{font
 <table><tr><th>바퀴</th><th>그룹</th><th>결과</th><th>L2</th><th>진동수 ±5%</th><th>판정값 오차 p90</th><th>불합격 사유</th></tr>{gates}</table>
 <h3>시연 최적화 + FEM 검증</h3><table><tr><th>바퀴</th><th>그룹</th><th>조건</th><th>상태</th><th>질량 g</th><th>FEM 판정값</th><th>시간</th></tr>{demos}</table>
 <h3>단계</h3><table><tr><th>단계</th><th>완료 시각</th><th>정보</th></tr>{rows}</table></body></html>"""
-    with open(os.path.join(run, 'report.html'), 'w') as f:
+    with open(os.path.join(run, 'report.html'), 'w', encoding='utf-8') as f:
         f.write(doc)
 
 
@@ -461,6 +472,7 @@ if __name__ == '__main__':
     ap.add_argument('--al-n', type=int, default=200); ap.add_argument('--max-rounds', type=int, default=3)
     ap.add_argument('--n-starts', type=int, default=10); ap.add_argument('--opt-steps', type=int, default=300)
     ap.add_argument('--deadline', default=None)
+    ap.add_argument('--topdown', type=int, default=100, help='금지 공간 그룹에 추가할 위에서 깎기 순서열 수 (약 10형상씩, FEM 정답 포함)')
     ap.add_argument('--sweep', action='store_true', help='학습 방법 후보 여러 개 → 검증 점수로 최선 자동 선택 (fp08/sweep.py)')
     ap.add_argument('--sweep-topk', type=int, default=1, help='1차 거르기 뒤 끝까지 학습할 후보 수 (1: GPU 시간 약 1.6배, 2: 약 2.4배)')
     Loop(ap.parse_args()).main()
