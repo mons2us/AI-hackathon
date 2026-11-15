@@ -15,7 +15,8 @@ python -m fp08.fem_opt --out results --groups bike_pad80 --cond phone_mass_g=180
      ESO 는 감도 필터(이웃 평균)로 지울 칸 선택 → 가는 목·날카로운 홈 방지. --raw 로 끄기
   4) 합격이 하나도 없으면: (어느 형상이든 값이 같은 기준 미달 항목이 있으면 = 형상으로 못 고침 → 표시하고 끝)
      기준에 가장 가까운 후보 3개를 한 칸씩 굵게(최대 3번) → FEM 재판정 → 합격하면 3) 다듬기
-  5) 가장 가벼운 합격 형상 → <tag>.json·.stl·.png + detail/opt_<tag>.json·.npy → app.html
+  5) 마무리 (11-15): 최소 두께 미만 칸(화면의 빨간 칸)을 채움 → FEM 재판정 (불합격이면 채우기 전 형상 유지)
+  6) 가장 가벼운 합격 형상 → <tag>.json·.stl·.png + detail/opt_<tag>.json·.npy → app.html
 결과: status ok(합격 형상 있음) / fallback(없음). 질량·판정값은 전부 FEM 값 (예측값 없음).
 """
 import os, json, time, argparse
@@ -138,6 +139,38 @@ def open_close(p, cv, occ, k=None):
     return occ if shapes.connected_groups(cv, occ | cv.fixed)[0] else None
 
 
+def fill_thin(p, cv, occ, k=None, rounds=6):
+    """마무리: 최소 두께 미만 칸(화면의 빨간 칸) 주변을 k칸 폭으로 채움 (설계 공간 안에서만). 반환: (occ, 남은 칸 수)"""
+    k = k or min_cells_of(p)
+    g = p.grid
+    Dd, _ = _mirror(p, g.eshape(cv.design))
+    se = np.ones((k, k, k), bool)
+    for _ in range(rounds):
+        th = thin_cells(p, occ, k)
+        if not th.any():
+            break
+        T, inf = _mirror(p, g.eshape(th))
+        Dall, _ = _mirror(p, g.eshape(cv.design | cv.fixed | (p.label == 3)))
+        ctr = ndimage.binary_dilation(T, se) & ndimage.binary_erosion(Dall, se)   # 그 칸을 덮으면서 설계 공간 안에 온전히 들어가는 k칸 상자들
+        occ = occ | (_half(ndimage.binary_dilation(ctr, se) & Dd, inf).ravel() & cv.design)
+        occ = shapes.fill_cavities(cv, occ | cv.fixed) & cv.design
+    return occ, int(thin_cells(p, occ, k).sum())
+
+
+def finalize(p, cv, occ, ev, cond, log=print):
+    """빨간 칸 채움 → FEM 재판정. 합격이면 채운 형상, 불합격이면 원래 형상. 반환: (occ, ev, 기록)"""
+    th0 = int(thin_cells(p, occ).sum())
+    if th0 == 0:
+        return occ, ev, dict(kind='fill', thin_before=0, thin_after=0, mass_before=ev['mass_g'], mass_after=ev['mass_g'], passed=True, applied=False)
+    o2, left = fill_thin(p, cv, occ)
+    e2 = _fem(p, o2, cond)
+    rec = dict(kind='fill', thin_before=th0, thin_after=left, mass_before=ev['mass_g'], mass_after=e2['mass_g'],
+               passed=bool(e2['pass']), applied=bool(e2['pass']))
+    log(f'  얇은 곳 채움: {th0} → {left}칸, {ev["mass_g"]:.1f} → {e2["mass_g"]:.1f} g, 합격 {e2["pass"]}'
+        + ('' if e2['pass'] else ' → 채우기 전 형상 유지'))
+    return (o2, e2, rec) if e2['pass'] else (occ, ev, rec)
+
+
 def _eval(args):
     """작업자: (그룹, 조건, 번호) → 수식 형상 + FEM 판정"""
     g, cond, idx = args
@@ -240,6 +273,10 @@ def optimize(g, cond, n=None, refine_steps=6, workers=2, log=print, pool=None):
         fixes.append(dict(idx=r['idx'], kind='refine', start_mass_g=r['fem']['mass_g'], hist=h))
         if best is None or e2['mass_g'] < best[1]['mass_g']:
             best = (o2, e2, r['idx'], occs[r['idx']])
+    if best is not None and ROBUST:              # 5) 마무리: 빨간 칸(최소 두께 미만) 채움 → FEM 재판정
+        o3, e3, fr = finalize(p, cv, best[0], best[1], cond, log=log)
+        fixes.append(dict(fr, idx=best[2]))
+        best = (o3, e3, best[2], best[3])
     summ = dict(group=g, cond=cond, method='formula_fem', t=time.time() - t0, t_search=t_search, robust=ROBUST,
                 min_cells=min_cells_of(p),
                 status='ok' if best else 'fallback', n=n,
@@ -259,7 +296,10 @@ def main():
     ap.add_argument('--n', type=int, default=None); ap.add_argument('--refine', type=int, default=10)
     ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 2) - 1))
     ap.add_argument('--raw', action='store_true', help='최소 두께·홈 메우기 끄기 (11-14 동작)'); ap.add_argument('--no-app', action='store_true'); ap.add_argument('--no-stress', action='store_true')
+    ap.add_argument('--finalize-only', action='store_true', help='이미 만든 결과(--out)에 마무리(빨간 칸 채움)만 적용')
     a = ap.parse_args()
+    if a.finalize_only:
+        return finalize_results(a.out, not a.no_app, not a.no_stress)
     global ROBUST
     ROBUST = not a.raw
     os.makedirs(os.path.join(a.out, 'detail'), exist_ok=True)
@@ -291,6 +331,39 @@ def main():
             pool.close()
     if not a.no_app:
         app.build(a.out, None, None, not a.no_stress)
+
+
+def finalize_results(out, make_app=True, stress=True):
+    """기존 결과 폴더에 마무리만 적용 (탐색·다듬기 다시 안 함)"""
+    import glob
+    from .demo import full_mesh, write_stl, render_png
+    from . import app
+    for jf in sorted(glob.glob(os.path.join(out, '*.json'))):
+        rec = json.load(open(jf, encoding='utf-8'))
+        if rec.get('status') != 'ok' or rec.get('method') != 'formula_fem':
+            continue
+        tag = os.path.basename(jf)[:-5]
+        npf, dj = os.path.join(out, 'detail', f'opt_{tag}.npy'), os.path.join(out, 'detail', f'opt_{tag}.json')
+        if not os.path.exists(npf):
+            continue
+        p, cond = problems.get(rec['group']), rec['cond']
+        cv = shapes.Canvas(p)
+        t0 = time.time()
+        print(f'[fem_opt] {tag}: 마무리', flush=True)
+        occ, ev, fr = finalize(p, cv, np.load(npf) > 0.5, rec['fem'], cond)
+        d = json.load(open(dj, encoding='utf-8'))
+        d['fixes'] = [x for x in d.get('fixes', []) if x.get('kind') != 'fill'] + [dict(fr, idx=d.get('best_idx'))]
+        d['best'] = dict(fem=ev)
+        json.dump(d, open(dj, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=float)
+        if fr['applied']:
+            np.save(npf, occ)
+            V, F = full_mesh(p, occ); write_stl(os.path.join(out, tag + '.stl'), V, F)
+            render_png(os.path.join(out, tag + '.png'), p, occ, f"{rec['group']} {cond}\n{ev['mass_g']:.0f} g · FEM 합격")
+            rec['fem'] = ev
+        rec['sec'] = round(rec.get('sec', 0) + time.time() - t0, 1)
+        json.dump(rec, open(jf, 'w', encoding='utf-8'), ensure_ascii=False, indent=1, default=float)
+    if make_app:
+        app.build(out, None, None, stress)
 
 
 if __name__ == '__main__':

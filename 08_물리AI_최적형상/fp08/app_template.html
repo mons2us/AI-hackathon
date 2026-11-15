@@ -423,7 +423,7 @@ function right(c){
   $('#banner').innerHTML = !ok && inf.length ? `<span class="ic">!</span><span><b>이 조건에서는 어떤 형상도 통과 불가</b><small>형상과 무관하게 정해지는 기준이 미달 — 형상 최적화로 못 고침</small></span>` : ok ? `<span class="ic">✓</span><span><b>모든 기준 통과 (FEM 검증)</b><small>${fe ? '수식 형상을 FEM으로 직접 계산·다듬은 값' : '대리 모델 예측이 아니라 FEM으로 다시 계산한 값'}</small></span>`
     : `<span class="ic">!</span><span><b>합격 후보 없음 (fallback)</b><small>${fe ? '수식 형상 '+c.tried.length+'개·굵게 보정 후에도 FEM 기준 미달 — 후보 수(--n)를 늘려 다시 실행' : '대리 모델 후보 '+c.tried.length+'개 모두 FEM 검증 실패 — 자동 대체 없음'}</small></span>`;
   const d = c.mass != null && c.full_mass ? (1 - c.mass/c.full_mass)*100 : null;
-  $('#kpis').innerHTML = `<div class="kpi"><small>질량</small><b>${c.mass!=null ? fmt(c.mass,1)+' g' : '-'}</b>${c.start_mass!=null&&c.mass!=null?`<div class="d">다듬기로 −${fmt((1-c.mass/c.start_mass)*100,0)}% (${fmt(c.start_mass,1)} g에서)</div>`:''}${d!=null?`<div class="d" style="color:var(--ink2);font-weight:400">설계 공간 전체 ${fmt(c.full_mass,0)} g의 ${fmt(100-d,0)}%</div>`:''}</div>
+  $('#kpis').innerHTML = `<div class="kpi"><small>질량</small><b>${c.mass!=null ? fmt(c.mass,1)+' g' : '-'}</b>${c.start_mass!=null&&c.mass!=null?`<div class="d">다듬기 전 ${fmt(c.start_mass,1)} g 대비 −${fmt((1-c.mass/c.start_mass)*100,0)}%</div>`:''}${d!=null?`<div class="d" style="color:var(--ink2);font-weight:400">설계 공간 전체 ${fmt(c.full_mass,0)} g의 ${fmt(100-d,0)}%</div>`:''}</div>
     <div class="kpi"><small>${fe ? '계산 시간 (CPU)' : '최적화 + FEM 검증 시간'}</small><b>${fmt(c.sec,0)} s</b><div class="d" style="color:var(--ink2);font-weight:400">${fe ? '탐색 + 다듬기' : ''}</div></div>`;
   const rows = ok ? c.crit : (c.near_crit || c.crit);
   $('#metrics').innerHTML = (ok ? '' : '<div class="note" style="margin:-4px 0 10px">합격 형상이 없어 아래는 <b>기준에 가장 가까운 후보</b>의 FEM 값입니다.</div>') + rows.map(r => {
@@ -442,6 +442,8 @@ function right(c){
     const mm = c.kmin * c.grid_h, frac = c.thin_tot ? c.thin_n / c.thin_tot * 100 : 0, okT = frac < 5;
     w.push(`<div class="metric" style="margin-top:4px"><div class="row"><span>최소 부재 두께 ${c.kmin}칸 (${fmt(mm,1)} mm) 미만 칸</span><b class="${okT?'':'bad'}">${c.thin_n}개 (${fmt(frac,1)}%)</b></div>
       <div class="cap"><span>${c.thin_n === 0 ? '가는 목·날카로운 홈 없음' : okT ? '빨간 점 = 표면의 작은 돌기 (재료 칸 '+c.thin_tot+'개 중)' : '빨간 곳 = 너무 가늘어 FEM 값을 믿기 어려움'}</span><span>두께 기준은 제안값</span></div></div>`);
+    const fl = (c.fixes||[]).find(x => x.kind === 'fill')?.fill;
+    if (fl && fl.applied) w.push(`<div class="note">마무리에서 얇은 곳 ${fl.thin_before}칸을 채움 → 질량 ${fmt(fl.mass_before,1)} → ${fmt(fl.mass_after,1)} g, FEM 다시 판정해 합격</div>`);
     if (!c.robust) w.push('<div class="warn">두께 보정 없이 만든 결과(11-14 방식)입니다. 1~2칸 두께 부재는 FEM이 실제보다 단단하게 계산하고, 칸 크기보다 작은 홈의 응력 집중은 잡지 못합니다.</div>');
   }
   inf.forEach(x => w.push(`<div class="warn"><b>${esc(shortLabel(x.label))} = ${fmt(x.value,3)} (기준 ${x.op==='<='?'≤':'≥'} ${x.lim})</b><br>후보 ${c.tried.length}개 모두 같은 값 → 형상이 아니라 문제 조건(${esc(x.how)})으로 정해짐. 조건(예: 발 길이)을 바꿔야 합니다 — 사용자 결정 사항.</div>`));
@@ -492,12 +494,14 @@ function flowChart(c){
   if (!fe) return surrogateChart(c);
   const ev = T.filter(t => t.fem_pass != null), okN = ev.filter(t => t.fem_pass).length;
   const ref = (c.fixes||[]).filter(x => x.kind === 'refine'), thk = (c.fixes||[]).filter(x => x.kind === 'thicken');
+  const fill = (c.fixes||[]).find(x => x.kind === 'fill')?.fill;
   const bestFix = ref.find(x => x.idx === c.best_idx);
   const startM = bestFix ? bestFix.start : null;
   $('#flow').innerHTML = `<span>① 수식 형상 ${T.length}개</span><em>→</em><span>② FEM 계산 · 합격 ${okN}개</span><em>→</em>`
     + (thk.length ? `<span>굵게 보정 ${thk.length}개</span><em>→</em>` : '')
     + `<span>③ 가벼운 ${ref.length}개 FEM 다듬기</span><em>→</em>`
-    + (c.status === 'ok' ? `<span class="ok">④ ${startM!=null?fmt(startM,1)+' → ':''}${fmt(c.mass,1)} g 채택</span>` : `<span class="bad">합격 없음</span>`);
+    + (fill && fill.applied ? `<span>④ 얇은 곳 채움 ${fill.thin_before}칸 · ${fmt(fill.mass_before,1)} → ${fmt(fill.mass_after,1)} g</span><em>→</em>` : '')
+    + (c.status === 'ok' ? `<span class="ok">${fill && fill.applied ? '⑤' : '④'} ${fmt(c.mass,1)} g 채택 (FEM 합격)</span>` : `<span class="bad">합격 없음</span>`);
   // 왼쪽: 후보별 FEM 질량 (가벼운 순) / 오른쪽: 다듬기 궤적
   const W = 700, H = 200, pt = 18, pb = 36;
   const cand = ev.slice().sort((a,b) => a.fem_mass - b.fem_mass);
@@ -525,7 +529,7 @@ function flowChart(c){
     s += `<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="${best?3:1.6}" opacity="${best?1:.6}"/>`;
     pts.forEach(p => s += `<circle cx="${p[0]}" cy="${p[1]}" r="${best?3.5:2.5}" fill="${col}"/>`);
     acc.forEach(p => s += `<text x="${p[0]}" y="${p[1]+4}" font-size="11" fill="#d33a4b" text-anchor="middle" font-weight="700">✗<title>이만큼 지우면 불합격 → 멈춤</title></text>`);
-    const e = pts[pts.length-1]; if (best) s += `<text x="${Math.min(e[0]+5, R1-40)}" y="${e[1]-6}" font-size="10.5" fill="${col}" font-weight="${best?700:400}">${fmt(cur,1)} g${best?' 채택':''}</text>`; });
+    const e = pts[pts.length-1]; if (best) s += `<text x="${Math.min(e[0]+5, R1-40)}" y="${e[1]-6}" font-size="10.5" fill="${col}" font-weight="${best?700:400}">${fmt(cur,1)} g${best?' (다듬기 끝)':''}</text>`; });
   s += `<text x="${R0}" y="${H-18}" font-size="10.5" fill="#4b5563">③ 다듬기 (✗ = 불합격 → 멈춤)</text>`;
   s += `<text x="${R0}" y="${H-4}" font-size="10.5" fill="#9aa3ae">가로 = 합격한 다듬기 횟수</text>`;
   $('#chart').innerHTML = s + '</svg>';

@@ -254,7 +254,7 @@ def collect(results, run, inp=None, stress=True, log=print):
             tag=tag, group=g, product=p.product, product_name=pt['name'], icon=pt['icon'], request=pt['request'],
             group_text=GROUP_TEXT.get(g, g), status=rec['status'], sec=rec.get('sec'), method=method,
             t_search=detj.get('t_search'), best_idx=detj.get('best_idx'),
-            fixes=[dict(idx=x['idx'], kind=x['kind'], start=x.get('start_mass_g'),
+            fixes=[dict(idx=x.get('idx'), kind=x['kind'], start=x.get('start_mass_g'), fill=x if x['kind'] == 'fill' else None,
                         hist=[dict(m=h['mass_g'], ok=h['passed']) for h in x.get('hist', [])]) for x in detj.get('fixes', [])],
             cond=[dict(k=k, label=COND_TEXT.get(k, (k, ''))[0], unit=COND_TEXT.get(k, ('', ''))[1], v=v) for k, v in cond.items()],
             material=p.material, grid_h=p.grid.h, crit=criteria_rows(p, rec.get('fem'), rec.get('pred')),
