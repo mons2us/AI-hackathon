@@ -154,3 +154,16 @@ FIX = [
 ]
 outB2 = rep(open('build_v16B.js').read(), FIX).replace("발표 초안 v16B", "발표 초안 v16B_2")
 open('build_v16B2.js', 'w').write(outB2); print('B2 ok')
+
+# ---------------- v17: 스케치 입력(위치 · 각도 · 피할 곳) 반영 ----------------
+FIX3 = [
+    ("fit(s, SH + 'v16_hero.png', 6.0, 1.0, 3.5, 2.75, 'optimized phone mount on bicycle');", "fit(s, SH + 'v17_hero.png', 6.0, 1.0, 3.5, 2.75, 'optimized phone mount on bicycle');"),
+    ("fit(s, SH + 'v16_hero.png', 6.0, 1.25, 3.5, 2.9, 'final design');", "fit(s, SH + 'v17_hero.png', 6.0, 1.25, 3.5, 2.9, 'final design');"),
+    ("fit(s, SH + 'v16_sketch.png', qx + 1.55, qy + 0.45, 1.28, 0.9, 'input sketch');", "fit(s, SH + 'v17_sketch.png', qx + 1.55, qy + 0.45, 1.28, 0.9, 'input sketch');"),
+    ("T(s, '추가 요청', { x: 0.65, y: 2.95, w: 2.1, h: 0.22, fontSize: 9.5, bold: true, color: C.accent4 });", "T(s, '스케치 — 위치 · 각도 · 피할 곳', { x: 0.65, y: 2.92, w: 2.1, h: 0.22, fontSize: 9, bold: true, color: C.accent4 });"),
+    ("T(s, '폰을 잡는 부분까지 한 덩어리 · 모든 폰 · 방열 · 앉아서 보이게 기울임 · 터치에도 안 휘게', { x: 0.65, y: 3.17, w: 2.1, h: 0.55, fontSize: 9.5, color: C.background1 });", "fit(s, SH + 'v17_sketch.png', 0.62, 3.14, 2.11, 0.66, 'input sketch');"),
+    ("거치 35°(제안값) · 감쇠비 3% · 터치 5 N — 가정값'", "거치 35° · 스템 옆 · 레버 · 케이블 회피(스케치에서 읽음), 감쇠비 3% · 터치 5 N(가정값)'"),
+    ("감쇠비 · 폰 크기 등은 가정값이다.", "거치 각도 · 다는 위치 · 피할 곳은 스케치에서 LLM이 읽어 명세에 넣었고(spec_from_input_v1.json), 핸들바 지름 · 발열량은 사용자에게 확인 질문으로 남겼다. 감쇠비 · 터치 하중은 가정값이다."),
+]
+outB3 = rep(open('build_v16B2.js').read(), FIX3).replace("발표 초안 v16B_2", "발표 초안 v17")
+open('build_v17.js', 'w').write(outB3); print('v17 ok')
