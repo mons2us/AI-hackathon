@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#f4f5f7;overflow:hidden}canvas{display:block}</style>
+<script src="vendor/three.min.js"></script><script src="vendor/RoomEnvironment.js"></script><!-- vendor: npm pack three@0.147.0 (build/three.min.js, examples/js/environments/RoomEnvironment.js) --></head><body>
+<script>
+/* studio render of one look variant (app/gallery/build_gallery.py meshes); frame: bar axis y, x forward, z up */
+const W=960,H=720;
+const R=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+R.setPixelRatio(1);R.setSize(W,H);R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.outputEncoding=THREE.sRGBEncoding;R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=0.95;
+document.body.appendChild(R.domElement);
+THREE.Object3D.DefaultUp.set(0,0,1);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0xf4f5f7);
+const pm=new THREE.PMREMGenerator(R);scene.environment=pm.fromScene(new THREE.RoomEnvironment(),0.04).texture;
+const cam=new THREE.PerspectiveCamera(24,W/H,5,8000);cam.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9aa3ad,0.35));
+const key=new THREE.DirectionalLight(0xffffff,1.1);key.position.set(260,380,900);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-400,right:400,top:400,bottom:-400,near:50,far:3000});key.shadow.bias=-0.0004;key.shadow.radius=4;scene.add(key);
+const rim=new THREE.DirectionalLight(0xdfe8ff,0.45);rim.position.set(-600,-300,400);scene.add(rim);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),new THREE.ShadowMaterial({opacity:0.16}));floor.position.z=-70;floor.receiveShadow=true;scene.add(floor);
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const std=(c,r,m,extra)=>{const mt=new THREE.MeshPhysicalMaterial(Object.assign({roughness:r,metalness:m,envMapIntensity:0.55},extra||{}));mt.color.setHex(c).convertSRGBToLinear();if(mt.emissive)mt.emissive.convertSRGBToLinear();return mt;};
+function tube(a,b,r,mat,seg=48){const d=new THREE.Vector3().subVectors(b,a);const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),seg),mat);
+  m.position.copy(a).addScaledVector(d,0.5);m.quaternion.setFromUnitVectors(V(0,1,0),d.clone().normalize());m.castShadow=m.receiveShadow=true;return m;}
+const ctx=new THREE.Group();scene.add(ctx);
+const alu=std(0x9ea6ae,0.32,0.85), blk=std(0x15171a,0.55,0.25), grip=std(0x1a1c1f,0.92,0);
+const barLong=new THREE.Group();barLong.add(tube(V(0,-170,0),V(0,240,0),15.9,alu));barLong.add(tube(V(0,190,0),V(0,240,0),17.5,grip));ctx.add(barLong);
+const barCut=tube(V(0,-170,0),V(0,96,0),15.9,alu);barCut.visible=false;ctx.add(barCut);
+ctx.add(tube(V(0,-24,0),V(0,24,0),21.5,blk));ctx.add(tube(V(-8,0,-6),V(-95,0,-30),17,blk));ctx.add(tube(V(-95,0,-30),V(-95,0,-120),19,blk));
+ctx.add(tube(V(-95,0,-30),V(-95,0,-18),20,blk));
+const dec=(s,T)=>{const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new T(u.buffer);};
+let group=null;
+window.load=function(J){
+  if(group){scene.remove(group);}
+  group=new THREE.Group();scene.add(group);
+  const S=J.scheme, mats={
+    primary:std(S.primary,0.42,0.05,{clearcoat:0.35,clearcoatRoughness:0.35}), secondary:std(S.secondary,0.45,0.05,{clearcoat:0.25}),
+    accent:std(S.accent,0.38,0.05,{clearcoat:0.4}), rubber:std(0x17181b,0.9,0), rubber_col:std(S.rubber_col,0.85,0),
+    metal:std(0xc4cad0,0.25,0.95), phone:std(S.phone,0.3,0.55,{clearcoat:0.6}), screen:std(0x07090d,0.05,0.2,{clearcoat:1,emissive:0x0a1426,emissiveIntensity:0.25,envMapIntensity:0.9}),
+    case:std(0x26292e,0.75,0)};
+  for(const [k,m] of Object.entries(J.meshes)){
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(dec(m.pos,Float32Array),3));
+    g.setIndex(new THREE.BufferAttribute(dec(m.idx,Uint32Array),1));g.computeVertexNormals();
+    const mesh=new THREE.Mesh(g,mats[k]||mats.primary);mesh.castShadow=mesh.receiveShadow=true;mesh.userData.mat=k;group.add(mesh);}
+  const bb=new THREE.Box3().setFromObject(group);window.bb=bb;return true;};
+window.view=function(dir,fov,zoom,cut,bare){
+  barLong.visible=!cut;barCut.visible=!!cut;
+  group.children.forEach(m=>{m.visible=!(bare&&(m.userData.mat==='phone'||m.userData.mat==='screen'));});
+  if(bare){const b=new THREE.Box3();group.children.forEach(m=>{if(m.visible)b.expandByObject(m);});window.bb=b;}else{window.bb=new THREE.Box3().setFromObject(group);}
+  const bb=window.bb, c=bb.getCenter(new THREE.Vector3()), s=bb.getSize(new THREE.Vector3());
+  const r=0.5*Math.max(s.x,s.y,s.z), d=V(...dir).normalize();
+  cam.fov=fov;cam.updateProjectionMatrix();
+  const dist=r/Math.tan(fov*Math.PI/360)*(zoom||1.25);
+  cam.position.copy(c).addScaledVector(d,dist);cam.lookAt(c);
+  key.position.copy(c).add(V(260,380,900));key.target.position.copy(c);key.target.updateMatrixWorld();
+  R.render(scene,cam);return true;};
+window.ready=true;
+</script></body></html>
