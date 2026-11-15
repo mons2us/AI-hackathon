@@ -498,7 +498,7 @@ function flowChart(c){
   const bestFix = ref.find(x => x.idx === c.best_idx);
   const startM = bestFix ? bestFix.start : null;
   $('#flow').innerHTML = `<span>① 수식 형상 ${T.length}개</span><em>→</em><span>② FEM 계산 · 합격 ${okN}개</span><em>→</em>`
-    + (thk.length ? `<span>굵게 보정 ${thk.length}개</span><em>→</em>` : '')
+    + (thk.length ? `<span>굵게 보정 ${thk.length}개 · 합격 ${thk.filter(x => x.hist.some(h => h.ok)).length}개</span><em>→</em>` : '')
     + `<span>③ 가벼운 ${ref.length}개 FEM 다듬기</span><em>→</em>`
     + (fill && fill.applied ? `<span>④ 얇은 곳 채움 ${fill.thin_before}칸 · ${fmt(fill.mass_before,1)} → ${fmt(fill.mass_after,1)} g</span><em>→</em>` : '')
     + (c.status === 'ok' ? `<span class="ok">${fill && fill.applied ? '⑤' : '④'} ${fmt(c.mass,1)} g 채택 (FEM 합격)</span>` : `<span class="bad">합격 없음</span>`);
@@ -514,10 +514,14 @@ function flowChart(c){
   s += `<text x="4" y="${pt-6}" font-size="10.5" fill="#4b5563">질량 g (FEM)</text>`;
   const step = (L1 - L0) / Math.max(cand.length, 1), bw = Math.max(Math.min(14, step*0.75), 2);
   cand.forEach((t,i) => { const x = L0 + step*i + (step-bw)/2, y = yOf(t.fem_mass), col = t.fem_pass ? '#0f9f6e' : '#d33a4b', sel = ref.some(r => r.idx === t.idx);
-    s += `<rect x="${x}" y="${y}" width="${bw}" height="${H-pb-y}" rx="${Math.min(3,bw/2)}" fill="${col}" opacity="${sel?1:.55}" ${sel?'stroke="#141c2c" stroke-width="1.5"':''}><title>형상 #${t.idx} (${t.family||''}) ${fmt(t.fem_mass,1)} g · ${t.fem_pass?'합격':'불합격'}${sel?' · 다듬기 대상':''}</title></rect>`; });
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${H-pb-y}" rx="${Math.min(3,bw/2)}" fill="${col}" opacity="${sel?1:.55}" ${sel?'stroke="#141c2c" stroke-width="1.5"':''}><title>형상 #${t.idx} (${t.family||''}) ${fmt(t.fem_mass,1)} g · ${t.fem_pass?'합격':'불합격'}${sel?' · 다듬기 대상':''}</title></rect>`;
+    const tk = thk.find(x => x.idx === t.idx);
+    if (tk && tk.hist.length){ const lastH = tk.hist[tk.hist.length-1], ok2 = lastH.ok, y2 = yOf(lastH.m), cx = x + bw/2;
+      s += `<line x1="${cx}" x2="${cx}" y1="${y}" y2="${y2}" stroke="${ok2?'#0f9f6e':'#d33a4b'}" stroke-width="1.5" stroke-dasharray="3 2"/>`
+        + `<circle cx="${cx}" cy="${y2}" r="${Math.max(3.5,bw/2)}" fill="${ok2?'#0f9f6e':'#fff'}" stroke="${ok2?'#0f9f6e':'#d33a4b'}" stroke-width="1.5"><title>형상 #${t.idx} 굵게 ${tk.hist.length}회 → ${fmt(lastH.m,1)} g · ${ok2?'합격':'불합격'}</title></circle>`; } });
   const nc = T.length - ev.length;
   s += `<text x="${L0}" y="${H-18}" font-size="10.5" fill="#4b5563">② 수식 형상 FEM 결과 (가벼운 순)${nc?` · 끊긴 형상 ${nc}개 제외`:''}</text>`;
-  s += `<g font-size="10.5" fill="#4b5563" transform="translate(${L0},${H-4})"><rect x="0" y="-9" width="10" height="10" rx="2" fill="#0f9f6e"/><text x="14" y="0">합격</text><rect x="48" y="-9" width="10" height="10" rx="2" fill="#d33a4b"/><text x="62" y="0">불합격</text><rect x="106" y="-9" width="10" height="10" rx="2" fill="#fff" stroke="#141c2c" stroke-width="1.5"/><text x="120" y="0">다듬기 대상</text></g>`;
+  s += `<g font-size="10.5" fill="#4b5563" transform="translate(${L0},${H-4})"><rect x="0" y="-9" width="10" height="10" rx="2" fill="#0f9f6e"/><text x="14" y="0">합격</text><rect x="48" y="-9" width="10" height="10" rx="2" fill="#d33a4b"/><text x="62" y="0">불합격</text><rect x="106" y="-9" width="10" height="10" rx="2" fill="#fff" stroke="#141c2c" stroke-width="1.5"/><text x="120" y="0">다듬기 대상</text>${thk.length?'<circle cx="196" cy="-4" r="4.5" fill="#0f9f6e"/><text x="204" y="0">굵게 보정 후</text>':''}</g>`;
   // 오른쪽
   s += `<line x1="${R0-20}" x2="${R0-20}" y1="${pt}" y2="${H-pb}" stroke="#e3e7ee"/>`;
   const maxS = Math.max(1, ...ref.map(x => x.hist.length)), sx = (R1 - R0) / maxS;
