@@ -3,6 +3,7 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
+import test_looks
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
@@ -21,6 +22,12 @@ CHECKS = [
     ("요구: 땡볕 에너지 평형·HDT", test_requirements.test_thermal_physics),
     ("요구: 기울기 한계 = 손계산", test_requirements.test_tilt_vs_hand_calc),
     ("요구: 1차 설계는 그대로, 조건만 넘김", test_requirements.test_requirements_are_handoff_only),
+    ("외형: 홀더 탑재 하중 표 = CAD 질량 특성", test_looks.test_payload_table_matches_cad),
+    ("외형: 문장 단어 → 외형 템플릿", test_looks.test_text_picks_look),
+    ("외형: 185종 명세·격자·FEM·폰 간섭 없음", test_looks.test_every_look_builds_and_solves),
+    ("외형: CAD 몸체 = 해석 격자 질량 (팔 10종)", test_looks.test_cad_matches_grid),
+    ("외형: 정형 스케치 자기 찾기 (1/3 표본)", test_looks.test_clean_look_sketches),
+    ("외형: 합성 손그림 185장 (+ 홀더·클램프 단어)", test_looks.test_hand_drawn_looks),
 ]
 
 if __name__ == "__main__":

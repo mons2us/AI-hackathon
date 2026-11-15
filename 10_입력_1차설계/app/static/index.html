@@ -243,7 +243,7 @@ pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.
 ['pointerup','pointercancel','pointerleave'].forEach(n=>pad.addEventListener(n,()=>{S.cur=null;}));
 $('#undo').onclick=()=>{if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();};
 $('#clear').onclick=()=>{S.strokes=[];S.bgImg=null;$('#example').value='';redraw();};
-fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent='예시 '+u.match(/T\d+/)[0];$('#example').appendChild(o);}));
+fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent='예시 '+u.match(/hand_(.+)\.png$/)[1];$('#example').appendChild(o);}));
 $('#example').onchange=e=>{if(!e.target.value)return;const im=new Image();im.onload=()=>{S.bgImg=im;S.strokes=[];redraw();};im.src=e.target.value;};
 redraw();
 const hasSketch = () => S.strokes.length>0 || !!S.bgImg;
@@ -318,7 +318,9 @@ function showMount(rep){
   // phone + commercial clamp stand-in at the spec's phone centre of gravity
   const ph=rep.phone, ys=rep.geometry.y_sym, padTop=rep.geometry.pad.z[1], e=ph.clamp_t+ph.D/2, jz=ph.cog[1]-e;
   const hold=new THREE.Group();scene.add(hold);V3.holder=hold;
-  const pg=new THREE.Group();pg.position.set(ph.cog[0],ys,ph.cog[1]);hold.add(pg);   // phone only: the holder is part of the CAD mesh
+  const pg=new THREE.Group();hold.add(pg);   // phone only: the holder is part of the CAD mesh
+  if(ph.pose){pg.position.set(ph.pose.center[0],ph.pose.center[1],ph.pose.center[2]);pg.rotation.y=-ph.pose.tilt_deg*Math.PI/180;}
+  else pg.position.set(ph.cog[0],ys,ph.cog[1]);
   const body=new THREE.Mesh(new THREE.BoxGeometry(ph.H,ph.W-0.6,ph.D),M(0x2b2f36,0.35,0.6));body.castShadow=true;pg.add(body);
   const scr=new THREE.Mesh(new THREE.PlaneGeometry(ph.H-10,ph.W-8),new THREE.MeshStandardMaterial({color:0x0b2540,emissive:0x05182b,emissiveIntensity:0.4,roughness:0.2}));scr.position.z=ph.D/2+0.1;pg.add(scr);
   hold.visible=$('#vPhone').classList.contains('on');
@@ -384,6 +386,7 @@ function perfRows(c){
 }
 function payloadNote(pl){
   if(!pl||pl.model!=='rigid_body') return '';
+  if(pl.holder_from_cad) return `<div class="note">탑재 하중 ${pl.total_g.toFixed(0)} g = 폰·케이스 ${pl.phone_case_g.toFixed(0)} g + 폰 홀더·관절 ${pl.holder_cad_g.toFixed(0)} g. 홀더·관절·폰을 한 덩어리 강체로, 무게중심과 회전 관성은 CAD에서 직접 계산.</div>`;
   return `<div class="note">탑재 하중 ${pl.total_g.toFixed(0)} g = 폰·케이스 ${pl.phone_case_g.toFixed(0)} g + 폰 홀더 여유 ${pl.holder_allow_g.toFixed(0)} g, 크기 있는 강체(${pl.box_mm.join(' × ')} mm)로 계산 (팀 v3).${pl.holder_note?' '+pl.holder_note+'.':''}</div>`;
 }
 
@@ -426,7 +429,8 @@ function render(rep, req){
   // variables
   const dv=rep.design_vars, ARM={straight:'곧은 팔',L:'L자 팔',truss:'트러스',low:'낮은 팔',stalk:'기둥형',under:'아래 우회'};
   $('#vars').innerHTML=[['핸들바 직경',`Ø${dv.bar_d} mm`],['클램프 폭',`${dv.width} mm`],['도달 거리 (핸들 중심 → 받침)',`${dv.reach} mm`],['받침 높이 (핸들 중심 기준)',`${dv.pad_top} mm`],
-    ['팔 형식',ARM[dv.arm]||dv.arm],['팔 두께',`${dv.arm_t} mm`],['탑재 하중 (폰·케이스·홀더)',`${dv.point_mass_g} g`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    ...(dv.look?[['클램프',dv.look.clamp],['팔',`${dv.look.arm} · ${dv.look.section} 단면`],['관절 · 홀더',`${dv.look.joint} · ${dv.look.holder}`],['폰 기울기',`${dv.look.tilt_deg}° (핸들·팔과 간격 ${dv.look.clearance.ring} · ${dv.look.clearance.arm} mm)`]]
+      :[['팔 형식',ARM[dv.arm]||dv.arm]]),['팔 두께',`${dv.arm_t} mm`],['탑재 하중 (폰·케이스·홀더)',`${dv.point_mass_g} g`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   // hand-off conditions
   $('#loadsSub').textContent=`하중: 노면 진동 ${s.vib}, 위아래·옆 충격 ${s.shock_g} g, 폰 ${s.point_mass_g} g`;
   const reqWarn=rep.handoff_requirements.flatMap(h=>h.warnings);

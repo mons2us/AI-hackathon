@@ -24,7 +24,7 @@ ROOT = os.path.dirname(APP)
 sys.path.insert(0, ROOT)
 
 from formproof_input import pipeline                       # noqa: E402
-from formproof_input.templates.library import TEMPLATES    # noqa: E402
+from formproof_input.templates.library import ALL as TEMPLATES    # noqa: E402
 
 STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
@@ -85,7 +85,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, [dict(id=t["id"], name=t["name"], desc=t["desc"],
                                          thumb=f"/examples/templates/{t['id']}.png") for t in TEMPLATES])
         if p == "/api/examples":
-            hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand")) if f.endswith(".png"))
+            hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
+                          if f.endswith(".png") and f[5] in "TG")
             return self._send(200, [f"/examples/hand/{f}" for f in hand])
         return self._send(404, {"error": "not found"})
 

@@ -157,8 +157,9 @@ class Problem:
         (team v3, 03_자전거거치대/verify_sys.py): nodal mass matrix Ma = Tw^T Mrb Tw, Tw = weighted least-squares
         rigid fit. A half model keeps the DOFs of its symmetry case and carries half the mass and inertia."""
         m = pm["mass_kg"] * 1e-3                                         # t
-        I = np.asarray(pm["inertia_kg_mm2"], float) * 1e-3               # t mm^2 about the CG, principal axes x y z
-        Mrb = np.diag([m, m, m, *I])
+        I = np.asarray(pm["inertia_kg_mm2"], float) * 1e-3               # t mm^2 about the CG: [Ix,Iy,Iz] or full 3x3
+        Mrb = np.diag([m, m, m, 0.0, 0.0, 0.0])
+        Mrb[3:, 3:] = np.diag(I) if I.ndim == 1 else I
         rel = self.nodes[nds] - np.asarray(pm["cg"], float)
         T = np.zeros((3 * len(nds), 6))
         for i, (rx, ry, rz) in enumerate(rel):

@@ -22,7 +22,7 @@ from formproof_input import text_rules  # noqa: E402
 from formproof_input.compile import Problem  # noqa: E402
 from formproof_input.fem import evaluate  # noqa: E402
 from formproof_input.pipeline import decode_image, looks_like_photo, matcher  # noqa: E402
-from formproof_input.sketch import draw_image, find_ring, ink_points, perturb, template_strokes  # noqa: E402
+from formproof_input.sketch import Matcher, draw_image, find_ring, ink_points, perturb, template_strokes  # noqa: E402
 from formproof_input.templates.bike_mount import build_spec  # noqa: E402
 from formproof_input.templates.library import BY_ID, TEMPLATES  # noqa: E402
 
@@ -154,7 +154,7 @@ def main():
     print(f"spec: {len(cases)} template x request cases checked")
 
     # 3) matcher
-    M = matcher()
+    M = Matcher(TEMPLATES)          # the browser engine carries the T templates only (looks: Python app)
     imgs = []
     for t in TEMPLATES:
         g = decode_image(open(os.path.join(ROOT, "examples", "hand", f"hand_{t['id']}.png"), "rb").read())

@@ -212,13 +212,21 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
     w = g["width"]
     sh.dim(tf("top", tb[2], y0 - w / 2), tf("top", tb[2], y0 + w / 2), tf("top", tb[2] + off, 0), angle=90)
     b = g["bolts"]
-    sh.dim(tf("right", b["y"][0], b["z"]), tf("right", b["y"][1], b["z"]), tf("right", 0, rb[1] - off))
-
-    # notes on holes / arm
-    sh.text(f"2×Ø{b['d']} 관통", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 6), 2.2)
-    sh.text("(M4 볼트)", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 10), 2.2)
-    sh.text("폰 홀더 일체형 (등판·양쪽 턱)" if g.get("holder") else f"Ø{mh['d']:.0f} 폰 클램프 체결 구멍",
-            (tf("top", mh["x"], 0)[0], tf("top", 0, tb[3])[1] + 2), 2.2, TextEntityAlignment.BOTTOM_CENTER)
+    clamp = g.get("clamp", "bolt")
+    if clamp == "bolt":
+        sh.dim(tf("right", b["y"][0], b["z"]), tf("right", b["y"][1], b["z"]), tf("right", 0, rb[1] - off))
+        # notes on holes / arm
+        sh.text(f"2×Ø{b['d']} 관통", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 6), 2.2)
+        sh.text("(M4 볼트)", (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 10), 2.2)
+    else:
+        sh.text("경첩 + 손나사 클램프" if clamp == "hinge" else "반원 받침 + 고무 스트랩",
+                (tf("right", rb[0], 0)[0], fy0 - DIM_OFF - 6), 2.2)
+    if g.get("look"):
+        from .look import HOLDER_SPEC, JOINTS
+        hold = f"{HOLDER_SPEC[g['look']['holder']]['name']} · {JOINTS[g['look']['joint']]} (기울기 {g['look']['tilt_deg']:g}°)"
+    else:
+        hold = "폰 홀더 일체형 (등판·양쪽 턱)" if g.get("holder") else f"Ø{mh['d']:.0f} 폰 클램프 체결 구멍"
+    sh.text(hold, (tf("top", mh["x"], 0)[0], tf("top", 0, tb[3])[1] + 2), 2.2, TextEntityAlignment.BOTTOM_CENTER)
     for v, label in (("front", "정면도"), ("top", "평면도"), ("right", "우측면도")):
         bx = {"front": fb, "top": tb, "right": rb}[v]
         sh.text(label, tf(v, (bx[0] + bx[2]) / 2, bx[3]) if v != "front" else tf(v, (bx[0] + bx[2]) / 2, bx[3]),
@@ -239,14 +247,14 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
     shock = next(c for c in spec["load_cases"] if c["name"] == "shock_vertical")
     lines_a = [
         (title or "자전거 폰 거치대 — 1차 설계", 4.0),
-        (f"템플릿 {tpl['id']} {tpl.get('name', '')} · 팔 {g['arm']['style']}", 2.6),
+        (f"템플릿 {tpl['id']} {tpl.get('name', '')}" + ("" if g.get("look") else f" · 팔 {g['arm']['style']}"), 2.6),
         ("FormProof 입력 단계 산출 (물리 최적화 전)", 2.4),
         (f"척도 1:{1 / scale:g} · 제3각법 · 단위 mm · {'A4' if sheet == A4 else 'A3'} · 팔 두께 {g['arm']['t']:g}", 2.4),
     ]
     lines_b = [
         (f"재료 {spec['material']['name']} (E {spec['material']['E'] / 1000:.1f} GPa, 항복 {spec['material']['yield_mpa']:g} MPa)", 2.2),
         (f"질량 {mass_g:.1f} g (CAD)" if mass_g else "질량 -", 2.2),
-        (f"핸들바 Ø{g['bar_d']} · 폭 {w:g} · M4 볼트 2개", 2.2),
+        (f"핸들바 Ø{g['bar_d']} · 폭 {w:g} · " + {"bolt": "M4 볼트 2개", "hinge": "경첩 + 손나사", "strap": "고무 스트랩"}[g.get("clamp", "bolt")], 2.2),
         (f"{'탑재(폰·케이스·홀더 강체)' if pm.get('model') == 'rigid_body' else '폰+클램프'} {pm['mass_kg'] * 1e3:.0f} g · 출력 색 {'흰색' if spec.get('finish', {}).get('colour') == 'white' else '검정'}", 2.2),
     ]
     req = req or {}

@@ -11,6 +11,9 @@ import math
 import cadquery as cq
 import numpy as np
 
+from .look import (ARM_DEFAULT_SECTION, ARMS, CLAMP_SPEC, HOLDER_SPEC, JOINT_LEN, JOINTS, SECTIONS, arm_paths,  # noqa: F401
+                   default_tilt)
+
 Y0 = 55.0
 BAR_D = 31.8
 RING_RI = BAR_D / 2 + 0.2
@@ -143,29 +146,43 @@ def at_angle(r, a):
 
 
 # ------------------------------------------------------------------ clamps (on the bar)
-def clamp_bolt(w=20.0, t=5.0):
-    ro = RING_RI + t
-    ring = cq.Workplane("XZ", origin=(0, Y0 + w / 2, 0)).circle(ro).circle(RING_RI).extrude(w)
+def _G(G):
+    """Clamp geometry: from the spec geometry when given (so CAD = analysis), else defaults."""
+    G = dict(G or {})
+    G.setdefault("bore_r", RING_RI)
+    G.setdefault("y_sym", Y0)
+    return G
+
+
+def clamp_bolt(G=None):
+    G = _G(G)
+    ri, w = G["bore_r"], G.get("width", 20.0)
+    ro = G.get("ring_ro", ri + 4.5)
+    ex0, ex1 = G.get("ear_x", [2.0, 8.0])
+    ez0, ez1 = G.get("ear_z", [-36.0, -14.0])
+    sh = G.get("slit_half", 2.0)
+    ring = cq.Workplane("XZ", origin=(0, Y0 + w / 2, 0)).circle(ro).circle(ri).extrude(w)
     try:
         ring = ring.edges().fillet(1.0)
     except Exception:
         pass
-    ears = [box([s * 1.5 if s > 0 else -7.5, 7.5 if s > 0 else -1.5], [Y0 - w / 2, Y0 + w / 2], [-RING_RI - 20, -RING_RI + 2], 1.2)
-            for s in (1, -1)]
+    ears = [box([ex0, ex1], [Y0 - w / 2, Y0 + w / 2], [ez0, ez1], 1.2), box([-ex1, -ex0], [Y0 - w / 2, Y0 + w / 2], [ez0, ez1], 1.2)]
     body = union([ring.val()] + ears)
-    body = body.cut(box([-1.2, 1.2], [Y0 - w, Y0 + w], [-60, -RING_RI + 3]))
-    bolts = [cyl(3.4, 3.6, (7.4, Y0 + dy, -RING_RI - 11), (1, 0, 0)) for dy in (-5, 5)]
-    nuts = [cyl(3.6, 3.0, (-10.4, Y0 + dy, -RING_RI - 11), (1, 0, 0)) for dy in (-5, 5)]
+    body = body.cut(box([-sh, sh], [Y0 - w, Y0 + w], [-80, 0.0]).intersect(cyl(ro + 5.4, 2 * w, (0, Y0 - w, 0), (0, 1, 0))))
+    bz = G.get("bolt_z", ez0 + 11.0)
+    bolts = [cyl(3.4, 3.6, (ex1 - 0.1, Y0 + dy, bz), (1, 0, 0)) for dy in (-5, 5)]
+    nuts = [cyl(3.6, 3.0, (-ex1 - 2.9, Y0 + dy, bz), (1, 0, 0)) for dy in (-5, 5)]
     return dict(parts=[("primary", body), ("metal", union(bolts)), ("metal", union(nuts))], ro=ro, top=ro, front=ro)
 
 
-def clamp_hinge(w=16.0, t=4.5):
-    ro = RING_RI + t
-    ring = annulus_y(RING_RI, ro, w, -25.0, 230.0)
+def clamp_hinge(G=None):
+    G = _G(G)
+    ri, w = G["bore_r"], G.get("width", 16.0)
+    ro = G.get("ring_ro", ri + 4.5)
+    ring = annulus_y(ri, ro, w, -25.0, 230.0)
     k = at_angle(ro + 1.5, 205)
     knuckle_ = cyl(4.3, w, (k[0], Y0 - w / 2, k[2]), (0, 1, 0))
-    k2 = at_angle(ro + 1.0, 238)
-    lower = annulus_y(RING_RI, ro, w, 232.0, 312.0)
+    lower = annulus_y(ri, ro, w, 232.0, 312.0)
     pin = cyl(1.6, w + 3, (k[0], Y0 - w / 2 - 1.5, k[2]), (0, 1, 0))
     lug_a, lug_b = at_angle(ro + 4, -22), at_angle(ro + 4, -50)
     lugs = [box([p[0] - 4, p[0] + 4], [Y0 - w / 2, Y0 + w / 2], [p[2] - 3, p[2] + 3], 1.0) for p in (lug_a, lug_b)]
@@ -176,83 +193,27 @@ def clamp_hinge(w=16.0, t=4.5):
                        ("metal", pin), ("metal", screw), ("accent", knob)], ro=ro, top=ro, front=ro)
 
 
-def clamp_strap(w=26.0, t=5.5):
-    ro = RING_RI + t
-    saddle = annulus_y(RING_RI, ro, w, 10.0, 170.0)
+def clamp_strap(G=None):
+    G = _G(G)
+    ri, w = G["bore_r"], G.get("width", 26.0)
+    ro = G.get("ring_ro", ri + 5.5)
+    saddle = annulus_y(ri, ro, w, 10.0, 170.0)
     try:
         saddle = cq.Workplane().add(saddle).edges().fillet(1.2).val()
     except Exception:
         pass
-    strap = annulus_y(BAR_D / 2 - 0.05, BAR_D / 2 + 1.8, 12.0, 168.0, 372.0)
+    R = G.get("bar_d", BAR_D) / 2
+    strap = annulus_y(R - 0.05, R + 1.8, 12.0, 168.0, 372.0)
     hook = cyl(2.6, 14.0, tuple(at_angle(ro + 1.0, 12) + np.array([0, -7, 0])), (0, 1, 0))
     tab = box([ro - 1, ro + 6], [Y0 - 6, Y0 + 6], [-2.5, 1.5], 0.8)
     return dict(parts=[("primary", union([saddle, hook])), ("rubber", union([strap, tab]))], ro=ro, top=ro, front=ro * 0.95)
 
 
-CLAMPS = {
-    "bolt": dict(name="볼트 링 클램프", fn=clamp_bolt, support="볼트 2개로 조인 링, 완전 고정"),
-    "hinge": dict(name="경첩 퀵 클램프", fn=clamp_hinge, support="경첩 + 손나사, 완전 고정(조임력 가정)"),
-    "strap": dict(name="고무 스트랩", fn=clamp_strap, support="반원 받침 + 고무 띠, 탄성 지지(강성 가정 필요)"),
-}
-
-
-# ------------------------------------------------------------------ arms (side paths in the xz plane)
-def _spline(ctrl, n=14):
-    """Catmull-Rom through control points (xz)."""
-    P = [np.asarray(p, float) for p in ctrl]
-    P = [P[0] - (P[1] - P[0])] + P + [P[-1] + (P[-1] - P[-2])]
-    out = []
-    for i in range(1, len(P) - 2):
-        for s in np.linspace(0, 1, n // (len(ctrl) - 1) + 1)[:-1]:
-            p0, p1, p2, p3 = P[i - 1], P[i], P[i + 1], P[i + 2]
-            out.append(0.5 * ((2 * p1) + (-p0 + p2) * s + (2 * p0 - 5 * p1 + 4 * p2 - p3) * s ** 2 + (-p0 + 3 * p1 - 3 * p2 + p3) * s ** 3))
-    out.append(P[-2])
-    return [tuple(p) for p in out]
-
-
-def arm_paths(style, top, front):
-    """Lists of point paths (xz, mm); the last point of the first path is where the joint / holder sits.
-    `maps_to` = existing analysis arm style (bike_mount)."""
-    t0 = (0.0, top - 2.0)
-    f0 = (front - 2.0, 0.0)
-    if style == "riser":
-        return [[t0, (0.0, 30.0)]], (0.0, 30.0), (0, 1), "riser"
-    if style == "tall_riser":
-        return [[t0, (0.0, 52.0)]], (0.0, 52.0), (0, 1), "riser"
-    if style == "angled":
-        return [[t0, (52.0, 44.0)]], (52.0, 44.0), (0.76, 0.65), "straight"
-    if style == "gooseneck":
-        p = _spline([t0, (6.0, 34.0), (26.0, 52.0), (58.0, 56.0)])
-        return [p], p[-1], (1, 0.1), "dogleg"
-    if style == "long_gooseneck":
-        p = _spline([t0, (10.0, 40.0), (40.0, 62.0), (90.0, 60.0)], n=18)
-        return [p], p[-1], (1, 0), "dogleg"
-    if style == "out_front":
-        return [[f0, (78.0, -3.0), (84.0, 4.0)]], (84.0, 4.0), (0.6, 0.8), "step"
-    if style == "out_front_long":
-        return [[f0, (104.0, -4.0), (110.0, 4.0)]], (110.0, 4.0), (0.6, 0.8), "step"
-    if style == "L":
-        return [[t0, (0.0, 40.0), (50.0, 40.0)]], (50.0, 40.0), (1, 0), "L"
-    if style == "truss":
-        top_ = [t0, (16.0, 34.0), (64.0, 34.0)]
-        brace = [(front * 0.85, top * 0.45), (44.0, 34.0)]
-        return [top_, brace], (64.0, 34.0), (1, 0), "truss"
-    if style == "vee":
-        tip = (62.0, 38.0)
-        return [[t0, tip], [(front - 2.0, 3.0), tip]], tip, (0.85, 0.5), "vee"
-    raise ValueError(style)
-
-
-ARMS = {
-    "riser": "핸들 위 짧은 기둥", "tall_riser": "핸들 위 높은 기둥", "angled": "비스듬한 곧은 팔",
-    "gooseneck": "구스넥(곡선)", "long_gooseneck": "긴 구스넥", "out_front": "아웃프론트",
-    "out_front_long": "긴 아웃프론트", "L": "L자 팔", "truss": "트러스(아래 보강대)", "vee": "V자 두 팔",
-}
-SECTIONS = {"rect": "모서리 둥근 사각", "round": "둥근 관", "trib": "T자 리브", "ibeam": "I자 리브", "taper": "끝으로 가늘어짐"}
+CLAMPS = {k: dict(v, fn={"bolt": clamp_bolt, "hinge": clamp_hinge, "strap": clamp_strap}[k]) for k, v in CLAMP_SPEC.items()}
 
 
 # ------------------------------------------------------------------ joints (between arm end and holder back)
-def joint(kind, p, d):
+def joint(kind, p, d=None):
     """Returns (parts, length along the holder normal) at arm end p (3D)."""
     p = np.asarray(p, float)
     if kind == "ball":
@@ -263,7 +224,6 @@ def joint(kind, p, d):
     return [("primary", cyl(9.0, 3.0, tuple(p)))], 3.0
 
 
-JOINTS = {"ball": "볼 조인트", "disc": "회전 원판", "fixed": "고정"}
 
 
 # ------------------------------------------------------------------ holders (phone frame: phone back at z=0, long side x)
@@ -346,14 +306,9 @@ def holder_hooks(H, W, D):
     return [("primary", union([plate, boss] + hooks)), ("secondary", union(top)), ("rubber", union(pads))], 8.0
 
 
-HOLDERS = {
-    "side_clamp": dict(name="양옆 스프링 집게", fn=holder_side_clamp),
-    "x_grip": dict(name="X자 네 모서리 집게", fn=holder_x_grip),
-    "silicone": dict(name="실리콘 모서리 감싸기", fn=holder_silicone),
-    "magsafe": dict(name="자석 원판", fn=holder_magsafe),
-    "twist": dict(name="회전 잠금(전용 케이스)", fn=holder_twist),
-    "hooks": dict(name="아래 갈고리 + 위 스프링 고리", fn=holder_hooks),
-}
+HOLDERS = {k: dict(v, fn=globals()["holder_" + k]) for k, v in HOLDER_SPEC.items()}
+DENSITY = dict(primary=1.27e-3, secondary=1.27e-3, accent=1.27e-3, rubber=1.15e-3, rubber_col=1.15e-3,
+               metal=7.85e-3, case=1.20e-3)          # g/mm^3: PETG print, TPU/silicone, steel, PC case
 
 
 def phone_solid(H, W, D):
@@ -367,13 +322,25 @@ def phone_solid(H, W, D):
 
 
 # ------------------------------------------------------------------ assembly
-def build(cfg):
-    """cfg: clamp, arm, section, holder, joint, tilt_deg, phone (H, W, D), arm_w, arm_t -> [(material, solid, module)], info."""
+def build(cfg, geo=None):
+    """cfg: clamp, arm, section, holder, joint, tilt_deg, phone (H, W, D), arm_w, arm_t.
+    geo: spec geometry (bike_mount) -> the clamp uses its ring / ears / slit and a pad block sits where the analysis
+    puts it, so the CAD and the analysis grid describe the same part.  Returns [(material, solid, module)], info."""
     H, W, D = cfg.get("phone", (162.8, 77.6, 8.2))
-    c = CLAMPS[cfg["clamp"]]["fn"]()
+    G = dict(geo or {})
+    if geo:
+        G.update(bore_r=geo["bore_r"], ring_ro=geo["ring_ro"], width=geo["width"], bar_d=geo["bar_d"])
+    else:
+        G.setdefault("width", CLAMPS[cfg["clamp"]]["width"])
+        G.setdefault("ring_ro", RING_RI + CLAMPS[cfg["clamp"]]["ring_t"])
+    c = CLAMPS[cfg["clamp"]]["fn"](G)
     parts = [(m, sol, "clamp") for m, sol in c["parts"]]
-    paths, tip, tdir, maps_to = arm_paths(cfg["arm"], c["top"], c["front"])
-    sec = cfg.get("section", "rect")
+    paths = geo["arm"]["paths"] if geo and geo["arm"].get("paths") else None
+    if paths is None:
+        paths, tip, tdir, maps_to = arm_paths(cfg["arm"], c["top"], c["front"])
+    else:
+        tip, maps_to = paths[0][-1], cfg["arm"]
+    sec = cfg.get("section") or ARM_DEFAULT_SECTION[cfg["arm"]]
     w, t = cfg.get("arm_w", 16.0), cfg.get("arm_t", 8.0)
     arm = []
     for k, pth in enumerate(paths):
@@ -382,25 +349,67 @@ def build(cfg):
         else:
             ww, tt = (w, t) if k == 0 else (w * 0.7, t * 0.75)
             arm.append(path_solid(pth, sec, ww, tt))
+    if geo:                                                           # interface block = analysis 'pad'
+        (px0, px1), (pz0, pz1) = geo["pad"]["x"], geo["pad"]["z"]
+        hw = geo["width"] / 2
+        arm.append(box([px0, px1], [Y0 - hw, Y0 + hw], [pz0, pz1], 1.0))
+        base = np.array([(px0 + px1) / 2, Y0, pz1])
+    else:
+        base = _xz(tip)
     parts.append(("primary", union(arm), "arm"))
-    tip3 = _xz(tip)
-    jparts, jlen = joint(cfg.get("joint", "fixed"), tip3, tdir)
-    parts += [(m, sol, "joint") for m, sol in jparts]
-    default_tilt = 8.0 if cfg["arm"].startswith("out_front") else 20.0
-    th = math.radians(cfg.get("tilt_deg", default_tilt))
-    hparts, depth = HOLDERS[cfg["holder"]]["fn"](H, W, D)
-    nrm = np.array([-math.sin(th), 0.0, math.cos(th)])
-    origin = tip3 + np.array([0, 0, jlen]) + nrm * depth
-    loc = cq.Location(cq.Vector(*origin), cq.Vector(0, 1, 0), -math.degrees(th))
-    for mat, sol in hparts:
-        parts.append((mat, sol.moved(loc), "holder"))
+    jk = cfg.get("joint") or HOLDERS[cfg["holder"]]["joint"]
+    tilt = cfg.get("tilt_deg")
+    if tilt is None:
+        tilt = default_tilt(cfg["arm"])
+    hp, phone_parts, origin, jlen = holder_assembly(cfg["holder"], jk, tilt, (H, W, D), base)
+    parts += hp
     if cfg.get("with_phone", True):
-        for mat, sol in phone_solid(H, W, D):
-            parts.append((mat, sol.moved(loc), "phone"))
-    rho = 1.27e-3                                                     # PETG g/mm^3 (printed parts only)
+        parts += phone_parts
     printed = ("primary", "secondary", "accent")
-    mass = {m: round(sum(sol.Volume() for mt, sol, mod in parts if mod in m_ and mt in printed) * rho, 1)
+    mass = {m: round(sum(sol.Volume() for mt, sol, mod in parts if mod in m_ and mt in printed) * DENSITY["primary"], 1)
             for m, m_ in (("body", ("clamp", "arm", "joint")), ("holder", ("holder",)))}
-    info = dict(maps_to=maps_to, tip=[round(float(v), 1) for v in tip3], phone_origin=[round(float(v), 1) for v in origin],
-                tilt_deg=round(math.degrees(th), 1), mass_g=mass)
+    info = dict(maps_to=maps_to, tip=[round(float(v), 1) for v in _xz(tip)], base=[round(float(v), 1) for v in base],
+                joint=jk, section=sec, joint_len=jlen, phone_origin=[round(float(v), 1) for v in origin],
+                tilt_deg=round(float(tilt), 1), mass_g=mass, phone_solid=phone_parts[0][1])
     return parts, info
+
+
+def holder_assembly(holder, jk, tilt_deg, phone, base):
+    """Joint on the arm end (pad top) + holder + phone, tilted toward the rider. -> parts, phone parts, origin, joint length"""
+    H, W, D = phone
+    base = np.asarray(base, float)
+    jparts, jlen = joint(jk, base)
+    parts = [(m, sol, "joint") for m, sol in jparts]
+    th = math.radians(tilt_deg)
+    hparts, depth = HOLDERS[holder]["fn"](H, W, D)
+    nrm = np.array([-math.sin(th), 0.0, math.cos(th)])
+    origin = base + np.array([0, 0, jlen]) + nrm * depth
+    loc = cq.Location(cq.Vector(*origin), cq.Vector(0, 1, 0), -math.degrees(th))
+    parts += [(mat, sol.moved(loc), "holder") for mat, sol in hparts]
+    phone_parts = [(mat, sol.moved(loc), "phone") for mat, sol in phone_solid(H, W, D)]
+    return parts, phone_parts, origin, jlen
+
+
+def payload_entry(holder, jk, tilt_deg, phone):
+    """Table entry for look.payload_entry: joint + holder parts and the phone shape relative to the joint base."""
+    parts, phone_parts, _, jlen = holder_assembly(holder, jk, tilt_deg, phone, (0.0, Y0, 0.0))
+    out = []
+    for mat, sol, mod in parts:
+        v, c, I = _gprop(sol)
+        rho = DENSITY.get(mat, DENSITY["primary"]) * 1e-3                    # kg/mm^3
+        out.append(dict(module=mod, mat=mat, m=round(v * rho, 6), cg=[round(float(c[0]), 3), round(float(c[1] - Y0), 3), round(float(c[2]), 3)],
+                        I=np.round(I * rho, 4).tolist()))
+    v, c, I = _gprop(phone_parts[0][1])
+    return dict(parts=out, joint_len=jlen,
+                phone=dict(cg=[round(float(c[0]), 3), round(float(c[1] - Y0), 3), round(float(c[2]), 3)],
+                           I_per_kg=np.round(I / v, 4).tolist()))
+
+
+def _gprop(sol):
+    from OCP.BRepGProp import BRepGProp
+    from OCP.GProp import GProp_GProps
+    pr = GProp_GProps()
+    BRepGProp.VolumeProperties_s(sol.wrapped, pr)
+    c = pr.CentreOfMass()
+    M = pr.MatrixOfInertia()
+    return pr.Mass(), np.array([c.X(), c.Y(), c.Z()]), np.array([[M.Value(i, j) for j in (1, 2, 3)] for i in (1, 2, 3)])

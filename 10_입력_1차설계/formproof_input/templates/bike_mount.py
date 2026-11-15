@@ -11,6 +11,7 @@ the payload follows team v3 (rigid body with rotary inertia, opt3d_am.py RIGID=1
 import copy
 import math
 from .. import evidence as ev
+from .. import look as LK
 
 Y_SYM = 55.0          # team frame convention (inherited from the 2.5D model)
 
@@ -54,6 +55,8 @@ DEFAULT = dict(
     requirements=(),      # user requirement ids (formproof_input.requirements)
     angle_tilt=(-30.0, 60.0),   # free_angle: tilt range kept clear (deg, + = toward the rider)
     angle_margin=3.0,     # free_angle: clearance around the moving phone (mm)
+    look=None,            # look template: dict(clamp, arm, section, joint, holder, tilt_deg) -> formproof_input.look
+    look_arm_w=None, look_arm_t=None,   # look arm member size (None: look.ARM_W / ARM_T)
 )
 
 
@@ -93,6 +96,48 @@ def _arm_segments(p, ro):
             out[k - 1] = (out[k - 1][0], (jx, jz))
             out[k] = ((jx, jz), out[k][1])
     return out
+
+
+def _look_arm_prims(p, paths, yw_of):
+    """Look arm (side paths of formproof_input.look) as thick segments; section -> width across the bar.
+    rect: full section; trib / ibeam: flange segment(s) + narrow web; round: a tube (3D distance);
+    taper: thickness and width shrink along the main path."""
+    L = p["look"]
+    sec = L.get("section") or LK.ARM_DEFAULT_SECTION[L["arm"]]
+    w = p["look_arm_w"] or LK.ARM_W
+    t = p["look_arm_t"] or LK.ARM_T
+    prims, segs = [], []
+    for k, pth in enumerate(paths):
+        ww, tt = (w, t) if k == 0 else (w * 0.7, t * 0.75)
+        n = len(pth) - 1
+        for i in range(n):
+            a, b = pth[i], pth[i + 1]
+            if sec == "taper":
+                f = (i + 0.5) / n
+                ww_, tt_ = w + (0.65 * w - w) * f, t + (0.75 * t - t) * f
+            else:
+                ww_, tt_ = ww, tt
+            P0, P1 = [round(a[0], 3), round(a[1], 3)], [round(b[0], 3), round(b[1], 3)]
+            segs.append([P0, P1])
+            if sec == "round":
+                prims.append({"seg": dict(plane="xz", p0=P0, p1=P1, t=round(ww_, 3), round_y0=Y_SYM)})
+            elif sec in ("trib", "ibeam"):
+                # rib section as in mount_modules._section: full-width flange(s) + narrow web (side plane offsets
+                # along the member normal n = (-dz, dx), the CAD's local +Y) -> same area as the CAD section
+                f = min(2.6, tt_ / 3) if sec == "trib" else min(2.4, tt_ / 4)
+                web = min(3.0, ww_ / 3)
+                dx, dz = b[0] - a[0], b[1] - a[1]
+                ln = math.hypot(dx, dz)
+                n = (-dz / ln, dx / ln)
+                offs = [tt_ / 2 - f / 2] + ([-(tt_ / 2 - f / 2)] if sec == "ibeam" else [])
+                for o in offs:
+                    prims.append({"seg": dict(plane="xz", p0=[round(P0[0] + o * n[0], 3), round(P0[1] + o * n[1], 3)],
+                                              p1=[round(P1[0] + o * n[0], 3), round(P1[1] + o * n[1], 3)],
+                                              t=round(f, 3), y=[None, yw_of(ww_)])})
+                prims.append({"seg": dict(plane="xz", p0=P0, p1=P1, t=round(tt_, 3), y=[None, yw_of(web)])})
+            else:
+                prims.append({"seg": dict(plane="xz", p0=P0, p1=P1, t=round(tt_, 3), y=[None, yw_of(ww_)])})
+    return prims, segs, sec
 
 
 def _arm_segments_raw(p, ro):
@@ -144,9 +189,39 @@ def build_spec(params=None, template_id="custom", meta=None):
     p = copy.deepcopy(DEFAULT)
     p.update(params or {})
     h = p["h"]
+    L = p["look"]
+    if L:                                           # look template: clamp sizes from the clamp module, arm from its path
+        L = dict(L)
+        C = LK.CLAMP_SPEC[L["clamp"]]
+        L.setdefault("section", LK.ARM_DEFAULT_SECTION[L["arm"]])
+        L.setdefault("joint", LK.HOLDER_SPEC[L["holder"]]["joint"])
+        L["section"] = L["section"] or LK.ARM_DEFAULT_SECTION[L["arm"]]
+        L["joint"] = L["joint"] or LK.HOLDER_SPEC[L["holder"]]["joint"]
+        p["look"] = L
+        p["clamp_w"], p["ring_t"] = C["width"], C["ring_t"]
+        p["arm"] = "look:" + L["arm"]
+        p["post_x"] = (p["pad_len"] / 2 - p["post_w"] / 2, p["pad_len"] / 2 + p["post_w"] / 2)
+        p["post_h"] = max(LK.JOINT_LEN[L["joint"]], 2 * h)
+        p["payload_model"] = "rigid"
     R = p["bar_d"] / 2
     bore = R + p["bore_gap"]
     ro = bore + p["ring_t"]
+    if L:
+        look_paths, tip, _, _ = LK.arm_paths(L["arm"], ro, ro)
+        p["pad_x0"] = round(tip[0] - p["pad_len"] / 2, 3)
+        p["pad_z0"] = round(tip[1] - p["pad_t"] / 2, 3)
+        # phone tilt toward the rider: the given one, else the largest that clears the ring and the arm (look.fit_tilt)
+        dims_l = ev.PHONES[p["phone"]]["dims"] if p["phone"] in ev.PHONES else ev.PHONE_DEFAULT_DIMS
+        base_l = (_snap(p["pad_x0"], 0.0, h) + _snap(p["pad_x0"] + p["pad_len"], 0.0, h)) / 2, _snap(p["pad_z0"] + p["pad_t"], 0.0, h)
+        dep = LK.HOLDER_SPEC[L["holder"]]["depth"]
+        if L.get("tilt_deg") is None:
+            L["tilt_deg"], c_ring, c_arm = LK.fit_tilt(look_paths, ro, base_l, LK.JOINT_LEN[L["joint"]], dep, dims_l)
+        else:
+            c_ring, c_arm = LK.clearance(look_paths, ro, base_l, LK.JOINT_LEN[L["joint"]], dep, L["tilt_deg"], dims_l)
+        L["clearance_mm"] = dict(ring=round(c_ring, 1), arm=round(c_arm, 1),
+                                 ok=bool(c_ring >= LK.CLEAR_RING and c_arm >= LK.CLEAR_ARM))
+    has_ears = not L or LK.CLAMP_SPEC[L["clamp"]]["ears"]
+    saddle = L and LK.CLAMP_SPEC[L["clamp"]]["saddle"]
     yw = _snap(Y_SYM + p["clamp_w"] / 2, Y_SYM, p["h"], outward=1)        # y bounds on grid lines too
     ypost = _snap(Y_SYM + p["post_w"] / 2, Y_SYM, p["h"], outward=1)
 
@@ -154,7 +229,7 @@ def build_spec(params=None, template_id="custom", meta=None):
     ear_top = _snap(-bore + 2.0, 0.0, h)
     ear_bot = _snap(ear_top - p["ear_len"], 0.0, h)
     x_min = _snap(-(ro + 2.0), 0.0, h, outward=-1)
-    z_min = _snap(min(ear_bot, -ro) - 2.0, 0.0, h, outward=-1)
+    z_min = _snap(min(ear_bot if has_ears else 0.0, -ro) - 2.0, 0.0, h, outward=-1)
     if p["domain_z_min"] is not None:
         z_min = min(z_min, _snap(p["domain_z_min"], 0.0, h, outward=-1))
     pad_x0 = _snap(p["pad_x0"], 0.0, h)
@@ -176,8 +251,10 @@ def build_spec(params=None, template_id="custom", meta=None):
 
     regions = [
         dict(name="bore", role="void", shape=[cyl(r_max=bore)], why="핸들바가 지나가는 구멍"),
-        dict(name="slit", role="void", shape=[box(x=[-sx, sx], z=[None, 0.0]), cyl(r_max=ro + 5.4)],
-             why="클램프 조임용 절개"),
+        *([dict(name="slit", role="void", shape=[box(x=[-sx, sx], z=[None, 0.0]), cyl(r_max=ro + 5.4)],
+                why="클램프 조임용 절개")] if has_ears else []),
+        *([dict(name="strap_band", role="void", shape=[cyl(r_min=bore, r_max=ro + 2.5, z=[None, 0.0])],
+                why="고무 띠가 핸들 아래로 감기는 자리")] if saddle else []),
         dict(name="post", role="rigid", stiffness_scale=20.0, mass_scale=0.0,
              shape=[box(x=[post_x0, post_x1], z=[pad_z1, None], y=[None, ypost])],
              why="시판 폰 클램프(강체 가정, 질량은 point_masses에 포함)"),
@@ -185,17 +262,21 @@ def build_spec(params=None, template_id="custom", meta=None):
              minus=["post"], why="폰이 놓이는 공간"),
         dict(name="above", role="void", shape=[box(z=[z_above, None])], minus=["post"],
              why="폰 뒤 공간은 받침판 위 일정 높이까지만 허용"),
-        dict(name="contact", role="solid", shape=[cyl(r_min=bore, r_max=ro, y=[None, yw])],
-             why="핸들바 클램프 링(지킬 곳)"),
-        dict(name="ears", role="solid",
-             shape={"union": [[box(x=[ex0, ex1], z=[ear_bot, ear_top], y=[None, yw])],
-                              [box(x=[-ex1, -ex0], z=[ear_bot, ear_top], y=[None, yw])]]},
-             why="M4 볼트 귀(지킬 곳)"),
+        dict(name="contact", role="solid", shape=[cyl(r_min=bore, r_max=ro, y=[None, yw], **({"z": [0.0, None]} if saddle else {}))],
+             why="핸들 위 반원 받침(지킬 곳)" if saddle else "핸들바 클램프 링(지킬 곳)"),
+        *([dict(name="ears", role="solid",
+                shape={"union": [[box(x=[ex0, ex1], z=[ear_bot, ear_top], y=[None, yw])],
+                                 [box(x=[-ex1, -ex0], z=[ear_bot, ear_top], y=[None, yw])]]},
+                why="M4 볼트 귀(지킬 곳)")] if has_ears else []),
         dict(name="pad", role="solid", shape=[box(x=[pad_x0, pad_x1], z=[pad_z0, pad_z1], y=[None, yw])],
              why="폰 클램프 받침판(지킬 곳)"),
     ]
-    arm = [{"seg": dict(plane="xz", p0=list(a), p1=list(b), t=p["arm_t"], y=[None, yw])}
-           for a, b in _arm_segments(p, ro)]
+    if L:
+        arm, arm_segs, _ = _look_arm_prims(p, look_paths, lambda ww: _snap(Y_SYM + ww / 2, Y_SYM, h, outward=1))
+    else:
+        arm = [{"seg": dict(plane="xz", p0=list(a), p1=list(b), t=p["arm_t"], y=[None, yw])}
+               for a, b in _arm_segments(p, ro)]
+        arm_segs = [[list(a), list(b)] for a, b in _arm_segments(p, ro)]
 
     dims_pre = ev.PHONES[p["phone"]]["dims"] if p["phone"] in ev.PHONES else ev.PHONE_DEFAULT_DIMS
     # resolved CAD geometry (mm, same snapped values the analysis grid uses) — single source for STEP / drawing
@@ -207,7 +288,9 @@ def build_spec(params=None, template_id="custom", meta=None):
                    x_span=[-ex1 - 2.0, ex1 + 2.0]),
         pad=dict(x=[pad_x0, pad_x1], z=[pad_z0, pad_z1]),
         mount_hole=dict(d=p["mount_hole_d"], x=(pad_x0 + pad_x1) / 2, y=Y_SYM),
-        arm=dict(style=p["arm"], t=p["arm_t"], segments=[[list(a), list(b)] for a, b in _arm_segments(p, ro)]),
+        arm=dict(style=p["arm"], t=(p["look_arm_t"] or LK.ARM_T) if L else p["arm_t"], segments=arm_segs,
+                 **(dict(paths=[[list(map(float, q)) for q in pth] for pth in look_paths]) if L else {})),
+        clamp=L["clamp"] if L else "bolt",
         clip=dict(holder_x=_snap(pad_x0 - p["holder_gap"], 0.0, h), holder_z=pad_z1, z_above=z_above),
         holes_in_analysis=False,
     )
@@ -267,6 +350,24 @@ def build_spec(params=None, template_id="custom", meta=None):
                     else f"+ 케이스 {PL['phone_case_max_kg']*1e3:.0f} g") + f" + 폰 홀더 {PL['holder_kg']*1e3:.0f} g = {m_total*1e3:.0f} g, "
                     f"강체(상자 {pbox[0]:g} × {pbox[1]:g} × {pbox[2]:g} mm, 회전 관성 포함)")
         pay_src = [phone_src, PL["source"]]
+    look_pl = None
+    if L:                                                      # holder + joint from the CAD (look_payload.json)
+        entry = LK.payload_entry(L["holder"], L["joint"], L["tilt_deg"], dims)
+        base = [(pad_x0 + pad_x1) / 2, Y_SYM, pad_z1]
+        look_pl = LK.combine_payload(entry, base, m_phone_case)
+        m_total = look_pl["mass_kg"]
+        pay_note = (f"{phone_name} " + (f"{m_phone*1e3:.0f} g + 케이스 {PL['case_kg']*1e3:.0f} g" if m_phone is not None
+                    else f"+ 케이스 {PL['phone_case_max_kg']*1e3:.0f} g") +
+                    f" + {LK.HOLDER_SPEC[L['holder']]['name']}·{LK.JOINTS[L['joint']]} {look_pl['holder_kg']*1e3:.0f} g(CAD) = {m_total*1e3:.0f} g, "
+                    f"강체(CAD에서 구한 무게중심·회전 관성, 기울기 {L['tilt_deg']:g}°)")
+        pay_src = [phone_src, PL["source"], "cad:look"]
+        th = math.radians(L["tilt_deg"])
+        org = [base[0] - math.sin(th) * LK.HOLDER_SPEC[L["holder"]]["depth"], Y_SYM,
+               base[2] + entry["joint_len"] + math.cos(th) * LK.HOLDER_SPEC[L["holder"]]["depth"]]
+        geometry["look"] = dict(L, arm_w=p["look_arm_w"] or LK.ARM_W, arm_t=p["look_arm_t"] or LK.ARM_T,
+                                joint_len=entry["joint_len"], base=base,
+                                phone_center=[round(org[0] - math.sin(th) * dims[2] / 2, 3), Y_SYM,
+                                              round(org[2] + math.cos(th) * dims[2] / 2, 3)])
     geometry["phone"] = dict(name=phone_name, H=dims[0], W=dims[1], D=dims[2], mass_kg=round(m_phone_case, 4),
                              cog=[post_cx, z_top], clamp_t=p["phone_clamp_t"],
                              dims_source=phone_src if known else "assumed")
@@ -287,7 +388,13 @@ def build_spec(params=None, template_id="custom", meta=None):
     payload = {"name": "phone_clamp", "mass_kg": round(m_total, 4),
                "nodes": [box(x=[post_x0, post_x1], y=[None, ypost], z=[z_top, None])],
                "source": pay_src, "note": pay_note}
-    if p["payload_model"] != "point":
+    if look_pl:
+        payload.update(model="rigid_body", cg=[round(v, 3) for v in look_pl["cg"]], box_mm=list(pbox),
+                       inertia_kg_mm2=[[round(v, 3) for v in r] for r in look_pl["inertia"]],
+                       parts=dict(phone_case_kg=round(m_phone_case, 4), holder_kg=round(look_pl["holder_kg"], 4),
+                                  holder_parts_g=look_pl["parts"]),
+                       attach="관절 기둥 윗면 절점에 최소제곱 강체 맞춤으로 연결(팀 verify_sys.py와 같은 방식)")
+    elif p["payload_model"] != "point":
         cg = [post_cx, Y_SYM, round(z_top - PL["cg_below_post_top_mm"], 3)]
         Ix = m_total * (pbox[1] ** 2 + pbox[2] ** 2) / 12
         Iy = m_total * (pbox[0] ** 2 + pbox[2] ** 2) / 12
@@ -312,7 +419,8 @@ def build_spec(params=None, template_id="custom", meta=None):
         "initial_design": {"name": "arm", "style": p["arm"], "shape": arm,
                            "why": "스케치의 팔 형상 = 1차 설계. 설계 영역 안에서만 유효"},
         "supports": [{"name": "handlebar", "type": "fixed", "dofs": "xyz",
-                      "nodes": [cyl(r_max=bore + 0.6)],
+                      "nodes": [cyl(r_max=bore + 0.6, **({"z": [0.0, None]} if saddle else {}))],
+                      **({"clamp": L["clamp"], "clamp_note": LK.CLAMP_SPEC[L["clamp"]]["support"]} if L else {}),
                       "assumption": "클램프 내면이 핸들바에 완전 고정(미끄럼·회전 없음)"}],
         "point_masses": [payload],
         "load_cases": [
@@ -367,6 +475,12 @@ def build_spec(params=None, template_id="custom", meta=None):
                  f"무게중심 기둥 윗면 − {PL['cg_below_post_top_mm']:g} mm, 감쇠비 {PL['damping_ratio']:.0%}",
             f"안전율 {sf}, 진동 증폭 허용 {tmax:.2f}배는 선택값",
         ] + ([f"요청한 노면('{p['road']}')은 측정 근거가 없어 자갈길 값으로 대체(보수적)"] if road_status == "fallback" else [])
+          + ([f"외형 템플릿: {LK.CLAMP_SPEC[L['clamp']]['name']} · {LK.ARMS[L['arm']]} · {LK.SECTIONS[L['section']]} 단면 · "
+               f"{LK.JOINTS[L['joint']]} · {LK.HOLDER_SPEC[L['holder']]['name']}. 지지: {LK.CLAMP_SPEC[L['clamp']]['support']}",
+               "팔 단면(T·I자 리브)은 격자 2 mm로 근사: 날개 + 폭 4 mm 복부(CAD 단면적과 ±5 %)",
+               "관절(볼·원판)은 강체 기둥으로 보고 조임 강성은 무시(실제보다 단단하게 계산됨)"]
+             + (["회전 잠금 전용 케이스 무게는 일반 케이스 여유와 별도로 더함(보수적)"] if L["holder"] == "twist" else [])
+             if L else [])
           + ([] if p["include_self_inertia"] else ["충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장"]),
     }
     _add_requirement_conditions(spec, p, f_min, road)

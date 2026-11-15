@@ -48,6 +48,8 @@ def eval_prim(prim, pts, closed):
     if kind == "seg":
         # thick line segment in a plane, e.g. {"plane":"xz","p0":[x,z],"p1":[x,z],"t":6,"y":[lo,hi]}
         dist = eval_seg_dist(p, pts)
+        if p.get("round_y0") is not None:            # round member: 3D distance to the segment (axis in the plane y = y0)
+            dist = np.sqrt(dist ** 2 + (pts[:, AXES["y"]] - p["round_y0"]) ** 2)
         m &= (dist <= p["t"] / 2) if closed else (dist < p["t"] / 2)
         for ax in ("x", "y", "z"):
             if p.get(ax) is not None:

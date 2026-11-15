@@ -237,6 +237,8 @@ def shared_tables(matcher):
                 ABSORPTANCE_SOURCE=ev.ABSORPTANCE_SOURCE),
         rules=[dict(id=r[0], rx=_jsre(r[1]), effect=r[2], why=r[3]) for r in text_rules.RULES],
         shape_hints=[dict(id=h[0], rx=_jsre(h[1]), effect=h[2]) for h in text_rules.SHAPE_HINTS],
+        look_hints=[dict(key=h[0], val=h[1], rx=_jsre(h[2])) for h in text_rules.LOOK_HINTS],
+        arm_from_shape=text_rules.ARM_FROM_SHAPE,
         requirements={k: dict(v, triggers=_jsre(v["triggers"])) for k, v in requirements.LIBRARY.items()},
         matcher=dict(W=128, H=96, C0=[26.0, 40.0], R_PX=8.0, PAD=6, ring_min=Matcher.RING_MIN_SCORE,
                      rotations=list(Matcher.ROTATIONS), w_hist=matcher.w_hist, refs=refs),
@@ -291,6 +293,10 @@ def assemble():
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--assemble"]:
+        assemble()
+    elif sys.argv[1:] == ["--tables"]:          # text rules / matcher tables only (geometry kept), then assemble
+        with open(os.path.join(DATA, "tables.json"), "w", encoding="utf-8") as f:
+            json.dump(shared_tables(Matcher(TEMPLATES)), f, ensure_ascii=False, separators=(",", ":"))
         assemble()
     else:
         main()

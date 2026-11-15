@@ -38,14 +38,26 @@ def _thick_seg(p0, p1, t):
     return np.array([p0 + n, p1 + n, p1 - n, p0 - n, p0 + n])
 
 
+def CLAMP_RING_T(params):
+    from .look import CLAMP_SPEC
+    return CLAMP_SPEC[params["look"]["clamp"]]["ring_t"]
+
+
 def ring_radius(params):
     p = dict(DEFAULT)
     p.update(params)
+    if p.get("look"):
+        from .look import CLAMP_SPEC
+        p["ring_t"] = CLAMP_SPEC[p["look"]["clamp"]]["ring_t"]
     return p["bar_d"] / 2 + p["bore_gap"] + p["ring_t"]
 
 
 def template_strokes(params, phone=True):
-    """Side-view outline of the 1st design (+ phone) in mm; stroke 0 = ring, 1 = bar, 2 = ears."""
+    """Side-view outline of the 1st design (+ phone) in mm; stroke 0 = ring, 1 = bar, 2 = ears.
+    Look templates: the outline traced from their CAD (look_sketch, stored)."""
+    if params.get("look"):
+        from .look_sketch import strokes_for
+        return [s for _, s in strokes_for(params["look"], "outline", phone)]
     p = dict(DEFAULT)
     p.update(params)
     R = p["bar_d"] / 2
@@ -68,6 +80,9 @@ def template_strokes(params, phone=True):
 def template_skeleton(params, phone=True):
     """Centre-line skeleton of the side view in mm: what a quick one-line sketch looks like.
     Returns named polylines: ring (closed), ears, arm members, pad, and optionally the phone."""
+    if params.get("look"):
+        from .look_sketch import strokes_for
+        return strokes_for(params["look"], "skeleton", phone)
     p = dict(DEFAULT)
     p.update(params)
     bore = p["bar_d"] / 2 + p["bore_gap"]
@@ -152,8 +167,24 @@ def ink_points(gray, photo=False):
     return np.c_[cc, g.shape[0] - 1 - rr].astype(float)
 
 
-def find_ring(pts):
-    """Hough circle on a 256-wide working raster. Returns (centre, radius, score) in point units."""
+def _refine(pts, centre, r):
+    """Algebraic (Kasa) circle fit to ink points in a narrowing annulus around a Hough circle."""
+    for band in (0.15, 0.08):
+        d = np.hypot(*(pts - centre).T)
+        q = pts[np.abs(d - r) <= band * r]
+        if len(q) < 12:
+            break
+        A = np.c_[2 * q, np.ones(len(q))]
+        sol, *_ = np.linalg.lstsq(A, (q ** 2).sum(1), rcond=None)
+        centre, r = sol[:2], float(np.sqrt(sol[2] + sol[:2] @ sol[:2]))
+    return centre, r
+
+
+def find_rings(pts):
+    """Hough circle on a 256-wide working raster. Returns ring hypotheses [(centre, radius, score)] in point units:
+    the best circle, then (if any) a concentric circle 1.12-1.5x bigger that is still >= 40 % inked.
+    Why two: a clamp ring drawn as an outline has an inner (bore) and an outer edge; the outer edge is broken where
+    the arm, ears or hinge leave it, so the closed inner edge can win the vote. The matcher tries both."""
     lo, hi = pts.min(0), pts.max(0)
     span = max(np.ptp(pts[:, 0]), np.ptp(pts[:, 1]), 1e-9)
     s = 240.0 / span
@@ -164,7 +195,7 @@ def find_ring(pts):
     acc = hough_circle(img, radii)
     a, cx, cy, rad = hough_circle_peaks(acc, radii, total_num_peaks=20, min_xdistance=3, min_ydistance=3)
     if len(a) == 0:
-        return None
+        return []
     # accumulator is normalised by circumference = fraction of the circle that is inked.
     # Small circles fit any corner, so rank by inked arc length among well-closed circles;
     # this also prefers the outer clamp ring over the bar circle drawn inside it.
@@ -173,18 +204,26 @@ def find_ring(pts):
     if arc.max() <= 0:
         arc = frac * rad
     best = int(np.argmax(arc))
-    centre = (np.array([cx[best], h - 1 - cy[best]], float) - 8) / s + lo
-    r = rad[best] / s
-    # refine: algebraic (Kasa) circle fit to ink points in a narrowing annulus around the Hough circle
-    for band in (0.15, 0.08):
-        d = np.hypot(*(pts - centre).T)
-        q = pts[np.abs(d - r) <= band * r]
-        if len(q) < 12:
-            break
-        A = np.c_[2 * q, np.ones(len(q))]
-        sol, *_ = np.linalg.lstsq(A, (q ** 2).sum(1), rcond=None)
-        centre, r = sol[:2], float(np.sqrt(sol[2] + sol[:2] @ sol[:2]))
-    return centre, r, float(frac[best])
+    to_pts = lambda x, y: (np.array([x, h - 1 - y], float) - 8) / s + lo
+    out = [(*_refine(pts, to_pts(cx[best], cy[best]), rad[best] / s), float(frac[best]))]
+    bx, by, br = int(cx[best]), int(cy[best]), int(rad[best])
+    d = max(1, int(round(0.12 * br)))
+    big = None
+    for ri, rr in enumerate(radii):
+        if 1.12 * br <= rr <= 1.5 * br:
+            win = acc[ri, max(0, by - d):by + d + 1, max(0, bx - d):bx + d + 1]
+            if win.size and win.max() >= 0.4 and (big is None or win.max() * rr > big[0]):
+                j = np.unravel_index(int(np.argmax(win)), win.shape)
+                big = (win.max() * rr, rr, max(0, bx - d) + j[1], max(0, by - d) + j[0], float(win.max()))
+    if big is not None:
+        out.append((*_refine(pts, to_pts(big[2], big[3]), big[1] / s), big[4]))
+    return out
+
+
+def find_ring(pts):
+    """Best ring hypothesis (centre, radius, score) or None."""
+    r = find_rings(pts)
+    return r[0] if r else None
 
 
 # ------------------------------------------------------------------ features & matcher
@@ -237,19 +276,27 @@ class Matcher:
                     pts = strokes_to_points(strokes, ro / 20)
                     refs["ring"].append(dict(t=i, phone=ph, style=style, **_feat(canonical_map(pts, np.zeros(2), ro))))
                     refs["bbox"].append(dict(t=i, phone=ph, style=style, **_feat(bbox_map(pts))))
+                    if style == "outline" and t["params"].get("look"):
+                        # traced CAD outline: the ring has an inner (bore) and an outer edge and the detector may lock
+                        # on either -> also a reference scaled as if the bore were the ring
+                        ri = ro - CLAMP_RING_T(t["params"])
+                        refs["ring"].append(dict(t=i, phone=ph, style="outline_in",
+                                                 **_feat(canonical_map(pts, np.zeros(2), ri))))
         return refs
 
     def query_maps(self, pts):
         """Candidate query canvases: ring frame (both mirrors) if a ring is found, else bbox frame."""
-        ring = find_ring(pts)
+        rings = find_rings(pts)
+        ring = rings[0] if rings else None
         if ring is not None and ring[2] >= self.RING_MIN_SCORE:
-            c, r, sc = ring
+            sc = ring[2]
             maps = []
-            for a in self.ROTATIONS:
-                th = math.radians(a)
-                rot = np.array([[math.cos(th), -math.sin(th)], [math.sin(th), math.cos(th)]])
-                pr = (pts - c) @ rot.T + c
-                maps += [((m, a), _feat(canonical_map(pr, c, r, mirror=m))) for m in (False, True)]
+            for c, r, _ in rings:                          # inner / outer ring hypotheses
+                for a in self.ROTATIONS:
+                    th = math.radians(a)
+                    rot = np.array([[math.cos(th), -math.sin(th)], [math.sin(th), math.cos(th)]])
+                    pr = (pts - c) @ rot.T + c
+                    maps += [((m, a), _feat(canonical_map(pr, c, r, mirror=m))) for m in (False, True)]
             return "ring", sc, maps
         q = bbox_map(pts)
         return "bbox", (ring[2] if ring else 0.0), [((False, 0), _feat(q)), ((True, 0), _feat(q[:, ::-1].copy()))]

@@ -60,11 +60,25 @@ FP.parseText = function (text) {
       fired.push({rule: 'shape_' + h.id, effect: h.effect, why: '스케치가 없을 때 템플릿 선택에 사용'});
     }
   }
+  // look words (text_rules.look_hint_from); the browser engine has no look templates, the hint is reported only
+  let look = {};
+  for (const h of T.look_hints || []) {
+    if (!(h.key in look) && new RegExp(h.rx, 'i').test(t)) {
+      look[h.key] = h.val;
+      fired.push({rule: `look_${h.key}_${h.val}`, effect: {[h.key]: h.val}, why: '외형 템플릿 선택에 사용'});
+    }
+  }
+  let arm = (T.arm_from_shape || {})[hint.arm];
+  if (arm === 'riser' && (hint.pad_z0 || 0) >= 40) arm = 'tall_riser';
+  if ((arm === 'gooseneck' || arm === 'out_front') && (hint.pad_x0 || 0) >= 110) arm = arm === 'gooseneck' ? 'long_gooseneck' : 'out_front_long';
+  if (arm === 'riser' && /높게|위로\s*올려|눈높이/.test(t)) arm = 'tall_riser';
+  if (arm) look.arm = arm;
+  if (!Object.keys(look).some(k => k !== 'arm')) look = {};
   const questions = [];
   if (!('phone' in params) && !('phone_mass_kg' in params)) questions.push('어떤 폰을 올리나요? (기본: 어떤 폰이든 되도록 폰+케이스 290 g + 폰 홀더 60 g = 350 g 가정)');
   if (!('bar_d' in params)) questions.push('핸들바 굵기(클램프 위치 직경)는? (기본: 31.8 mm)');
   if (!('road' in params)) questions.push('주로 달리는 길은? (기본: 자갈길 기준으로 보수 설계)');
-  return {params, shape_hint: hint, fired, questions};
+  return {params, shape_hint: hint, look_hint: look, fired, questions};
 };
 
 FP.detectRequirements = text => Object.keys(T.requirements).filter(k => new RegExp(T.requirements[k].triggers).test(text || ''));
@@ -233,7 +247,11 @@ function prominentPeaks(acc, rows, cols, md) {   // skimage.feature.peak._promin
   return peaks;
 }
 
-function findRing(px, py, n) {               // sketch.find_ring
+function findRing(px, py, n) {               // sketch.find_ring: best hypothesis
+  const r = findRings(px, py, n);
+  return r.length ? r[0] : null;
+}
+function findRings(px, py, n) {              // sketch.find_rings
   let lox = Infinity, loy = Infinity, hix = -Infinity, hiy = -Infinity;
   for (let i = 0; i < n; i++) { lox = Math.min(lox, px[i]); hix = Math.max(hix, px[i]); loy = Math.min(loy, py[i]); hiy = Math.max(hiy, py[i]); }
   const span = Math.max(hix - lox, hiy - loy, 1e-9), s = 240.0 / span;
@@ -259,7 +277,7 @@ function findRing(px, py, n) {               // sketch.find_ring
     }
     for (const [a, xi, yi] of prominentPeaks(acc, h, w, 3)) peaks.push([a, xi, yi, rad]);
   }
-  if (!peaks.length) return null;
+  if (!peaks.length) return [];
   peaks = peaks.map((p, i) => [...p, i]).sort((A, B) => B[0] - A[0] || B[4] - A[4]);   // argsort(accum)[::-1]
   const keep = [], nb = new Uint8Array(peaks.length);
   let npts = 0;
@@ -276,7 +294,30 @@ function findRing(px, py, n) {               // sketch.find_ring
   let best = 0;
   for (let i = 1; i < arc.length; i++) if (arc[i] > arc[best]) best = i;
   const [frac, bcx, bcy, brad] = keep[best];
-  let cx = (bcx - 8) / s + lox, cy = (h - 1 - bcy - 8) / s + loy, r = brad / s;
+  const out = [kasa(px, py, n, (bcx - 8) / s + lox, (h - 1 - bcy - 8) / s + loy, brad / s, frac)];
+  // outer-ring hypothesis (sketch.find_rings): concentric circle 1.12-1.5x bigger, >= 40 % inked
+  const d = Math.max(1, Math.round(0.12 * brad));
+  let big = null;
+  for (let rr = 6; rr < 60; rr++) {
+    if (rr < 1.12 * brad || rr > 1.5 * brad) continue;
+    const [cr, cc] = circlePerimeter(rr), nc = cr.length;
+    let wmax = -1, wr = 0, wc = 0;
+    for (let R = Math.max(0, bcy - d); R <= Math.min(h - 1, bcy + d); R++)
+      for (let C = Math.max(0, bcx - d); C <= Math.min(w - 1, bcx + d); C++) {
+        let v = 0;
+        for (let c = 0; c < nc; c++) {
+          const tr = R - cr[c], tc = C - cc[c];
+          if (tr >= 0 && tr < h && tc >= 0 && tc < w && img[tr * w + tc]) v++;
+        }
+        v /= nc;
+        if (v > wmax) { wmax = v; wr = R; wc = C; }
+      }
+    if (wmax >= 0.4 && (big === null || wmax * rr > big[0])) big = [wmax * rr, rr, wc, wr, wmax];
+  }
+  if (big) out.push(kasa(px, py, n, (big[2] - 8) / s + lox, (h - 1 - big[3] - 8) / s + loy, big[1] / s, big[4]));
+  return out;
+}
+function kasa(px, py, n, cx, cy, r, frac) {
   for (const band of [0.15, 0.08]) {       // Kasa circle fit in a narrowing annulus
     let S = [0, 0, 0, 0, 0, 0, 0, 0, 0], B = [0, 0, 0], m = 0;
     for (let i = 0; i < n; i++) {
@@ -490,12 +531,12 @@ FP.inkPoints = function (g, w, h, photo) {
 
 FP.matchPoints = function ({px, py, n}, k = 3) {
   const M = T.matcher;
-  const ring = findRing(px, py, n);
+  const rings = findRings(px, py, n), ring = rings.length ? rings[0] : null;
   let frame, score, queries = [];
   if (ring && ring.score >= M.ring_min) {
     frame = 'ring'; score = ring.score;
     const rx = new Float64Array(n), ry = new Float64Array(n);
-    for (const a of M.rotations) {
+    for (const ring of rings) for (const a of M.rotations) {
       const th = a * Math.PI / 180, co = Math.cos(th), si = Math.sin(th);
       for (let i = 0; i < n; i++) {
         const x = px[i] - ring.cx, y = py[i] - ring.cy;

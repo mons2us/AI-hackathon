@@ -10,8 +10,25 @@ def _xz(y):
     return cq.Workplane(cq.Plane(origin=(0, y, 0), xDir=(1, 0, 0), normal=(0, -1, 0)))
 
 
+def build_look(spec, with_holder=True, with_phone=False):
+    """Look template (geometry['look']): clamp / arm / joint / holder modules (mount_modules) on the spec geometry.
+    Returns (compound workplane, parts [(material, solid, module)])."""
+    from . import mount_modules as MM
+    g = spec["geometry"]
+    L, ph = g["look"], g["phone"]
+    cfg = dict(clamp=L["clamp"], arm=L["arm"], section=L["section"], joint=L["joint"], holder=L["holder"],
+               tilt_deg=L["tilt_deg"], arm_w=L["arm_w"], arm_t=L["arm_t"], phone=(ph["H"], ph["W"], ph["D"]),
+               with_phone=with_phone)
+    parts, _ = MM.build(cfg, geo=g)
+    keep = ("clamp", "arm", "joint", "holder", "phone") if with_holder else ("clamp", "arm")
+    parts = [q for q in parts if q[2] in keep]
+    return cq.Workplane("XY").add(cq.Compound.makeCompound([q[1] for q in parts])), parts
+
+
 def build_solid(spec, holes=True, clip=True, with_holder=True):
     g = spec["geometry"]
+    if g.get("look"):
+        return build_look(spec, with_holder)[0]
     y0, w = g["y_sym"], g["width"]
     half = w / 2
     ring = _xz(y0).circle(g["ring_ro"]).extrude(half, both=True)
@@ -90,6 +107,20 @@ def solid_info(body, rho_t_mm3):
 
 
 def export_step(spec, path, holes=True):
+    if spec["geometry"].get("look"):
+        from .mount_modules import DENSITY
+        body, parts = build_look(spec)
+        cq.exporters.export(body, path, exportType="STEP")
+        info = solid_info(body, spec["material"]["rho"])
+        printed = ("primary", "secondary", "accent")
+        g_of = lambda mods, mats=None: round(sum(sol.Volume() * DENSITY.get(m, DENSITY["primary"]) for m, sol, mod in parts
+                                                 if mod in mods and (mats is None or m in mats)), 2)
+        info.update(mass_g=g_of(("clamp", "arm", "joint", "holder")), bracket_mass_g=g_of(("clamp", "arm"), printed),
+                    hardware_g=g_of(("clamp", "arm"), ("metal", "rubber", "rubber_col")),
+                    holder_mass_g=g_of(("joint", "holder")), parts=len(parts),
+                    note="외형 템플릿: 부품별 재질 밀도(PETG·TPU·강)로 질량 계산. 몸체 = 클램프 + 팔(출력 부품), "
+                         "부속 = 볼트·고무 띠, 홀더 = 관절 + 폰 홀더")
+        return body, info
     body = build_solid(spec, holes=holes)
     cq.exporters.export(body, path, exportType="STEP")
     info = solid_info(body, spec["material"]["rho"])

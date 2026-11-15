@@ -1,6 +1,7 @@
 """One call from user input (text / sketch / photo) to the 1st design and the hand-off package.
 Used by run.py (command line) and app/server.py (GUI)."""
 import base64
+import math
 import io
 import json
 import os
@@ -16,7 +17,7 @@ from .drawing import make_drawing
 from .export import side_preview, write_stl
 from .fem import evaluate
 from .templates.bike_mount import build_spec
-from .templates.library import BY_ID, TEMPLATES
+from .templates.library import ALL, BY_ID, LOOKS, TEMPLATES
 
 HANDOFF_FILES = ["spec.json", "problem.npz", "initial_design.npy", "design_1st.step", "design_1st_drawing.pdf",
                  "design_1st_drawing.dxf", "design_1st.stl", "report.json"]
@@ -28,8 +29,29 @@ def matcher():
     if _MATCHER is None:
         from . import skeleton_db
         from .sketch import Matcher
-        _MATCHER = Matcher(TEMPLATES, refs=skeleton_db.load(TEMPLATES))      # stored skeleton DB if it matches the library
+        _MATCHER = Matcher(ALL, refs=skeleton_db.load(ALL))      # stored skeleton DB if it matches the library
     return _MATCHER
+
+
+WORD_WEIGHT = 0.6     # sketch score units per mismatched look word (holder / clamp / section / joint / arm)
+
+
+def rerank_with_words(match, hint, k=5):
+    """Sketch candidates re-ranked with the look words of the text (the side view hardly shows holder / clamp type).
+    T templates have no look: they count as mismatching every look word."""
+    cands = match["candidates"]
+    if hint:
+        for c in cands:
+            L = BY_ID[c["id"]].get("look")
+            pen = text_rules.look_penalty(hint, L) if L else sum(1.5 if key == "arm" else 1.0 for key in hint)
+            c["word_penalty"] = round(WORD_WEIGHT * pen, 3)
+        cands.sort(key=lambda c: c["score"] + c["word_penalty"])
+        s0 = cands[0]["score"] + cands[0]["word_penalty"]
+        for c in cands:
+            c["confidence"] = round(math.exp(-(c["score"] + c["word_penalty"] - s0) / 0.5), 3)
+        match["words"] = hint
+    match["candidates"] = cands[:k]
+    return match
 
 
 def decode_image(data):
@@ -71,7 +93,11 @@ def payload_summary(spec, cad_info=None):
     if pm.get("model") == "rigid_body":
         out.update(cg=pm["cg"], box_mm=pm["box_mm"], phone_case_g=round(pm["parts"]["phone_case_kg"] * 1e3, 1),
                    holder_allow_g=round(pm["parts"]["holder_kg"] * 1e3, 1))
-        if cad_info and "holder_mass_g" in cad_info:
+        if spec["geometry"].get("look"):
+            h = round(pm["parts"]["holder_kg"] * 1e3, 1)
+            out.update(holder_cad_g=h, holder_within=True, holder_from_cad=True,
+                       holder_note=f"폰 홀더·관절 {h:.1f} g — CAD에서 바로 계산해 탑재 하중(무게중심·회전 관성)에 반영")
+        elif cad_info and "holder_mass_g" in cad_info:
             h = cad_info["holder_mass_g"]
             out.update(holder_cad_g=h, holder_within=bool(h <= out["holder_allow_g"]),
                        holder_note=(f"그린 폰 홀더 {h:.1f} g ≤ 여유 {out['holder_allow_g']:.0f} g" if h <= out["holder_allow_g"]
@@ -91,12 +117,15 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     if sketch is not None or image is not None:
         g = sketch if sketch is not None else image
         photo = image is not None and looks_like_photo(image)
-        match = matcher().match_image(g, photo=photo)
+        match = matcher().match_image(g, photo=photo, k=len(ALL))
         match["source"] = "사진(에지 검출)" if photo else ("스케치" if sketch is not None else "스케치 이미지")
+        match = rerank_with_words(match, parsed.get("look_hint") or {})
     if template:
         tid, how = template, "후보 선택" if match else "지정"
     elif match:
         tid, how = match["candidates"][0]["id"], f"{match['source']} 매칭"
+    elif parsed.get("look_hint"):
+        tid, how = text_rules.look_from_hint(parsed["look_hint"], LOOKS), "텍스트(외형 단어)"
     else:
         tid, how = text_rules.template_from_hint(parsed["shape_hint"], TEMPLATES), "텍스트"
     tpl = BY_ID[tid]
@@ -118,6 +147,14 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     rep["design_vars"] = dict(bar_d=g["bar_d"], width=g["width"], reach=g["mount_hole"]["x"], pad_top=g["pad"]["z"][1],
                               arm=g["arm"]["style"], arm_t=g["arm"]["t"], phone=g["phone"]["name"],
                               point_mass_g=round(spec["point_masses"][0]["mass_kg"] * 1e3), material=spec["material"]["name"])
+    if g.get("look"):
+        from . import look as LK
+        L = g["look"]
+        rep["design_vars"]["look"] = dict(
+            clamp=LK.CLAMP_SPEC[L["clamp"]]["name"], arm=LK.ARMS[L["arm"]], section=LK.SECTIONS[L["section"]],
+            joint=LK.JOINTS[L["joint"]], holder=LK.HOLDER_SPEC[L["holder"]]["name"], tilt_deg=L["tilt_deg"],
+            clearance=L["clearance_mm"], codes={k: L[k] for k in ("clamp", "arm", "section", "joint", "holder")})
+    rep["template"]["look"] = tpl.get("look")
 
     p = spec["template"]["params"]
     road = next(c for c in spec["load_cases"] if c["type"] == "modal")
@@ -151,6 +188,7 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
             z.write(os.path.join(out, name), name)
     if with_mesh:
         rep["mesh"] = mesh_payload(body)
-        rep["phone"] = g["phone"]
+        rep["phone"] = dict(g["phone"], **({"pose": dict(center=g["look"]["phone_center"], tilt_deg=g["look"]["tilt_deg"])}
+                                            if g.get("look") else {}))
         rep["geometry"] = dict(y_sym=g["y_sym"], pad=g["pad"], bar_d=g["bar_d"], ring_ro=g["ring_ro"])
     return rep

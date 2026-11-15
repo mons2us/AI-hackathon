@@ -15,13 +15,16 @@ import os
 import numpy as np
 
 from . import sketch
-from .templates.library import TEMPLATES
+from .templates.library import ALL as TEMPLATES
 
 DB = os.path.join(os.path.dirname(__file__), "templates", "db")
 
 
 def signature(templates=TEMPLATES):
     blob = json.dumps([[t["id"], t["params"]] for t in templates], sort_keys=True) + f"{sketch.W}x{sketch.H}|{sketch.R_PX}|{list(sketch.C0)}"
+    if any(t.get("look") for t in templates):                # look sketches are traced from CAD: hash the stored strokes
+        from .look_sketch import DB as LDB
+        blob += hashlib.sha1(open(LDB, "rb").read()).hexdigest() if os.path.exists(LDB) else "none"
     return hashlib.sha1(blob.encode()).hexdigest()[:16]
 
 
@@ -46,10 +49,13 @@ def build(templates=TEMPLATES, out=DB):
         arrays[f"{frame}_phone"] = np.array([r["phone"] for r in lst], bool)
         arrays[f"{frame}_style"] = np.array([r["style"] for r in lst])
         arrays[f"{frame}_img"] = np.packbits(np.stack([r["img"] > 0.5 for r in lst]).reshape(len(lst), -1), axis=1)
-        arrays[f"{frame}_dt"] = np.stack([r["dt"] for r in lst]).astype(np.float32)
         arrays[f"{frame}_hist"] = np.stack([r["hist"] for r in lst])
     np.savez_compressed(os.path.join(out, "features.npz"), **arrays)
-    _sheet(templates, os.path.join(out, "sheet.png"))
+    plain = [t for t in templates if not t.get("look")]
+    looks = [t for t in templates if t.get("look")]
+    _sheet(plain, os.path.join(out, "sheet.png"))
+    if looks:
+        _sheet(looks, os.path.join(out, "sheet_looks.png"), cols=10, size=(2.0, 1.5))
     return sig
 
 
@@ -69,24 +75,25 @@ def load(templates=TEMPLATES, path=DB):
     return refs
 
 
-def _sheet(templates, path):
+def _sheet(templates, path, cols=6, size=(2.6, 1.9)):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     n = len(templates)
-    cols = 6
     rows = -(-n // cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 2.6, rows * 1.9))
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * size[0], rows * size[1]))
     for ax in axes.ravel():
         ax.axis("off")
-    col = dict(ring="#111", ear="#777", arm="#1f5fd0", pad="#d9822b", stem="#999", phone="#999")
+    col = dict(ring="#111", ear="#777", arm="#1f5fd0", pad="#d9822b", stem="#999", phone="#999", strap="#777",
+               knob="#777", joint="#d9822b", holder="#d9822b")
     for ax, t in zip(axes.ravel(), templates):
         for s in sketch.template_strokes(t["params"], phone=False):
             ax.plot(s[:, 0], s[:, 1], color="#cfd6e0", lw=0.8)
         for name, s in sketch.template_skeleton(t["params"], phone=True):
-            ax.plot(s[:, 0], s[:, 1], color=col[name], lw=2 if name in ("arm", "ring", "pad") else 1, solid_capstyle="round")
+            ax.plot(s[:, 0], s[:, 1], color=col.get(name, "#777"), lw=2 if name in ("arm", "ring", "pad") else 1,
+                    solid_capstyle="round")
         ax.set_aspect("equal")
-        ax.set_title(f"{t['id']} · {t.get('kind', 'arm')}", fontsize=8)
+        ax.set_title(f"{t['id']} · {t.get('kind', 'arm')}", fontsize=8 if cols <= 6 else 6.5)
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)
