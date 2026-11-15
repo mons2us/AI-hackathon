@@ -5,7 +5,7 @@ rem ===== [GPU 서버, Windows] 3단계: 데이터 생성 + 학습 + 관문 + �
 rem 사용: 코드 폴더에서  handoff\step3_server_train.bat        (계획 A: 데이터도 서버에서 생성)
 rem       handoff\step3_server_train.bat B                    (계획 B: upload_data.zip 을 코드 폴더에 두고)
 rem 반영 (2026-11-15): 7그룹(화면 각도 자유 포함), ESO 형상 + 정답, 위에서 깎기 형상 + 정답, 학습 방법 자동 선택(sweep),
-rem       D 열린 껍데기 개선(두께 3~4칸, 앞뒤 같은 방향으로 열림, 선택 비율 5%)
+rem       D 열린 껍데기: 거치대 0%, TV 5%(두께 3~4칸, 앞뒤 같은 방향으로 열림)
 rem 끊기면 같은 파일을 다시 실행 → runs\main\state.json 보고 끝난 단계는 건너뜀
 rem 숫자 바꾸기(학습이 잘 안 될 때, HANDOFF.md 6-1): 실행 전에  set N_FEM=2000  처럼 지정
 cd /d %~dp0\..

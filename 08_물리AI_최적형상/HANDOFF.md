@@ -78,6 +78,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 | 경로 | 역할 |
 |---|---|
 | `HANDOFF.md` | **이 문서** |
+| `BAT_README.md` | bat·sh 실행 파일별 차이 (어디서·무엇을·얼마나·결과 위치) |
 | `handoff/step1_pc_datagen.bat` | [회사 PC] 데이터 생성 (계획 B) |
 | `handoff/step2_pack_upload.bat` | [회사 PC] 업로드용 zip |
 | `handoff/step3_server_train.sh` | [서버, Linux] 학습 전체 (GPU 자동 감지) |

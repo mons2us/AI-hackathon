@@ -7,5 +7,5 @@ cd /d %~dp0\..
 python -m fp08.pack code upload_code.zip
 if exist data\ python -m fp08.pack data data upload_data.zip
 echo.
-echo 서버에 upload_code.zip (와 upload_data.zip) 를 올리고 handoff\step3_server_train.sh 를 실행하세요.
+echo 서버에 upload_code.zip (와 upload_data.zip) 를 올리고 서버에서 handoff\step3_server_train.bat (Windows) 또는 handoff/step3_server_train.sh (Linux) 를 실행하세요.
 pause
