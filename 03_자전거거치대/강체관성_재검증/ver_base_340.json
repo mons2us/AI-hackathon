@@ -1,0 +1,1 @@
+{"mass_g": 44.7, "f1_340g": 22.0, "defl_0.5kg_mm": 0.4, "defl_1kg_mm": 0.799, "shock": {"shock_z": {"vm999": 43.1, "sig_x_tens999": 46.6, "sig_y_tens999": 10.5, "sig_z_tens999": 11.2}, "shock_y": {"vm999": 33.5, "sig_x_tens999": 26.0, "sig_y_tens999": 4.2, "sig_z_tens999": 12.9}}}
