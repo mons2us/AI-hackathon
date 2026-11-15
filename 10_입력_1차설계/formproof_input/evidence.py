@@ -25,6 +25,12 @@ SOURCES = {
         note="태양광 반사율 흰색 75–85 %, 검정 5–10 % (측정 당시 기온 36 °C)"),
     "energy_balance": dict(title="얇은 판 표면 에너지 평형: a·G = 2h(T−Ta) + εσ[(T⁴−Tsky⁴)+(T⁴−Tground⁴)], 평판 강제대류 Nu=0.664Re^0.5Pr^(1/3)",
                            url=None, note="교과서 식. 계수는 assumptions에 표시"),
+    "team_v3_rigid": dict(
+        title="FormProof 범용 폰 받침대 + 거치대 설계 명세 v3 (팀 내부, 2026-11-14): 폰+받침대를 회전 관성이 있는 강체로, "
+              "탑재 하중 350 g(폰+케이스 ≤ 290 g + 받침대 60 g), 판정 = 흔들림 증폭률(1차 진동 91 Hz는 참고선)",
+        url="12_범용폰받침대/formproof_spec_mount_cradle_v3.html",
+        note="계산 방식은 03_자전거거치대/verify_sys.py·opt3d_am.py(RIGID=1): 강체 질량을 기둥 윗면 절점에 최소제곱 강체 맞춤으로 연결, "
+             "무게중심 z 36.5(기둥 윗면 42 − 5.5), 상자 165 × 80 × 15 mm, 감쇠비 3 %"),
     "sdof": dict(title="1자유도 진동 전달률 T = 1/|1-r^2|, r = f_excitation / f_natural",
                  url=None, note="교과서 식. 강성 설계(f_n > f_ex)에서 T <= T_max 이면 f_n >= f_ex / sqrt(1 - 1/T_max)"),
 }
@@ -61,8 +67,20 @@ PHONES = {
     "galaxy_s25_ultra": dict(name="Galaxy S25 Ultra", mass=0.218, dims=(162.8, 77.6, 8.2), source="samsung_s25u"),
 }
 PHONE_DEFAULT_DIMS = (160.0, 76.0, 8.0)   # assumed, typical 6.7" phone (H x W x D mm)
-PHONE_DEFAULT_MASS = 0.200          # team_v7: phone 200 g + clamp 50 g = 250 g (assumed)
-PHONE_CLAMP_MASS = 0.050            # assumed (commercial phone clamp, rigid)
+PHONE_DEFAULT_MASS = 0.200          # team_v7 (legacy point-mass model, payload_model='point')
+PHONE_CLAMP_MASS = 0.050            # team_v7 (legacy point-mass model)
+
+# --- payload carried by the mount (team v3): phone + case + phone holder as ONE rigid body with rotary inertia
+PAYLOAD = dict(
+    phone_case_max_kg=0.290,        # v3 design range: any phone incl. case <= 290 g (phone not specified)
+    case_kg=0.050,                  # v3: case allowance +50 g (확인 필요)
+    holder_kg=0.060,                # v3: phone holder / cradle target 60 g
+    box_default_mm=(165.0, 80.0, 15.0),   # v3: phone + case + cradle box (long side along x = travel direction)
+    case_margin_mm=2.5,             # v3: case adds 2–3 mm per side
+    cg_below_post_top_mm=5.5,       # v3: CG z 36.5 with post top at 42
+    damping_ratio=0.03,             # v3: assumed
+    source="team_v3_rigid",
+)
 
 # --- handlebar clamp diameters in common use (assumed: industry sizes, source to be confirmed)
 HANDLEBAR_D = {"oversize": 31.8, "standard": 25.4, "mtb_35": 35.0, "grip": 22.2}

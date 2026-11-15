@@ -233,7 +233,7 @@ def shared_tables(matcher):
         default=DEFAULT,
         ev=dict(SOURCES=ev.SOURCES, MATERIALS=ev.MATERIALS, ROADS=ev.ROADS, ROAD_FALLBACK=ev.ROAD_FALLBACK,
                 PHONES=ev.PHONES, PHONE_DEFAULT_DIMS=ev.PHONE_DEFAULT_DIMS, PHONE_DEFAULT_MASS=ev.PHONE_DEFAULT_MASS,
-                PHONE_CLAMP_MASS=ev.PHONE_CLAMP_MASS, HANDLEBAR_D=ev.HANDLEBAR_D, FACTORS=ev.FACTORS, SUN=ev.SUN,
+                PHONE_CLAMP_MASS=ev.PHONE_CLAMP_MASS, PAYLOAD=ev.PAYLOAD, HANDLEBAR_D=ev.HANDLEBAR_D, FACTORS=ev.FACTORS, SUN=ev.SUN,
                 ABSORPTANCE_SOURCE=ev.ABSORPTANCE_SOURCE),
         rules=[dict(id=r[0], rx=_jsre(r[1]), effect=r[2], why=r[3]) for r in text_rules.RULES],
         shape_hints=[dict(id=h[0], rx=_jsre(h[1]), effect=h[2]) for h in text_rules.SHAPE_HINTS],
@@ -269,6 +269,14 @@ def main():
     print(f"done in {time.time() - t0:.0f}s -> {DIST}")
 
 
+# the Artifact host's page skeleton (charset, viewport, small reset); src/page.html is the body content
+SKELETON_HEAD = ('<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,'
+                 'viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);'
+                 'padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;'
+                 'padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}'
+                 '[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>')
+
+
 def assemble():
     """index.html = src/page.html with src/engine.js and src/app.js inlined."""
     src = os.path.join(HERE, "src")
@@ -278,7 +286,7 @@ def assemble():
         with open(os.path.join(src, name), encoding="utf-8") as f:
             page = page.replace(f"/*@@{name}@@*/", f.read())
     with open(os.path.join(DIST, "index.html"), "w", encoding="utf-8") as f:
-        f.write(page)
+        f.write(SKELETON_HEAD + "\n" + page + "\n</body></html>\n")
 
 
 if __name__ == "__main__":

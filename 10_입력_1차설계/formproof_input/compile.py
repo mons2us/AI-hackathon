@@ -6,6 +6,7 @@ Element / node numbering follows the team's optimisers (opt3d.py, tvopt.py):
 """
 import json
 import numpy as np
+import scipy.sparse as sp
 from .geometry import eval_shape, element_bounds, _cyl_r
 
 LABEL = {"design": 0, "solid": 1, "void": 2, "rigid": 3}     # role "keepout" -> separate mask P.keepout
@@ -124,6 +125,7 @@ class Problem:
                 raise SpecError(f"support '{s['name']}' selects no nodes")
         # lumped masses on node sets; a half model carries half, plane nodes weighted 0.5
         self.mass_sets = {}
+        self.rigid_payloads = {}
         self.node_mass = np.zeros(self.nn)
         for pm in spec.get("point_masses", []):
             nds = self.select_nodes(pm["nodes"])
@@ -137,7 +139,57 @@ class Problem:
             m_t = pm["mass_kg"] * 1e-3                       # kg -> t (N, mm, s units)
             mm = m_t * share * w / w.sum()
             self.mass_sets[pm["name"]] = (nds, mm)
-            self.node_mass[nds] += mm
+            if pm.get("model") == "rigid_body":
+                self.rigid_payloads[pm["name"]] = self._rigid_payload(pm, nds, w)
+            else:
+                self.node_mass[nds] += mm
+
+    # S: mirror-symmetric field about the plane -> rigid DOFs (translations in the plane, rotation about the normal)
+    def _rigid_dofs(self, case):
+        if case == "F" or self.sym_axis is None:
+            return [0, 1, 2, 3, 4, 5]
+        ax = self.sym_axis
+        inplane = [d for d in range(3) if d != ax]
+        return (inplane + [3 + ax]) if case == "S" else ([ax] + [3 + d for d in inplane])
+
+    def _rigid_payload(self, pm, nds, w):
+        """Payload as a rigid body (mass + rotary inertia about its centre of gravity) carried by node set `nds`
+        (team v3, 03_자전거거치대/verify_sys.py): nodal mass matrix Ma = Tw^T Mrb Tw, Tw = weighted least-squares
+        rigid fit. A half model keeps the DOFs of its symmetry case and carries half the mass and inertia."""
+        m = pm["mass_kg"] * 1e-3                                         # t
+        I = np.asarray(pm["inertia_kg_mm2"], float) * 1e-3               # t mm^2 about the CG, principal axes x y z
+        Mrb = np.diag([m, m, m, *I])
+        rel = self.nodes[nds] - np.asarray(pm["cg"], float)
+        T = np.zeros((3 * len(nds), 6))
+        for i, (rx, ry, rz) in enumerate(rel):
+            T[3 * i:3 * i + 3, :3] = np.eye(3)
+            T[3 * i:3 * i + 3, 3:] = -np.array([[0, -rz, ry], [rz, 0, -rx], [-ry, rx, 0]])
+        W = np.repeat(w, 3)
+        share = 0.5 if self.sym_axis is not None else 1.0
+        dofs = (3 * nds[:, None] + np.arange(3)).ravel()
+        cases = ["S", "A"] if self.sym_axis is not None else ["F"]
+        out = dict(nodes=nds, dofs=dofs, cg=np.asarray(pm["cg"], float), mass_t=m, inertia=I, share=share, cases={})
+        for case in cases:
+            k = self._rigid_dofs(case)
+            Tk = T[:, k]
+            Tw = np.linalg.solve(Tk.T @ (W[:, None] * Tk), Tk.T * W[None, :])      # rigid DOFs from nodal displacements
+            Ma = share * Tw.T @ Mrb[np.ix_(k, k)] @ Tw
+            out["cases"][case] = dict(rigid_dofs=k, Tw=Tw, Ma=Ma)
+        return out
+
+    def payload_mass_matrix(self, case):
+        """Sparse 3nn x 3nn mass matrix of the rigid payloads for a symmetry case (S, A or F)."""
+        rows, cols, vals = [], [], []
+        for rp in self.rigid_payloads.values():
+            Ma = rp["cases"][case]["Ma"]
+            d = rp["dofs"]
+            rows.append(np.repeat(d, len(d)))
+            cols.append(np.tile(d, len(d)))
+            vals.append(Ma.ravel())
+        if not rows:
+            return sp.csr_matrix((3 * self.nn, 3 * self.nn))
+        return sp.coo_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
+                             shape=(3 * self.nn, 3 * self.nn)).tocsr()
 
     # -------------------------------------------------------------- loads
     def sym_case(self, direction):
@@ -158,6 +210,14 @@ class Problem:
         a = case["accel_g"] * g * np.asarray(case["dir"], float)
         F = np.zeros((self.nn, 3))
         for name in case.get("applies_to", []):
+            if name in self.rigid_payloads:              # inertial force acts at the payload's CG
+                rp = self.rigid_payloads[name]
+                c = rp["cases"][self.sym_case(case["dir"])]
+                w6 = np.zeros(6)
+                w6[:3] = rp["mass_t"] * a
+                f = rp["share"] * c["Tw"].T @ w6[c["rigid_dofs"]]
+                F.reshape(-1)[rp["dofs"]] += f
+                continue
             nds, mm = self.mass_sets[name]
             np.add.at(F, nds, mm[:, None] * a[None, :])
         if case.get("include_self", False) and elem_density is not None:
@@ -183,7 +243,10 @@ class Problem:
                     supports={k: int(len(v)) for k, v in self.supports.items()},
                     keepout=int(self.keepout.sum()) if self.keepout is not None else 0,
                     point_mass_nodes={k: int(len(v[0])) for k, v in self.mass_sets.items()},
-                    half_model_mass_kg=round(float(self.node_mass.sum() * 1e3), 4))
+                    half_model_mass_kg=round(float(self.node_mass.sum() * 1e3
+                                                   + sum(r["mass_t"] * r["share"] for r in self.rigid_payloads.values()) * 1e3), 4),
+                    rigid_payloads={k: dict(mass_kg=round(r["mass_t"] * 1e3, 4), cg=r["cg"].tolist(), nodes=int(len(r["nodes"])))
+                                    for k, r in self.rigid_payloads.items()})
 
     def to_npz(self, path):
         d = dict(h=self.h, origin=self.origin, shape=np.array(self.shape), label=self.label,
@@ -191,6 +254,11 @@ class Problem:
                  used_nodes=np.where(self.used)[0])
         for k, v in self.supports.items():
             d["support__" + k] = v
+        for k, r in self.rigid_payloads.items():         # optimiser adds Ma (per symmetry case) to its mass matrix
+            d["payload__" + k + "__dofs"] = r["dofs"]
+            d["payload__" + k + "__cg"] = r["cg"]
+            for case, c in r["cases"].items():
+                d["payload__" + k + "__Ma_" + case] = c["Ma"]
         if self.sym_axis is not None:
             d["sym_plane_nodes"] = self.sym_plane
             d["sym_axis"] = self.sym_axis

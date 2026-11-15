@@ -145,9 +145,11 @@ def main():
             jc = r["check"]
             df = abs(ev["f1_hz"] - jc["f1_hz"])
             ds = abs(ev["shock_vertical"]["vm_max_mpa"] - jc["shock_vertical"]["vm_max_mpa"])
-            ok = df <= 0.15 and ds <= 0.15 and ev["pass"] == jc["pass"]
+            tp, tj = ev.get("transmissibility_band_max"), jc.get("transmissibility_band_max")
+            dt = abs(tp - tj) / tp if tp else 0.0
+            ok = df <= 0.15 and ds <= 0.15 and dt <= 0.05 and ev["pass"] == jc["pass"]
             print(f"  user mass {tpl['id']}: f1 py {ev['f1_hz']} js {jc['f1_hz']}, vm py {ev['shock_vertical']['vm_max_mpa']} js "
-                  f"{jc['shock_vertical']['vm_max_mpa']} {'ok' if ok else 'FAIL'}")
+                  f"{jc['shock_vertical']['vm_max_mpa']}, shaking py {tp} js {tj} {'ok' if ok else 'FAIL'}")
             fails += not ok
     print(f"spec: {len(cases)} template x request cases checked")
 

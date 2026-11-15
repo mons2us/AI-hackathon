@@ -20,7 +20,9 @@ def test_team_v7_request():
     r, s = spec_for("울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게, 3D 프린터로 뽑을 거야")
     assert r["params"] == {"road": "cobblestone", "objective": "min_mass", "material": "PETG"}
     assert lim(s, "f1") == 91.2 and lim(s, "stress") == 26.0          # = team v7 criteria
-    assert s["point_masses"][0]["mass_kg"] == 0.25 and len(r["questions"]) == 2
+    assert lim(s, "transmissibility") == 1.333                        # team v3: judged by shaking, f1 is a guide line
+    pm = s["point_masses"][0]                                          # team v3: phone not given -> 290 g (+case) + 60 g holder
+    assert pm["model"] == "rigid_body" and abs(pm["mass_kg"] - 0.35) < 1e-12 and len(r["questions"]) == 2
 
 
 def test_phones_and_bars():
@@ -29,7 +31,7 @@ def test_phones_and_bars():
     assert T.parse("갤럭시 S25 써요")["params"]["phone"] == "galaxy_s25"
     assert T.parse("핸들 25.4mm 짜리")["params"]["bar_d"] == 25.4
     _, s = spec_for("폰 무게 230g")
-    assert abs(s["point_masses"][0]["mass_kg"] - 0.28) < 1e-9
+    assert abs(s["point_masses"][0]["mass_kg"] - (0.23 + 0.05 + 0.06)) < 1e-9     # phone + case + holder
 
 
 def test_paved_and_strong():

@@ -64,6 +64,21 @@ def mesh_payload(body, tol=0.05):
     return dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(t)))
 
 
+def payload_summary(spec, cad_info=None):
+    """What the mount carries (team v3) and whether the drawn phone holder fits its mass allowance."""
+    pm = spec["point_masses"][0]
+    out = dict(model=pm.get("model", "point"), total_g=round(pm["mass_kg"] * 1e3, 1), note=pm.get("note", ""))
+    if pm.get("model") == "rigid_body":
+        out.update(cg=pm["cg"], box_mm=pm["box_mm"], phone_case_g=round(pm["parts"]["phone_case_kg"] * 1e3, 1),
+                   holder_allow_g=round(pm["parts"]["holder_kg"] * 1e3, 1))
+        if cad_info and "holder_mass_g" in cad_info:
+            h = cad_info["holder_mass_g"]
+            out.update(holder_cad_g=h, holder_within=bool(h <= out["holder_allow_g"]),
+                       holder_note=(f"그린 폰 홀더 {h:.1f} g ≤ 여유 {out['holder_allow_g']:.0f} g" if h <= out["holder_allow_g"]
+                                    else f"그린 폰 홀더 {h:.1f} g > 여유 {out['holder_allow_g']:.0f} g → 탑재 하중을 늘려 다시 판정 필요"))
+    return out
+
+
 def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False):
     """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate)."""
     t0 = time.time()
@@ -124,6 +139,7 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 1차 설계 / 설계 영역")
     body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
     rep["cad"] = dict(step="design_1st.step", **cad_info)
+    rep["payload"] = payload_summary(spec, cad_info)
     rep["drawing"] = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
                                   os.path.join(out, "design_1st_drawing.pdf"), title="자전거 폰 거치대 — 1차 설계",
                                   check=check, mass_g=cad_info["mass_g"])

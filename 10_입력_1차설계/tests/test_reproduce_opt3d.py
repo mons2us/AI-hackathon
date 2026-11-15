@@ -1,5 +1,6 @@
 """The default bike-mount template must reproduce the team's hard-coded opt3d.py problem exactly:
-element roles, fixed nodes, symmetry-plane nodes and the phone tip-mass distribution."""
+element roles, fixed nodes, symmetry-plane nodes and (team v7 point-mass payload) the phone tip-mass distribution.
+The current payload model (team v3 rigid body) is checked against opt3d_am.py in test_rigid_payload.py."""
 import os, sys, types
 import numpy as np
 
@@ -31,7 +32,7 @@ def opt3d_reference():
 
 def test_reproduce():
     ref = opt3d_reference()
-    P = Problem(build_spec())
+    P = Problem(build_spec(dict(payload_model="point")))
     assert P.shape == (ref["nx"], ref["ny"], ref["nz"])
     assert np.allclose(P.origin, [ref["x0"], ref["y0"], ref["z0"]])
     for mine, theirs in ((P.design, "design"), (P.solid, "solid"), (P.void, "void"), (P.rigid, "post")):
@@ -42,7 +43,7 @@ def test_reproduce():
     assert np.allclose(P.node_mass, ref["tipm"], rtol=0, atol=1e-15)
     # adapter exposes the same names the optimiser header defines
     from formproof_input.adapter import opt3d_namespace
-    ns = opt3d_namespace(build_spec())
+    ns = opt3d_namespace(build_spec(dict(payload_model="point")))
     for name in ("design", "solid", "void", "post", "active", "used", "edof", "nxc", "nzc", "xc", "zc"):
         assert np.array_equal(ns[name], ref[name]), name
     for name in ("fixn", "plane", "topn"):

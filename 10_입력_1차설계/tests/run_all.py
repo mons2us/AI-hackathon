@@ -2,18 +2,20 @@
 import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import test_reproduce_opt3d, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
+import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
+    ("폰 강체(팀 v3) = 팀 전체 모델 opt3d_am", test_rigid_payload.test_rigid_payload_matches_team_full_model),
+    ("폰 강체 충격 하중 합력", test_rigid_payload.test_payload_load_resultant),
     ("외팔보 이론식", test_fem_cantilever.test_cantilever),
     ("텍스트: 팀 v7 요청", test_text_rules.test_team_v7_request),
     ("텍스트: 폰·핸들", test_text_rules.test_phones_and_bars),
     ("텍스트: 포장도로·튼튼", test_text_rules.test_paved_and_strong),
     ("텍스트: 형태 힌트", test_text_rules.test_shape_hints),
-    ("스케치: 정형 20장", test_sketch_match.test_clean_sketches_exact),
+    ("스케치: 정형 (템플릿 × 폰 유무)", test_sketch_match.test_clean_sketches_exact),
     ("스케치: 합성 손그림", test_sketch_match.test_hand_drawn),
-    ("CAD: STEP 10종 (유효·왕복·복셀 질량 ±5%)", test_cad.test_step_all_templates),
+    ("CAD: STEP 전 템플릿 (유효·왕복·복셀 질량 ±5%)", test_cad.test_step_all_templates),
     ("도면: 치수 = 명세", test_cad.test_drawing_dimensions),
     ("요구: 텍스트 감지", test_requirements.test_text_detects_requirements),
     ("요구: 땡볕 에너지 평형·HDT", test_requirements.test_thermal_physics),

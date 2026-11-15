@@ -5,7 +5,8 @@ x = forward (riding direction), z = up, y = across; symmetry plane y = Y_SYM, ha
 on y >= Y_SYM. All template parameters are physical sizes in mm; the generator snaps
 element-region bounds to grid lines so a bound never sits on an element centre.
 
-DEFAULT reproduces opt3d.py (team v7 3D problem) element-for-element (tests/test_reproduce_opt3d.py).
+DEFAULT reproduces opt3d.py (team v7 3D problem) element-for-element (tests/test_reproduce_opt3d.py);
+the payload follows team v3 (rigid body with rotary inertia, opt3d_am.py RIGID=1 / verify_sys.py).
 """
 import copy
 import math
@@ -41,6 +42,7 @@ DEFAULT = dict(
     mount_hole_d=8.0,     # phone-clamp fixing hole through the pad (assumed interface)
     phone="default",      # key in evidence.PHONES or 'default'
     phone_mass_kg=None,   # user-stated phone mass overrides the table
+    payload_model="rigid",  # 'rigid' (team v3: phone+case+holder rigid body with rotary inertia) | 'point' (team v7)
     road="cobblestone",
     material="PETG",
     objective="min_mass",
@@ -228,18 +230,46 @@ def build_spec(params=None, template_id="custom", meta=None):
     sf = p["safety_factor"] or ev.FACTORS["safety_factor"]
     tmax = ev.FACTORS["t_max"]
     f_min = road["f_hi"] / math.sqrt(1.0 - 1.0 / tmax)
-    if p["phone"] in ev.PHONES:
-        ph = ev.PHONES[p["phone"]]
-        m_phone, phone_src, phone_name = ph["mass"], ph["source"], ph["name"]
-    else:
-        m_phone, phone_src, phone_name = ev.PHONE_DEFAULT_MASS, "team_v7", "기종 미지정(200 g 가정)"
-    if p["phone_mass_kg"]:
-        m_phone, phone_src, phone_name = p["phone_mass_kg"], "user", "사용자 입력 폰"
-    m_total = m_phone + ev.PHONE_CLAMP_MASS
-    dims = ev.PHONES[p["phone"]]["dims"] if p["phone"] in ev.PHONES else ev.PHONE_DEFAULT_DIMS
-    geometry["phone"] = dict(name=phone_name, H=dims[0], W=dims[1], D=dims[2], mass_kg=round(m_total, 4),
-                             cog=[(post_x0 + post_x1) / 2, z_top], clamp_t=p["phone_clamp_t"],
-                             dims_source=phone_src if p["phone"] in ev.PHONES else "assumed")
+    known = p["phone"] in ev.PHONES
+    dims = ev.PHONES[p["phone"]]["dims"] if known else ev.PHONE_DEFAULT_DIMS
+    PL = ev.PAYLOAD
+    post_cx = (post_x0 + post_x1) / 2
+    if p["payload_model"] == "point":                          # team v7: phone + 50 g clamp lumped on the post top
+        if known:
+            ph = ev.PHONES[p["phone"]]
+            m_phone, phone_src, phone_name = ph["mass"], ph["source"], ph["name"]
+        else:
+            m_phone, phone_src, phone_name = ev.PHONE_DEFAULT_MASS, "team_v7", "기종 미지정(200 g 가정)"
+        if p["phone_mass_kg"]:
+            m_phone, phone_src, phone_name = p["phone_mass_kg"], "user", "사용자 입력 폰"
+        m_phone_case, m_total = m_phone, m_phone + ev.PHONE_CLAMP_MASS
+        pay_note = f"{phone_name} {m_phone*1e3:.0f} g + 폰 클램프 {ev.PHONE_CLAMP_MASS*1e3:.0f} g, 클램프 상단에 집중"
+        pay_src = [phone_src, "assumed:clamp_50g"]
+    else:                                                      # team v3: rigid payload with rotary inertia
+        if p["phone_mass_kg"]:
+            m_phone, phone_src, phone_name = p["phone_mass_kg"], "user", "사용자 입력 폰"
+            m_phone_case = m_phone + PL["case_kg"]
+        elif known:
+            ph = ev.PHONES[p["phone"]]
+            m_phone, phone_src, phone_name = ph["mass"], ph["source"], ph["name"]
+            m_phone_case = m_phone + PL["case_kg"]
+        else:
+            m_phone, phone_src, phone_name = None, PL["source"], "기종 미지정(설계 범위 최대)"
+            m_phone_case = PL["phone_case_max_kg"]
+        m_total = m_phone_case + PL["holder_kg"]
+        if known or p["phone_mass_kg"]:
+            c = PL["case_margin_mm"]
+            pbox = (dims[0] + 2 * c, dims[1] + 2 * c, dims[2] + c + p["holder_plate_t"])
+        else:
+            pbox = PL["box_default_mm"]
+        pbox = tuple(round(v, 2) for v in pbox)
+        pay_note = (f"{phone_name} " + (f"{m_phone*1e3:.0f} g + 케이스 {PL['case_kg']*1e3:.0f} g" if m_phone is not None
+                    else f"+ 케이스 {PL['phone_case_max_kg']*1e3:.0f} g") + f" + 폰 홀더 {PL['holder_kg']*1e3:.0f} g = {m_total*1e3:.0f} g, "
+                    f"강체(상자 {pbox[0]:g} × {pbox[1]:g} × {pbox[2]:g} mm, 회전 관성 포함)")
+        pay_src = [phone_src, PL["source"]]
+    geometry["phone"] = dict(name=phone_name, H=dims[0], W=dims[1], D=dims[2], mass_kg=round(m_phone_case, 4),
+                             cog=[post_cx, z_top], clamp_t=p["phone_clamp_t"],
+                             dims_source=phone_src if known else "assumed")
 
     # phone holder (the part that grips the phone) — part of the product: stem on the pad, back plate, cross bar, two jaws.
     # Analysis keeps it as the rigid 'post' stand-in with the 50 g clamp mass (team v7); CAD / drawing carry the real shape.
@@ -252,7 +282,21 @@ def build_spec(params=None, template_id="custom", meta=None):
                  w=round(dims[1] + 2 * p["holder_jaw_t"], 2), z=[round(zb - p["holder_plate_t"], 3), round(zb, 3)]),
         jaw=dict(t=p["holder_jaw_t"], z=[round(zb - p["holder_plate_t"], 3), round(zb + dims[2] + p["holder_lip_t"], 3)],
                  lip=p["holder_lip"], lip_t=p["holder_lip_t"], y_in=round(dims[1] / 2, 2)),
-        phone_back_z=round(zb, 3), note="폰을 잡는 부분(받침 기둥·등판·가로대·양쪽 턱). 해석에서는 강체 대역 + 50 g으로 반영")
+        phone_back_z=round(zb, 3), note="폰을 잡는 부분(받침 기둥·등판·가로대·양쪽 턱). 해석에서는 강체 기둥 + 탑재 하중의 홀더 몫으로 반영")
+
+    payload = {"name": "phone_clamp", "mass_kg": round(m_total, 4),
+               "nodes": [box(x=[post_x0, post_x1], y=[None, ypost], z=[z_top, None])],
+               "source": pay_src, "note": pay_note}
+    if p["payload_model"] != "point":
+        cg = [post_cx, Y_SYM, round(z_top - PL["cg_below_post_top_mm"], 3)]
+        Ix = m_total * (pbox[1] ** 2 + pbox[2] ** 2) / 12
+        Iy = m_total * (pbox[0] ** 2 + pbox[2] ** 2) / 12
+        Iz = m_total * (pbox[0] ** 2 + pbox[1] ** 2) / 12
+        payload.update(model="rigid_body", cg=cg, box_mm=list(pbox), inertia_kg_mm2=[round(Ix, 3), round(Iy, 3), round(Iz, 3)],
+                       parts=dict(phone_case_kg=round(m_phone_case, 4), holder_kg=PL["holder_kg"]),
+                       attach="기둥 윗면 절점에 최소제곱 강체 맞춤으로 연결(팀 verify_sys.py와 같은 방식)")
+    geometry["payload"] = dict(mass_kg=round(m_total, 4), cg=payload.get("cg", [post_cx, Y_SYM, z_top]),
+                               box_mm=payload.get("box_mm"), model=p["payload_model"])
 
     spec = {
         "schema": "formproof.spec/0.1",
@@ -270,13 +314,13 @@ def build_spec(params=None, template_id="custom", meta=None):
         "supports": [{"name": "handlebar", "type": "fixed", "dofs": "xyz",
                       "nodes": [cyl(r_max=bore + 0.6)],
                       "assumption": "클램프 내면이 핸들바에 완전 고정(미끄럼·회전 없음)"}],
-        "point_masses": [{"name": "phone_clamp", "mass_kg": round(m_total, 4),
-                          "nodes": [box(x=[post_x0, post_x1], y=[None, ypost], z=[z_top, None])],
-                          "source": [phone_src, "assumed:clamp_50g"],
-                          "note": f"{phone_name} {m_phone*1e3:.0f} g + 폰 클램프 {ev.PHONE_CLAMP_MASS*1e3:.0f} g, 클램프 상단에 집중"}],
+        "point_masses": [payload],
         "load_cases": [
-            {"name": "road_vibration", "type": "modal", "modes_per_case": 2,
-             "excitation_hz": [road["f_lo"], road["f_hi"]], "source": road["source"]},
+            {"name": "road_vibration", "type": "modal", "modes_per_case": 2 if p["payload_model"] == "point" else 8,
+             "excitation_hz": [road["f_lo"], road["f_hi"]], "source": road["source"],
+             **({} if p["payload_model"] == "point" else
+                dict(excitation_dirs=["z", "x"], damping_ratio=PL["damping_ratio"],
+                     response="phone_clamp CG motion / handlebar motion"))},
             {"name": "shock_vertical", "type": "inertial", "accel_g": road["peak_g"], "dir": [0, 0, -1],
              "applies_to": ["phone_clamp"], "include_self": p["include_self_inertia"], "source": road["source"]},
             {"name": "shock_lateral", "type": "inertial", "accel_g": road["peak_g"], "dir": [0, 1, 0],
@@ -287,9 +331,18 @@ def build_spec(params=None, template_id="custom", meta=None):
         "finish": {"colour": p["colour"]},
         "requirements": list(p["requirements"]),
         "constraints": [
+            *([] if p["payload_model"] == "point" else [
+                {"id": "transmissibility", "quantity": "transmissibility_band_max", "op": "<=", "value": round(tmax, 3),
+                 "load_case": "road_vibration", "dirs": ["z", "x"],
+                 "derivation": f"노면 {road['f_lo']}–{road['f_hi']} Hz에서 폰 무게중심 흔들림 / 핸들바 흔들림 최대값 ≤ {tmax:.2f}배 "
+                               f"(위아래·앞뒤, 감쇠비 {PL['damping_ratio']:.0%}, 폰 강체 관성 포함)",
+                 "source": [PL["source"], road["source"]]}]),
             {"id": "f1", "quantity": "natural_frequency_hz", "op": ">=", "value": round(f_min, 1),
              "load_case": "road_vibration",
-             "derivation": f"T_max={tmax:.3f} -> f1 >= {road['f_hi']} / sqrt(1-1/T_max)", "source": ["sdof", road["source"]]},
+             **({} if p["payload_model"] == "point" else {"reference": True}),
+             "derivation": f"T_max={tmax:.3f} -> f1 >= {road['f_hi']} / sqrt(1-1/T_max)"
+                           + ("" if p["payload_model"] == "point" else " (1자유도 근사 참고선, 판정은 transmissibility)"),
+             "source": ["sdof", road["source"]]},
             {"id": "stress", "quantity": "von_mises_max_mpa", "op": "<=", "value": round(mat["yield_mpa"] / sf, 1),
              "load_cases": ["shock_vertical", "shock_lateral"], "exclude_regions": ["contact"],
              "derivation": f"yield {mat['yield_mpa']} / SF {sf}", "source": [mat["source"], "assumed:sf"]},
@@ -301,13 +354,17 @@ def build_spec(params=None, template_id="custom", meta=None):
             {"id": "min_feature", "quantity": "min_member_thickness_mm", "op": ">=",
              "value": ev.FACTORS["min_feature_mm"], "source": ["team_v7"]},
         ],
-        "evidence": {k: ev.SOURCES[k] for k in sorted({mat["source"], road["source"], "sdof", "team_v7", phone_src} & set(ev.SOURCES))},
+        "evidence": {k: ev.SOURCES[k] for k in sorted({mat["source"], road["source"], "sdof", "team_v7", phone_src, *pay_src}
+                                                     & set(ev.SOURCES))},
         "assumptions": [
             "노면 진동은 바퀴 축 측정값을 핸들바에 그대로 적용(보수적)",
             "옆 충격 = 위아래 충격 크기",
             "48.5 g 충격을 정적 하중으로 환산",
-            "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체",
-            f"폰 클램프 질량 {ev.PHONE_CLAMP_MASS*1e3:.0f} g",
+            "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체" if p["payload_model"] == "point"
+            else "클램프는 핸들바에 완전 고정, 폰·케이스·폰 홀더는 한 덩어리 강체(해석 격자에서 홀더는 강체 기둥으로 대신)",
+            f"폰 클램프 질량 {ev.PHONE_CLAMP_MASS*1e3:.0f} g" if p["payload_model"] == "point"
+            else f"탑재 하중 {m_total*1e3:.0f} g: 케이스 {PL['case_kg']*1e3:.0f} g·폰 홀더 {PL['holder_kg']*1e3:.0f} g 여유(팀 v3), "
+                 f"무게중심 기둥 윗면 − {PL['cg_below_post_top_mm']:g} mm, 감쇠비 {PL['damping_ratio']:.0%}",
             f"안전율 {sf}, 진동 증폭 허용 {tmax:.2f}배는 선택값",
         ] + ([f"요청한 노면('{p['road']}')은 측정 근거가 없어 자갈길 값으로 대체(보수적)"] if road_status == "fallback" else [])
           + ([] if p["include_self_inertia"] else ["충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장"]),

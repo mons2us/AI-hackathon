@@ -247,7 +247,7 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
         (f"재료 {spec['material']['name']} (E {spec['material']['E'] / 1000:.1f} GPa, 항복 {spec['material']['yield_mpa']:g} MPa)", 2.2),
         (f"질량 {mass_g:.1f} g (CAD)" if mass_g else "질량 -", 2.2),
         (f"핸들바 Ø{g['bar_d']} · 폭 {w:g} · M4 볼트 2개", 2.2),
-        (f"폰+클램프 {pm['mass_kg'] * 1e3:.0f} g · 출력 색 {'흰색' if spec.get('finish', {}).get('colour') == 'white' else '검정'}", 2.2),
+        (f"{'탑재(폰·케이스·홀더 강체)' if pm.get('model') == 'rigid_body' else '폰+클램프'} {pm['mass_kg'] * 1e3:.0f} g · 출력 색 {'흰색' if spec.get('finish', {}).get('colour') == 'white' else '검정'}", 2.2),
     ]
     req = req or {}
     if "sun_heat" in req:
@@ -262,12 +262,15 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
     lines_c = [
         ("설계 조건 (물리 최적화 기준)", 2.4),
         (f"노면 {road['excitation_hz'][0]}–{road['excitation_hz'][1]} Hz, 충격 {shock['accel_g']} g", 2.2),
-        (f"1차 진동 ≥ {cons['f1']['value']} Hz · 응력 ≤ {cons['stress']['value']} MPa", 2.2),
+        (f"흔들림 ≤ {cons['transmissibility']['value']:g}배 (참고 1차 진동 {cons['f1']['value']} Hz) · 응력 ≤ {cons['stress']['value']} MPa"
+         if "transmissibility" in cons else f"1차 진동 ≥ {cons['f1']['value']} Hz · 응력 ≤ {cons['stress']['value']} MPa", 2.2),
         (f"층간 ≤ {cons['interlayer']['value']} MPa · 최소 두께 {cons['min_feature']['value']:g}", 2.2),
     ]
     if check:
         ok = "충족" if check.get("pass") else "미충족 → 최적화 대상"
-        lines_c.append((f"1차 설계 판정: f1 {check['f1_hz']} Hz, 응력 {check['checks']['stress']['value']} MPa — {ok}", 2.2))
+        head = (f"흔들림 {check['checks']['transmissibility']['value']:g}배" if "transmissibility" in check["checks"]
+                else f"f1 {check['f1_hz']} Hz")
+        lines_c.append((f"1차 설계 판정: {head}, 응력 {check['checks']['stress']['value']} MPa — {ok}", 2.2))
     for col, lines in ((0, lines_a), (1, lines_b), (2, lines_c)):
         y = ty1 - 6
         for s, hgt in lines:

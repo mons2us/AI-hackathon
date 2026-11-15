@@ -2,7 +2,9 @@
 so the header can be replaced by `globals().update(opt3d_namespace("spec.json"))`.
 
 Names follow opt3d.py: x0,y0,z0,nx,ny,nz,h,E,nu,rho,MP, design,solid,void,post,active,
-ei,I,J,K,xc,yc,zc, NX,NY,NZ,nid,en,edof,nn,gi,gj,gk,nxc,nyc,nzc,used, fixn,plane,topn,tipm, FT.
+ei,I,J,K,xc,yc,zc, NX,NY,NZ,nid,en,edof,nn,gi,gj,gk,nxc,nyc,nzc,used, fixn,plane,topn,tipm, FT,
+plus the team v3 rigid payload: RIGID, MSYS (kg), CG, BOX (opt3d_am.py env names) and payload_Ma per symmetry case.
+With a rigid payload tipm is zero (the payload is not lumped).
 Equality with the hard-coded opt3d.py header is asserted in tests/test_reproduce_opt3d.py."""
 import json
 import numpy as np
@@ -36,4 +38,8 @@ def opt3d_namespace(spec_or_path):
         gi=gi, gj=gj, gk=gk, nxc=nxc, nyc=nyc, nzc=nzc, used=P.used,
         fixn=P.supports[next(iter(P.supports))], plane=P.sym_plane, topn=topn, tipm=P.node_mass,
         keepout=P.keepout if P.keepout is not None else np.zeros(len(P.label), bool),
+        # team v3 rigid payload (opt3d_am.py / verify_sys.py RIGID=1 environment values)
+        RIGID=bool(P.rigid_payloads), MSYS=spec["point_masses"][0]["mass_kg"],
+        CG=np.asarray(spec["point_masses"][0].get("cg", []), float), BOX=spec["point_masses"][0].get("box_mm"),
+        payload_Ma={k: {c: v["Ma"] for c, v in r["cases"].items()} for k, r in P.rigid_payloads.items()},
     )

@@ -61,7 +61,7 @@ def evaluate(P, dens, n_modes=2, fields=False):
     mn = np.zeros(P.nn)
     np.add.at(mn, P.enodes.ravel(), np.repeat(me / 8, 8))
     mn += P.node_mass
-    M = np.repeat(mn, 3)
+    Mdiag = np.repeat(mn, 3)
     ok_struct, n_parts = connected(P, on)
     out = dict(mass_g=round(float(2 * (me * (~P.rigid)).sum() * 1e6), 1),
                elements=int(on.sum()), connected=ok_struct, parts=n_parts)
@@ -70,18 +70,32 @@ def evaluate(P, dens, n_modes=2, fields=False):
         for r in c.get("exclude_regions", []):
             excl |= P.region_masks[r]
     judge = on & ~P.rigid & ~excl
+    modal = next((c for c in spec["load_cases"] if c["type"] == "modal"), {})
+    n_modes = max(n_modes, int(modal.get("modes_per_case", n_modes)))
+    dirs = modal.get("excitation_dirs", [])
     freqs = []
     lu_cache = {}
-    for case in ("S", "A"):
+    frf = {}
+    for case in (("S", "A") if P.sym_axis is not None else ("F",)):
         fr = _free(P, on, case)
         A = K[fr][:, fr].tocsc()
         lu = sla.splu(A)
         lu_cache[case] = (fr, lu)
         op = sla.LinearOperator(A.shape, matvec=lu.solve, dtype=float)
-        w = sla.eigsh(A, k=n_modes, M=sp.diags(M[fr]), sigma=0, OPinv=op, return_eigenvectors=False)
+        Mf = (sp.diags(Mdiag) + P.payload_mass_matrix(case)).tocsr()[fr][:, fr].tocsc()
+        k = min(n_modes, A.shape[0] - 2)
+        w, V = sla.eigsh(A, k=k, M=Mf, sigma=0, OPinv=op, tol=1e-9)
+        order = np.argsort(w)
+        w, V = w[order], V[:, order]
         freqs += [float(np.sqrt(abs(x)) / 2 / np.pi) for x in w]
+        case_dirs = [d for d in dirs if P.sym_axis is None or P.sym_case(_unit(d)) == case]
+        if case_dirs and P.rigid_payloads:
+            frf.update(_transmissibility(P, case, fr, Mf, w, V, case_dirs, modal))
     out["freqs_hz"] = sorted(round(f, 1) for f in freqs)
     out["f1_hz"] = out["freqs_hz"][0]
+    if frf:
+        out["frf"] = frf
+        out["transmissibility_band_max"] = round(max(v["Tmax_band"] for v in frf.values()), 3)
     for c in spec["load_cases"]:
         if c["type"] != "inertial":
             continue
@@ -105,7 +119,46 @@ def evaluate(P, dens, n_modes=2, fields=False):
                               s_yy_tension_mpa=round(float(np.maximum(s[judge, 1], 0).max()), 1),
                               tip_disp_mm=round(float(np.abs(u[3 * tip + d]).mean()), 3))
     out["checks"] = judge_constraints(spec, out)
-    out["pass"] = all(v["pass"] for v in out["checks"].values()) and ok_struct
+    out["pass"] = all(v["pass"] for v in out["checks"].values() if not v.get("reference")) and ok_struct
+    return out
+
+
+def _unit(d):
+    v = np.zeros(3)
+    v["xyz".index(d)] = 1.0
+    return v
+
+
+def _transmissibility(P, case, fr, Mf, w, V, dirs, modal):
+    """Base-excitation transmissibility of the payload CG (team v3 verify_sys.frf): handlebar moves sinusoidally in
+    direction d, |H| = phone-CG motion / handlebar motion, modal superposition with damping ratio zeta.
+    Half model: the product (CG motion per mode) x (participation) is the same as in the full model."""
+    zeta = float(modal.get("damping_ratio", 0.03))
+    lo, hi = modal["excitation_hz"]
+    f = np.round(np.arange(5.0, 100.0 + 1e-9, 0.5), 1)
+    om = 2 * np.pi * f
+    wn = np.sqrt(np.abs(w))
+    full = np.zeros((3 * P.nn, V.shape[1]))
+    full[fr] = V
+    out = {}
+    for d in dirs:
+        ax = "xyz".index(d)
+        r = np.zeros(3 * P.nn)
+        r[ax::3] = 1.0
+        gam = V.T @ (Mf @ r[fr])                        # participation, mass-normalised modes
+        cg = np.zeros(V.shape[1])
+        for rp in P.rigid_payloads.values():            # CG translation along d, per mode
+            c = rp["cases"][case]
+            if ax in c["rigid_dofs"]:
+                cg = c["Tw"][c["rigid_dofs"].index(ax)] @ full[rp["dofs"]]
+            break
+        H = 1 + np.sum((cg * gam)[None, :] * om[:, None] ** 2 /
+                       (wn[None, :] ** 2 - om[:, None] ** 2 + 2j * zeta * wn[None, :] * om[:, None]), axis=1)
+        T = np.abs(H)
+        band = (f >= lo) & (f <= hi)
+        out[d] = dict(freq=f.tolist(), T=np.round(T, 4).tolist(), Tmax_band=round(float(T[band].max()), 3),
+                      Tmax_all=round(float(T.max()), 3), f_peak=float(f[np.argmax(T)]), zeta=zeta,
+                      modal_gain=np.round(cg * gam, 6).tolist(), f_modes=np.round(wn / 2 / np.pi, 3).tolist())
     return out
 
 
@@ -114,6 +167,10 @@ def judge_constraints(spec, r):
     for c in spec["constraints"]:
         if c["quantity"] == "natural_frequency_hz":
             v = r["f1_hz"]
+        elif c["quantity"] == "transmissibility_band_max":
+            if "frf" not in r:
+                continue
+            v = max(r["frf"][d]["Tmax_band"] for d in c.get("dirs", r["frf"].keys()))
         elif c["quantity"] == "von_mises_max_mpa":
             v = max(r[n]["vm_max_mpa"] for n in c["load_cases"])
         elif c["quantity"] == "layer_normal_tension_mpa":
@@ -122,4 +179,6 @@ def judge_constraints(spec, r):
             continue          # min_feature / requirement constraints: judged by their own checks
         ok = v >= c["value"] if c["op"] == ">=" else v <= c["value"]
         ck[c["id"]] = dict(value=v, limit=f'{c["op"]} {c["value"]}', **{"pass": bool(ok)})
+        if c.get("reference"):
+            ck[c["id"]]["reference"] = True             # guide line only (e.g. 1-DOF f1), not part of pass/fail
     return ck

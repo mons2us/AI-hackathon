@@ -72,7 +72,7 @@ def parse(text):
             fired.append(dict(rule="shape_" + hid, effect=eff, why="스케치가 없을 때 템플릿 선택에 사용"))
     questions = []
     if "phone" not in params and "phone_mass_kg" not in params:
-        questions.append("어떤 폰을 올리나요? (기본: 폰 200 g + 클램프 50 g 가정)")
+        questions.append("어떤 폰을 올리나요? (기본: 어떤 폰이든 되도록 폰+케이스 290 g + 폰 홀더 60 g = 350 g 가정)")
     if "bar_d" not in params:
         questions.append("핸들바 굵기(클램프 위치 직경)는? (기본: 31.8 mm)")
     if "road" not in params:

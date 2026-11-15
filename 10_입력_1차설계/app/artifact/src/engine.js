@@ -61,7 +61,7 @@ FP.parseText = function (text) {
     }
   }
   const questions = [];
-  if (!('phone' in params) && !('phone_mass_kg' in params)) questions.push('어떤 폰을 올리나요? (기본: 폰 200 g + 클램프 50 g 가정)');
+  if (!('phone' in params) && !('phone_mass_kg' in params)) questions.push('어떤 폰을 올리나요? (기본: 어떤 폰이든 되도록 폰+케이스 290 g + 폰 홀더 60 g = 350 g 가정)');
   if (!('bar_d' in params)) questions.push('핸들바 굵기(클램프 위치 직경)는? (기본: 31.8 mm)');
   if (!('road' in params)) questions.push('주로 달리는 길은? (기본: 자갈길 기준으로 보수 설계)');
   return {params, shape_hint: hint, fired, questions};
@@ -555,18 +555,31 @@ FP.buildSpec = function (geo, p, meta, barAsked) {
   const sf = p.safety_factor || E.FACTORS.safety_factor;
   const tmax = E.FACTORS.t_max;
   const f_min = road.f_hi / Math.sqrt(1.0 - 1.0 / tmax);
-  let m_phone, phone_src, phone_name;
-  if (known) { const ph = E.PHONES[p.phone]; m_phone = ph.mass; phone_src = ph.source; phone_name = ph.name; }
-  else { m_phone = E.PHONE_DEFAULT_MASS; phone_src = 'team_v7'; phone_name = '기종 미지정(200 g 가정)'; }
-  if (p.phone_mass_kg) { m_phone = p.phone_mass_kg; phone_src = 'user'; phone_name = '사용자 입력 폰'; }
-  const m_total = m_phone + E.PHONE_CLAMP_MASS;
+  // payload (team v3): phone + case + phone holder as one rigid body with rotary inertia (bike_mount.build_spec)
+  const PL = E.PAYLOAD;
+  let m_phone = null, phone_src, phone_name, m_phone_case;
+  if (p.phone_mass_kg) { m_phone = p.phone_mass_kg; phone_src = 'user'; phone_name = '사용자 입력 폰'; m_phone_case = m_phone + PL.case_kg; }
+  else if (known) { const ph = E.PHONES[p.phone]; m_phone = ph.mass; phone_src = ph.source; phone_name = ph.name; m_phone_case = m_phone + PL.case_kg; }
+  else { phone_src = PL.source; phone_name = '기종 미지정(설계 범위 최대)'; m_phone_case = PL.phone_case_max_kg; }
+  const m_total = m_phone_case + PL.holder_kg;
+  let pbox;
+  if (known || p.phone_mass_kg) { const c = PL.case_margin_mm; pbox = [dims[0] + 2 * c, dims[1] + 2 * c, dims[2] + c + p.holder_plate_t]; }
+  else pbox = PL.box_default_mm.slice();
+  pbox = pbox.map(v => round(v, 2));
   g.holder = clone(geo.cad[known ? p.phone : 'default'].holder);
-  g.phone = {name: phone_name, H: dims[0], W: dims[1], D: dims[2], mass_kg: round(m_total, 4), cog: [cogx, z_top],
+  g.phone = {name: phone_name, H: dims[0], W: dims[1], D: dims[2], mass_kg: round(m_phone_case, 4), cog: [cogx, z_top],
     clamp_t: p.phone_clamp_t, dims_source: known ? phone_src : 'assumed'};
   const pm = spec.point_masses[0];
+  const pay_src = [phone_src, PL.source];
   pm.mass_kg = round(m_total, 4);
-  pm.source = [phone_src, 'assumed:clamp_50g'];
-  pm.note = `${phone_name} ${fx(m_phone * 1e3, 0)} g + 폰 클램프 ${fx(E.PHONE_CLAMP_MASS * 1e3, 0)} g, 클램프 상단에 집중`;
+  pm.source = pay_src;
+  pm.note = `${phone_name} ` + (m_phone !== null ? `${fx(m_phone * 1e3, 0)} g + 케이스 ${fx(PL.case_kg * 1e3, 0)} g` : `+ 케이스 ${fx(PL.phone_case_max_kg * 1e3, 0)} g`)
+    + ` + 폰 홀더 ${fx(PL.holder_kg * 1e3, 0)} g = ${fx(m_total * 1e3, 0)} g, 강체(상자 ${fg(pbox[0])} × ${fg(pbox[1])} × ${fg(pbox[2])} mm, 회전 관성 포함)`;
+  pm.box_mm = pbox;
+  pm.inertia_kg_mm2 = [round(m_total * (pbox[1] ** 2 + pbox[2] ** 2) / 12, 3), round(m_total * (pbox[0] ** 2 + pbox[2] ** 2) / 12, 3),
+    round(m_total * (pbox[0] ** 2 + pbox[1] ** 2) / 12, 3)];
+  pm.parts = {phone_case_kg: round(m_phone_case, 4), holder_kg: PL.holder_kg};
+  g.payload = {mass_kg: round(m_total, 4), cg: pm.cg, box_mm: pbox, model: 'rigid'};
   spec.objective = {type: p.objective};
   spec.finish = {colour: p.colour};
   spec.requirements = [...p.requirements];
@@ -575,10 +588,13 @@ FP.buildSpec = function (geo, p, meta, barAsked) {
   st.value = round(mat.yield_mpa / sf, 1); st.derivation = `yield ${pyf(mat.yield_mpa)} / SF ${pyf(sf)}`;
   il.value = round(mat.interlayer_mpa / sf, 1); il.derivation = `interlayer ${pyf(mat.interlayer_mpa)} / SF ${pyf(sf)}, 옆으로 눕혀 출력(적층 방향 y)`;
   spec.constraints = c;
-  const evk = [mat.source, road.source, 'sdof', 'team_v7', phone_src].filter(k => k in E.SOURCES);
+  const evk = [mat.source, road.source, 'sdof', 'team_v7', phone_src, ...pay_src].filter(k => k in E.SOURCES);
   spec.evidence = {};
   for (const k of [...new Set(evk)].sort()) spec.evidence[k] = E.SOURCES[k];
-  spec.assumptions = base.assumptions.slice(0, 5).concat([`안전율 ${pyf(sf)}, 진동 증폭 허용 ${fx(tmax, 2)}배는 선택값`])
+  spec.assumptions = base.assumptions.slice(0, 4).concat([
+    `탑재 하중 ${fx(m_total * 1e3, 0)} g: 케이스 ${fx(PL.case_kg * 1e3, 0)} g·폰 홀더 ${fx(PL.holder_kg * 1e3, 0)} g 여유(팀 v3), `
+    + `무게중심 기둥 윗면 − ${fg(PL.cg_below_post_top_mm)} mm, 감쇠비 ${Math.round(PL.damping_ratio * 100)}%`,
+    `안전율 ${pyf(sf)}, 진동 증폭 허용 ${fx(tmax, 2)}배는 선택값`])
     .concat(roadStatus === 'fallback' ? [`요청한 노면('${p.road}')은 측정 근거가 없어 자갈길 값으로 대체(보수적)`] : [])
     .concat(p.include_self_inertia ? [] : ['충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장']);
   // requirement conditions (_add_requirement_conditions)
@@ -613,47 +629,76 @@ FP.buildSpec = function (geo, p, meta, barAsked) {
 };
 
 /* ------------------------------------------------------------------ 1st-design check (fem.evaluate results) */
+FP.frfCurve = function (fModes, gains, zeta, band) {   // fem._transmissibility: |1 + sum a_m w^2 / (wn^2 - w^2 + 2j z wn w)|
+  const freq = [], T = [];
+  let tb = 0, ta = 0, fp = 5;
+  for (let k = 0; k <= 190; k++) {
+    const f = round(5 + 0.5 * k, 1), om = 2 * Math.PI * f;
+    let re = 1, im = 0;
+    fModes.forEach((fm, m) => {
+      const wn = 2 * Math.PI * fm, dr = wn * wn - om * om, di = 2 * zeta * wn * om, d2 = dr * dr + di * di;
+      const num = gains[m] * om * om;
+      re += num * dr / d2; im -= num * di / d2;
+    });
+    const t = Math.hypot(re, im);
+    freq.push(f); T.push(round(t, 4));
+    if (f >= band[0] && f <= band[1]) tb = Math.max(tb, t);
+    if (t > ta) { ta = t; fp = f; }
+  }
+  return {freq, T, Tmax_band: round(tb, 3), Tmax_all: round(ta, 3), f_peak: fp, zeta, modal_gain: gains, f_modes: fModes};
+};
+
 FP.firstDesignCheck = function (geo, spec, p) {
   const E = T.ev, F = geo.fem;
   const m = spec.point_masses[0].mass_kg;
   let r, interp = false;
   const key = p.phone_mass_kg ? null : (p.phone in E.PHONES ? p.phone : 'default');
   if (key) r = clone(F[key]);
-  else {                       // user-stated mass: modal fit 1/f^2 = a m + b, inertial loads ~ m (point mass only)
+  else {                       // user-stated mass: interpolate between the two nearest precomputed payloads
     interp = true;
-    const ks = T.phone_keys, ref = F.default;
+    const ks = T.phone_keys.slice().sort((a, b) => F[a].mass_kg - F[b].mass_kg);
+    let i0 = 0;
+    while (i0 < ks.length - 2 && F[ks[i0 + 1]].mass_kg < m) i0++;
+    const A = F[ks[i0]], B = F[ks[i0 + 1]], t = (m - A.mass_kg) / (B.mass_kg - A.mass_kg);
+    const lerp = (a, b) => a + (b - a) * t;
+    const ref = Math.abs(A.mass_kg - m) < Math.abs(B.mass_kg - m) ? A : B;
     r = clone(ref);
     r.mass_kg = m;
-    r.freqs_hz = ref.freqs_hz.map((_, j) => {
-      const xs = ks.map(k => F[k].mass_kg), ys = ks.map(k => 1 / F[k].freqs_hz[j] ** 2);
-      const mx = xs.reduce((a, b) => a + b) / xs.length, my = ys.reduce((a, b) => a + b) / ys.length;
-      let sxy = 0, sxx = 0;
-      xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; });
-      const a = sxy / sxx, b = my - a * mx;
-      return round(1 / Math.sqrt(a * m + b), 1);
-    }).sort((x, y) => x - y);
+    r.freqs_hz = A.freqs_hz.map((fa, j) => round(1 / Math.sqrt(Math.max(lerp(1 / fa ** 2, 1 / B.freqs_hz[j] ** 2), 1e-12)), 1)).sort((x, y) => x - y);
     r.f1_hz = r.freqs_hz[0];
+    if (A.frf) {
+      const modal = spec.load_cases.find(c => c.type === 'modal');
+      r.frf = {};
+      for (const d of Object.keys(A.frf)) {
+        const fa = A.frf[d], fb = B.frf[d];
+        const fm = fa.f_modes.map((x, j) => round(1 / Math.sqrt(Math.max(lerp(1 / x ** 2, 1 / fb.f_modes[j] ** 2), 1e-12)), 3));
+        const gm = fa.modal_gain.map((x, j) => lerp(x, fb.modal_gain[j]));
+        r.frf[d] = FP.frfCurve(fm, gm, fa.zeta, modal.excitation_hz);
+      }
+      r.transmissibility_band_max = round(Math.max(...Object.values(r.frf).map(v => v.Tmax_band)), 3);
+    }
     const k = m / ref.mass_kg;
     for (const n of ['shock_vertical', 'shock_lateral']) {
-      const s = ref[n];
-      r[n] = {vm_max_mpa: round(s.vm_max_mpa * k, 1), vm_p999_mpa: round(s.vm_p999_mpa * k, 1),
-        s_yy_tension_mpa: round(s.s_yy_tension_mpa * k, 1), tip_disp_mm: round(s.tip_disp_mm * k, 3)};
+      const s0 = ref[n];
+      r[n] = {vm_max_mpa: round(s0.vm_max_mpa * k, 1), vm_p999_mpa: round(s0.vm_p999_mpa * k, 1),
+        s_yy_tension_mpa: round(s0.s_yy_tension_mpa * k, 1), tip_disp_mm: round(s0.tip_disp_mm * k, 3)};
     }
-    r.half_model_mass_kg = round(ref.half_model_mass_kg * m / ref.mass_kg, 4);
   }
   delete r.mass_kg; delete r.half_model_mass_kg;
   const ck = {};
   for (const c of spec.constraints) {
     let v;
     if (c.quantity === 'natural_frequency_hz') v = r.f1_hz;
+    else if (c.quantity === 'transmissibility_band_max') { if (!r.frf) continue; v = Math.max(...(c.dirs || Object.keys(r.frf)).map(d => r.frf[d].Tmax_band)); }
     else if (c.quantity === 'von_mises_max_mpa') v = Math.max(...c.load_cases.map(n => r[n].vm_max_mpa));
     else if (c.quantity === 'layer_normal_tension_mpa') v = Math.max(...c.load_cases.map(n => r[n].s_yy_tension_mpa));
     else continue;
     ck[c.id] = {value: v, limit: `${c.op} ${pyf(c.value)}`, pass: c.op === '>=' ? v >= c.value : v <= c.value};
+    if (c.reference) ck[c.id].reference = true;
   }
   r.checks = ck;
-  r.pass = Object.values(ck).every(x => x.pass) && r.connected;
-  if (interp) r.note = '사용자 입력 폰 무게: 미리 계산한 4가지 무게의 해석값에서 보간(진동수 1/f²–질량 선형, 응력은 질량에 비례)';
+  r.pass = Object.values(ck).every(x => x.pass || x.reference) && r.connected;
+  if (interp) r.note = '사용자 입력 폰 무게: 미리 계산한 4가지 탑재 하중의 해석값에서 보간(진동수 1/f²·모드 기여 선형, 응력은 질량에 비례)';
   return r;
 };
 
@@ -688,7 +733,9 @@ FP.design = function ({text = '', geo, tplId, how, match, parsed, p, barAsked, i
   const pk = p.phone in E.PHONES ? p.phone : 'default';
   rep.problem = clone(geo.problem);
   rep.problem.keepout = p.requirements.includes('free_angle') ? geo.keepout[pk].elements : 0;
-  rep.problem.half_model_mass_kg = round(geo.fem.default.half_model_mass_kg * spec.point_masses[0].mass_kg / geo.fem.default.mass_kg, 4);
+  const share = 0.5;                                   // half model carries half the payload
+  rep.problem.half_model_mass_kg = round(geo.fem.default.half_model_mass_kg + share * (spec.point_masses[0].mass_kg - geo.fem.default.mass_kg), 4);
+  if (rep.problem.rigid_payloads) for (const v of Object.values(rep.problem.rigid_payloads)) v.mass_kg = round(spec.point_masses[0].mass_kg, 4);
   rep.criteria = spec.constraints.map(c => ({id: c.id, rule: `${c.quantity} ${c.op} ${typeof c.value === 'number' ? pyf(c.value) : c.value}`,
     why: c.derivation || '', source: c.source || null, requirement: c.requirement || null}));
   rep.assumptions = spec.assumptions;
@@ -703,6 +750,16 @@ FP.design = function ({text = '', geo, tplId, how, match, parsed, p, barAsked, i
     point_mass_g: Math.round(spec.point_masses[0].mass_kg * 1e3), bar_d: g.bar_d, objective: p.objective === 'min_mass' ? '무게 최소' : p.objective,
     safety_factor: sf, material: spec.material.name, requirements: spec.requirements.map(r => T.requirements[r].name)};
   rep.cad = clone(geo.cad[pk].info);
+  const pm0 = spec.point_masses[0];                     // pipeline.payload_summary
+  rep.payload = {model: pm0.model || 'point', total_g: round(pm0.mass_kg * 1e3, 1), note: pm0.note || ''};
+  if (pm0.model === 'rigid_body') {
+    Object.assign(rep.payload, {cg: pm0.cg, box_mm: pm0.box_mm, phone_case_g: round(pm0.parts.phone_case_kg * 1e3, 1),
+      holder_allow_g: round(pm0.parts.holder_kg * 1e3, 1)});
+    const h = rep.cad.holder_mass_g;
+    if (h !== undefined) Object.assign(rep.payload, {holder_cad_g: h, holder_within: h <= rep.payload.holder_allow_g,
+      holder_note: h <= rep.payload.holder_allow_g ? `그린 폰 홀더 ${fx(h, 1)} g ≤ 여유 ${fx(rep.payload.holder_allow_g, 0)} g`
+        : `그린 폰 홀더 ${fx(h, 1)} g > 여유 ${fx(rep.payload.holder_allow_g, 0)} g → 탑재 하중을 늘려 다시 판정 필요`});
+  }
   rep.drawing = {sheet: geo.cad[pk].drawing.sheet, scale: geo.cad[pk].drawing.scale, views: ['front', 'top', 'right', 'iso'],
     dxf: 'design_1st_drawing.dxf', svg: 'design_1st_drawing.svg'};
   return {rep, spec};
@@ -719,10 +776,11 @@ FP.titleLines = function (spec, geo, check, massG) {      // geo: the per-phone 
     `척도 ${d.scale} · 제3각법 · 단위 mm · ${d.sheet} · 팔 두께 ${fg(g.arm.t)}`];
   const B = [`재료 ${mat.name} (E ${fx(mat.E / 1000, 1)} GPa, 항복 ${fg(mat.yield_mpa)} MPa)`, massG ? `질량 ${fx(massG, 1)} g (CAD)` : '질량 -',
     `핸들바 Ø${pyf(g.bar_d)} · 폭 ${fg(g.width)} · M4 볼트 2개`,
-    `폰+클램프 ${fx(pm.mass_kg * 1e3, 0)} g · 출력 색 ${(spec.finish || {}).colour === 'white' ? '흰색' : '검정'}`];
+    `${pm.model === 'rigid_body' ? '탑재(폰·케이스·홀더 강체)' : '폰+클램프'} ${fx(pm.mass_kg * 1e3, 0)} g · 출력 색 ${(spec.finish || {}).colour === 'white' ? '흰색' : '검정'}`];
   const C = ['설계 조건 (물리 최적화 기준)', `노면 ${pyf(road.excitation_hz[0])}–${pyf(road.excitation_hz[1])} Hz, 충격 ${pyf(shock.accel_g)} g`,
-    `1차 진동 ≥ ${pyf(cons.f1.value)} Hz · 응력 ≤ ${pyf(cons.stress.value)} MPa`, `층간 ≤ ${pyf(cons.interlayer.value)} MPa · 최소 두께 ${fg(cons.min_feature.value)}`];
-  if (check) C.push(`1차 설계 판정: f1 ${pyf(check.f1_hz)} Hz, 응력 ${pyf(check.checks.stress.value)} MPa — ${check.pass ? '충족' : '미충족 → 최적화 대상'}`);
+    cons.transmissibility ? `흔들림 ≤ ${fg(cons.transmissibility.value)}배 (참고 1차 진동 ${pyf(cons.f1.value)} Hz) · 응력 ≤ ${pyf(cons.stress.value)} MPa`
+      : `1차 진동 ≥ ${pyf(cons.f1.value)} Hz · 응력 ≤ ${pyf(cons.stress.value)} MPa`, `층간 ≤ ${pyf(cons.interlayer.value)} MPa · 최소 두께 ${fg(cons.min_feature.value)}`];
+  if (check) C.push(`1차 설계 판정: ${check.checks.transmissibility ? `흔들림 ${fg(check.checks.transmissibility.value)}배` : `f1 ${pyf(check.f1_hz)} Hz`}, 응력 ${pyf(check.checks.stress.value)} MPa — ${check.pass ? '충족' : '미충족 → 최적화 대상'}`);
   return A.concat(B, C);
 };
 

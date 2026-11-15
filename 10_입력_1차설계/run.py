@@ -36,6 +36,7 @@ if __name__ == "__main__":
     print(json.dumps(dict(template=r["template"]["id"], name=r["template"]["name"], chosen_by=r["template"]["chosen_by"],
                           rules=[x["rule"] for x in r["text"]["fired"]], questions=r["text"]["questions"],
                           cad_mass_g=r["cad"]["mass_g"], f1_hz=c["f1_hz"],
+                          shaking_band_max=c.get("transmissibility_band_max"), payload=r["payload"],
                           checks={k: v["pass"] for k, v in c["checks"].items()},
                           handoff_requirements=[(h["id"], [x["id"] for x in h["constraints"]], h["warnings"])
                                                 for h in r["handoff_requirements"]],

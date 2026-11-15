@@ -202,7 +202,7 @@ function applyField() {
     $('#hmMax').textContent = F.q === 'vm' ? `${F.max.toFixed(1)} MPa` : `${F.max.toFixed(2)} mm`;
     $('#hmNote').textContent = F.q === 'vm'
       ? `기준 ≤ ${lim} MPa → ${F.max <= lim ? '충족' : '빨간 쪽이 기준을 넘는 곳 (최적화 대상)'}. 폰 홀더는 해석에서 강체로 두어 회색으로 표시`
-      : '핸들바에 고정된 클램프에서 멀수록 많이 움직입니다. 해석 격자 2 mm, 폰+클램프 질량을 홀더 위에 집중';
+      : '핸들바에 고정된 클램프에서 멀수록 많이 움직입니다. 해석 격자 2 mm, 폰·케이스·홀더를 크기 있는 강체로 기둥 위에 연결';
   }
   if (V3.mount) {
     V3.mount.material = F ? V3.matField : V3.matShape;
@@ -344,15 +344,47 @@ async function run(template) {
 }
 $('#go').onclick = () => run();
 
-const QN = {natural_frequency_hz: ['1차 고유진동수', 'Hz'], von_mises_max_mpa: ['충격 최대 응력', 'MPa'], layer_normal_tension_mpa: ['층간 인장 응력', 'MPa'],
+const QN = {transmissibility_band_max: ['자갈길 흔들림 증폭', '배'], natural_frequency_hz: ['1차 고유진동수 (참고)', 'Hz'], von_mises_max_mpa: ['충격 최대 응력', 'MPa'], layer_normal_tension_mpa: ['층간 인장 응력', 'MPa'],
   min_member_thickness_mm: ['최소 부재 두께', 'mm'], phone_clearance_mm: ['폰 회전·기울기 간격', 'mm'], joint_rot_stiffness_Nm_per_rad: ['관절 회전 강성', 'N·m/rad'],
   joint_hold_torque_Nm: ['관절 유지 토크', 'N·m'], parked_surface_temp_c: ['주차 표면온도', '°C']};
 const ARM = {straight: '곧은 팔', L: 'L자 팔', truss: '트러스', low: '낮은 팔', stalk: '기둥형', under: '아래 우회'};
+
+/* vibration transfer curve: phone-CG motion / handlebar motion (team v3 verify_sys.frf), log scale */
+function frfSvg(frf, band, lim){
+  const W=300,H=150,L=34,R=8,T=10,B=24, fx=f=>L+(f-5)/(100-5)*(W-L-R);
+  const lo=Math.log10(0.1), hi=Math.log10(30), fy=v=>T+(hi-Math.log10(Math.min(Math.max(v,0.1),30)))/(hi-lo)*(H-T-B);
+  const col={z:'var(--blue)',x:'var(--amber)'}, name={z:'위아래',x:'앞뒤'};
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="진동 전달 곡선" style="display:block">`;
+  s+=`<rect x="${fx(band[0])}" y="${T}" width="${fx(band[1])-fx(band[0])}" height="${H-T-B}" fill="var(--amber-s)"/>`;
+  for(const v of [0.1,1,10]){s+=`<line x1="${L}" x2="${W-R}" y1="${fy(v)}" y2="${fy(v)}" stroke="var(--line)"/><text x="${L-4}" y="${fy(v)+3.5}" font-size="9" text-anchor="end" fill="var(--ink3)">${v}</text>`;}
+  for(const f of [20,40,60,80,100]) s+=`<text x="${fx(f)}" y="${H-B+12}" font-size="9" text-anchor="middle" fill="var(--ink3)">${f}</text>`;
+  s+=`<text x="${(L+W-R)/2}" y="${H-2}" font-size="9" text-anchor="middle" fill="var(--ink3)">Hz · 색 띠 = 자갈길 ${band[0]}–${band[1]} Hz</text>`;
+  s+=`<line x1="${fx(band[0])}" x2="${fx(band[1])}" y1="${fy(lim)}" y2="${fy(lim)}" stroke="var(--red)" stroke-dasharray="3 2"/>`;
+  for(const d of Object.keys(frf)){const c=frf[d];
+    s+=`<polyline fill="none" stroke="${col[d]||'var(--ink2)'}" stroke-width="1.6" points="${c.freq.map((f,i)=>fx(f).toFixed(1)+','+fy(c.T[i]).toFixed(1)).join(' ')}"/>`;}
+  s+='</svg>';
+  const leg=Object.keys(frf).map(d=>`<span><i style="background:${col[d]}"></i>${name[d]||d} 최대 ${frf[d].Tmax_band.toFixed(2)}배</span>`).join('')+`<span><i style="background:var(--red)"></i>기준 ${lim}배</span>`;
+  return `<div class="frf"><b>진동 전달 (폰 흔들림 / 핸들바 흔들림)</b>${s}<div class="frfleg">${leg}</div></div>`;
+}
+function perfRows(c){
+  const ck=c.checks, rows=[], lim=x=>+x.limit.split(' ')[1];
+  if(ck.transmissibility){const v=ck.transmissibility.value,l=lim(ck.transmissibility);rows.push(['자갈길 흔들림 증폭',`${v.toFixed(2)}배`,`기준 ≤ ${l}배 (폰 강체 관성 포함)`,Math.min(l/v,1),ck.transmissibility.pass]);}
+  if(ck.f1){const v=ck.f1.value,l=lim(ck.f1);rows.push(['1차 고유진동수',`${v.toFixed(1)} Hz`,ck.f1.reference?`참고선 ≥ ${l} (1자유도 근사)`:`기준 ≥ ${l}`,Math.min(v/l,1),ck.f1.pass,ck.f1.reference]);}
+  if(ck.stress){const v=ck.stress.value,l=lim(ck.stress);rows.push(['충격 최대 응력',`${v.toFixed(1)} MPa`,`기준 ≤ ${l}`,Math.min(l/v,1),ck.stress.pass]);}
+  if(ck.interlayer){const v=ck.interlayer.value,l=lim(ck.interlayer);rows.push(['층간 인장 응력',`${v.toFixed(1)} MPa`,`기준 ≤ ${l}`,Math.min(l/Math.max(v,1e-6),1),ck.interlayer.pass]);}
+  return rows.map(([n,v,l,r,ok,ref])=>`<div class="metric${ref?' ref':''}"><div class="row"><span>${n}</span><b class="num" style="color:${ref?'var(--ink2)':ok?'var(--green)':'var(--red)'}">${v}</b></div>
+    <div class="bar"><i class="${ok?'':'bad'}" style="width:${Math.max(r*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>${l}</span><span>${ref?'참고':ok?'충족':'최적화 대상'}</span></div></div>`).join('');
+}
+function payloadNote(pl){
+  if(!pl||pl.model!=='rigid_body') return '';
+  return `<div class="note">탑재 하중 ${pl.total_g.toFixed(0)} g = 폰·케이스 ${pl.phone_case_g.toFixed(0)} g + 폰 홀더 여유 ${pl.holder_allow_g.toFixed(0)} g, 크기 있는 강체(${pl.box_mm.join(' × ')} mm)로 계산 (팀 v3).${pl.holder_note?' '+pl.holder_note+'.':''}</div>`;
+}
+
 const escH = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 function render(o) {
   const {rep, spec, geo} = o, s = rep.summary, t = rep.template, c = rep.first_design_check;
-  const items = [['제품', s.product], ['노면', s.road], ['진동 · 충격', `${s.vib} · ${s.shock_g} g`], ['폰', `${s.phone} (+클램프 ${s.point_mass_g} g)`],
+  const items = [['제품', s.product], ['노면', s.road], ['진동 · 충격', `${s.vib} · ${s.shock_g} g`], ['폰 · 탑재 하중', `${s.phone} · ${s.point_mass_g} g`],
     ['핸들바', `Ø${s.bar_d} mm`], ['목표', s.objective], ['안전율', s.safety_factor], ['재료', s.material]];
   if (s.requirements.length) items.push(['추가 요구', s.requirements.join(' · '), 'wide']);
   $('#reqs').innerHTML = items.map(([k, v, w]) => `<div class="req ${w || ''}"><small>${k}</small><b>${escH(v)}</b></div>`).join('');
@@ -374,18 +406,13 @@ function render(o) {
   applyField();
   $('#pdraw').innerHTML = FP.drawingSvg(o.cad, o.lines);
   $('#kMass').textContent = `${fmt(rep.cad.mass_g)} g`; $('#kMassSub').textContent = `본체 ${fmt(rep.cad.bracket_mass_g)} + 폰 홀더 ${fmt(rep.cad.holder_mass_g)}`; $('#kTime').textContent = `${fmt(rep.seconds, 2)} s`;
-  const ck = c.checks, rows = [];
-  const lim = x => +x.limit.split(' ')[1];
-  if (ck.f1) { const v = ck.f1.value, l = lim(ck.f1); rows.push(['1차 고유진동수', `${fmt(v)} Hz`, `기준 ≥ ${l}`, Math.min(v / l, 1), ck.f1.pass]); }
-  if (ck.stress) { const v = ck.stress.value, l = lim(ck.stress); rows.push(['충격 최대 응력', `${fmt(v)} MPa`, `기준 ≤ ${l}`, Math.min(l / v, 1), ck.stress.pass]); }
-  if (ck.interlayer) { const v = ck.interlayer.value, l = lim(ck.interlayer); rows.push(['층간 인장 응력', `${fmt(v)} MPa`, `기준 ≤ ${l}`, Math.min(l / Math.max(v, 1e-6), 1), ck.interlayer.pass]); }
-  $('#metrics').innerHTML = rows.map(([n, v, l, r, ok]) => `<div class="metric"><div class="row"><span>${n}</span><b class="num" style="color:${ok ? 'var(--green)' : 'var(--red)'}">${v}</b></div>
-    <div class="bar"><i class="${ok ? '' : 'bad'}" style="width:${Math.max(r * 100, 3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>${l}</span><span>${ok ? '충족' : '최적화 대상'}</span></div></div>`).join('') +
+  const band = rep.summary.vib.split(/[–-]/).map(parseFloat), tlim = c.checks.transmissibility ? +c.checks.transmissibility.limit.split(' ')[1] : null;
+  $('#metrics').innerHTML = perfRows(c) + (c.frf && tlim ? frfSvg(c.frf, band, tlim) : '') + payloadNote(rep.payload) +
     `<div class="note">1차 설계는 스케치 형상(팔 두께 ${rep.design_vars.arm_t} mm)을 그대로 옮긴 것입니다. 해석값은 같은 형상을 미리 FEM으로 계산해 둔 결과입니다${c.note ? ' (' + c.note + ')' : ''}. 기준을 맞추는 일은 다음 단계(물리 최적화)가 합니다.</div>`;
   $('#perfTag').className = 'tag ' + (c.pass ? 'green' : 'amber'); $('#perfTag').textContent = c.pass ? '기준 충족' : '최적화 전 · 미충족';
   const dv = rep.design_vars;
   $('#vars').innerHTML = [['핸들바 직경', `Ø${dv.bar_d} mm`], ['클램프 폭', `${dv.width} mm`], ['도달 거리 (핸들 중심 → 받침)', `${dv.reach} mm`], ['받침 높이 (핸들 중심 기준)', `${dv.pad_top} mm`],
-    ['팔 형식', ARM[dv.arm] || dv.arm], ['팔 두께', `${dv.arm_t} mm`], ['폰 + 클램프', `${dv.point_mass_g} g`], ['재료', dv.material]].map(([k, v]) => `<tr><td>${k}</td><td class="num">${v}</td></tr>`).join('');
+    ['팔 형식', ARM[dv.arm] || dv.arm], ['팔 두께', `${dv.arm_t} mm`], ['탑재 하중 (폰·케이스·홀더)', `${dv.point_mass_g} g`], ['재료', dv.material]].map(([k, v]) => `<tr><td>${k}</td><td class="num">${v}</td></tr>`).join('');
   $('#loadsSub').textContent = `하중: 노면 진동 ${s.vib}, 위아래·옆 충격 ${s.shock_g} g, 폰 ${s.point_mass_g} g`;
   const reqWarn = rep.handoff_requirements.flatMap(h => h.warnings);
   $('#cons').innerHTML = rep.criteria.map(x => { const [q, op, ...v] = x.rule.split(' '); const nm = QN[q] || [q, ''];
