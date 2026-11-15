@@ -169,6 +169,27 @@ def frf(r,neig=10,zeta=0.03):
         szt=np.maximum(s_[:,2],0)                                     # 층간: 적층 방향 = z'
         stress[nm]=dict(vm999=round(float(np.percentile(vm,99.9)),1),interlayer999=round(float(np.percentile(szt,99.9)),1))
     res['shock']=stress; ps.free_memory(everything=True); return res
+if MODE=='label':   # 형상 AI · 물리 AI 학습 데이터: 생성 형상 N개 -> 무게 · 1차 진동수 · 폰 온도 · 터치 처짐
+    import gen_int; rng=np.random.default_rng(int(env('SEED','0'))); N=int(env('NS','40')); O=[]; L=[]; t0=time.time()
+    for i in range(N):
+        occ=gen_int.sample(rng,xc,yc,zc,design,solid,contact,(nz,ny,nx))
+        if occ.sum()<30: continue
+        r=np.where(design,occ.astype(float),fixval)
+        try: res,stt=analyse(r,2); J,_,T=thermal(r)
+        except Exception as e: print('fail',e,flush=True); continue
+        f1=float(np.sqrt(max(res[0][0],0))/2/np.pi)
+        O.append(np.packbits(occ[didx])); L.append([massg(r),f1,float(T[phn].max()),float(stt[0][0])])
+    np.savez(env('OUT'),occ=np.array(O),lab=np.array(L)); print('done',len(O),round(time.time()-t0),flush=True); sys.exit()
+if MODE=='field':   # 분포 출력: 노면 진동 FF Hz(세계 위아래)에서 핸들바 대비 상대 흔들림 크기(절점), 폰 온도장(절점)
+    r=np.load(env('RHO')); r=np.where(design,r,fixval); J,_,T=thermal(r)
+    out,phis,ps,A,MM=analyse(r,10,True); FF=float(env('FF','30.5')); w=2*np.pi*FF; dvec=(st,ct)
+    ri=np.zeros(3*nn); ri[0::3]=dvec[0]; ri[2::3]=dvec[1]; ri[fd]=0; U=np.zeros(3*nn,complex)
+    for (lam_,_),phi in zip(out,phis):
+        wn=np.sqrt(lam_); G=phi@(MM@ri); U+=phi*G*w**2/(wn**2-w**2+2j*0.03*wn*w)
+    amp=np.sqrt(np.abs(U[0::3])**2+np.abs(U[1::3])**2+np.abs(U[2::3])**2)   # 바닥 진폭 1 대비
+    i1=int(np.argmin([l for l,_ in out])); p1=phis[i1]; m1=np.sqrt(p1[0::3]**2+p1[1::3]**2+p1[2::3]**2); m1=m1/m1[used].max()
+    np.savez('field_%s.npz'%TAG,r=r,amp=amp,T=np.asarray(T).ravel(),mode1=m1,f1=float(np.sqrt(out[i1][0])/2/np.pi),nx=nx,FF=FF); ps.free_memory(everything=True)
+    print('field ok',TAG,'amp max',float(amp[used].max()),'T max',float(np.asarray(T).max())); sys.exit()
 if MODE=='eval':
     r=np.load(env('RHO')); r=np.where(design,r,fixval); J,_,T=thermal(r); out=frf(r)
     _,stt=analyse(r,4); out['touch_mm']=[round(s_[0],3) for s_ in stt]
