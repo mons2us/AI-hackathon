@@ -12,7 +12,7 @@ if /i "%1"=="test" (
   python -c "import numpy,scipy,pypardiso,mmapy; print('패키지 OK')" || goto :fail
   python -m pytest -q tests || goto :fail
 )
-python -c "import zipfile,os,glob;skip=('data/shards','runs','upload_fp11.zip','results_fp11.zip','__pycache__','.pytest_cache');fs=[f.replace(os.sep,'/') for f in glob.glob('**/*',recursive=True) if os.path.isfile(f)];fs=[f for f in fs if not any(f.startswith(s) or ('/'+s) in f for s in skip)];z=zipfile.ZipFile('upload_fp11.zip','w',zipfile.ZIP_DEFLATED);[z.write(f,'fp11/'+f) for f in fs];z.close();print(len(fs),'개 파일 →','upload_fp11.zip',round(os.path.getsize('upload_fp11.zip')/1e6,1),'MB')" || goto :fail
+python -c "import zipfile,os,glob;skip=('data/shards','runs','upload_fp11.zip','results_fp11.zip','__pycache__','.pytest_cache');fs=[f.replace(os.sep,'/') for f in glob.glob('**/*',recursive=True) if os.path.isfile(f)];fs=[f for f in fs if not any(f.startswith(s) or ('/'+s) in f for s in skip)];z=zipfile.ZipFile('upload_fp11.zip','w',zipfile.ZIP_DEFLATED);[z.writestr('fp11/'+f,open(f,'rb').read().replace(b'\r\n',b'\n')) if f.endswith(('.sh','.py')) else z.write(f,'fp11/'+f) for f in fs];z.close();print(len(fs),'개 파일 →','upload_fp11.zip',round(os.path.getsize('upload_fp11.zip')/1e6,1),'MB')" || goto :fail
 echo.
 echo 다음: upload_fp11.zip 을 서버에 올리고 서버에서
 echo    unzip upload_fp11.zip ^&^& cd fp11
