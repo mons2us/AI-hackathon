@@ -507,9 +507,8 @@ def match_sketch(gray):
 
 # ------------------------------------------------------------------ images
 def sketch_png(tid, tv, path, zc=None):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from ..mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     fig, ax = plt.subplots(figsize=(4.6, 6))
     for s in front_strokes(tid, tv, zc=zc):
         ax.plot(s[:, 0], s[:, 1], c="#222", lw=1.6)
@@ -523,9 +522,8 @@ def sketch_png(tid, tv, path, zc=None):
 
 
 def drawing(body, info, tv, T, png, pdf, mass_kg):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from ..mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     from matplotlib.collections import PolyCollection
     verts, tris = body.val().tessellate(0.5, 0.5)
     V = np.array([[p.x, p.y, p.z] for p in verts])
@@ -552,6 +550,6 @@ def drawing(body, info, tv, T, png, pdf, mass_kg):
     ax[2].text(0, P[:, 1].min() - 40, "빨강 = 바퀴 접지 (넘어짐 다각형)", ha="center", fontsize=8, color="#e4572e")
     ax[0].text(c[0], c[2], f"화면 {tv['size_in']}형\n{tv['mass_kg']} kg", ha="center", va="center", color="#555")
     fig.suptitle(f"TV 스탠드 (이동식) — 1차 설계 {T['id']} {T['name']} · {MAT['name']} · 스탠드 {mass_kg:.1f} kg · 단위 mm", fontsize=12)
-    fig.savefig(png, dpi=110, bbox_inches="tight")
+    fig.savefig(png, dpi=170, bbox_inches="tight")             # 메인 창에 크게 띄워도 글자 선명하게
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

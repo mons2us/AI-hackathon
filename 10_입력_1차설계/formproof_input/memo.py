@@ -11,7 +11,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "templates", "db", "precomputed")
-VERSION = "v8"            # 설계 · 해석 코드가 바뀌면 올림 (예전 결과를 쓰지 않게)
+VERSION = "v9"            # 설계 · 해석 코드가 바뀌면 올림 (예전 결과를 쓰지 않게)
 
 
 def _np(o):

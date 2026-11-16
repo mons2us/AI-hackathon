@@ -2,7 +2,8 @@
    CHROME=/path/to/chrome python tests/e2e_gui.py   (screenshots -> <tmp>/formproof_e2e)
 
 확인: 4단 화면이 한 화면에 들어감(페이지 · 카드 스크롤 없음), 제품 4개(P01 · T01 · TV · AI 글래스)마다 형상 + 분포 창,
-메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기, 최적화 실행 버튼(입력 파일 내려받기)."""
+메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기,
+성능 항목을 눌러 최적화 대상 고르기(1개 이상이면 실행 버튼 켜짐) → 고른 항목이 든 optimize_input.zip."""
 import math, os, sys, tempfile, time
 from playwright.sync_api import sync_playwright
 
@@ -77,11 +78,21 @@ with sync_playwright() as p:
     page.screenshot(path=f"{SP}/gui_draw.png")
     page.click("#vDraw"); page.wait_for_timeout(500)
 
-    # 최적화 실행 버튼 = 최적화 입력(handoff.zip) 내려받기
+    # 성능 항목을 눌러 최적화 대상 고르기 → 1개 이상이면 버튼 켜짐 → 고른 항목이 든 최적화 입력 묶음
+    import json, zipfile
+    assert page.is_disabled("#optimize"), "아무것도 안 골랐는데 최적화 버튼이 켜져 있음"
+    blocks = page.locator("#metrics .metric")
+    blocks.nth(0).click(); blocks.nth(2).click(); blocks.nth(2).click(); blocks.nth(3).click()   # 0, 3 선택 (2는 눌렀다 해제)
+    assert not page.is_disabled("#optimize")
+    picked = [blocks.nth(i).inner_text().split("\n")[0].lstrip("✓").strip() for i in (0, 3)]
     with page.expect_download() as d:
         page.click("#optimize")
-    d.value.save_as(f"{SP}/handoff_test.zip")
-    print("최적화 버튼:", d.value.suggested_filename)
+    zp = f"{SP}/optimize_input_test.zip"
+    d.value.save_as(zp)
+    T = json.loads(zipfile.ZipFile(zp).read("optimize_targets.json"))
+    got = [t["label"] for t in T["targets"]]
+    assert got == picked and "spec.json" in zipfile.ZipFile(zp).namelist(), (got, picked)
+    print("최적화 버튼:", d.value.suggested_filename, "| 대상:", got, "| 버튼:", page.inner_text("#optimize"))
     errs = [l for l in logs if "error" in l.lower() or "PAGEERROR" in l]
     print("\n".join(errs)[:2000] or "콘솔 오류 없음")
     b.close()

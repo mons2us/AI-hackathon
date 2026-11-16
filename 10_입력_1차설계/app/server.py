@@ -30,7 +30,7 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
-APP_VERSION = "2026-11-16d"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
+APP_VERSION = "2026-11-16e"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
 WAIT_LOCK = threading.Lock()
@@ -125,7 +125,39 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, [f"/examples/glasses/{f}" for f in fs])
         return self._send(404, {"error": "not found"})
 
+    def _optimize(self):
+        """GUI 에서 고른 최적화 대상(1차 설계 성능 항목) -> 실행 폴더에 optimize_targets.json, 그것을 넣은 최적화 입력 묶음."""
+        import zipfile
+        n = int(self.headers.get("Content-Length", 0))
+        try:
+            req = json.loads(self.rfile.read(n).decode("utf-8"))
+            rid = str(req["run"])
+            targets = list(req["targets"])
+        except Exception as e:                                  # noqa: BLE001
+            return self._send(400, {"error": f"잘못된 요청: {e}"})
+        if not targets:
+            return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
+        import re
+        out = os.path.join(RUNS, rid)
+        if not re.fullmatch(r"[\w.-]+", rid) or rid.startswith(".") or not os.path.isfile(os.path.join(out, "handoff.zip")):
+            return self._send(404, {"error": "이 1차 설계의 결과 폴더가 없습니다. 1차 설계를 다시 만들어 주세요."})
+        keep = ("name", "label", "value", "unit", "op", "limit", "ok", "ref", "source")
+        doc = dict(run=rid, created=time.strftime("%Y-%m-%d %H:%M:%S"),
+                   note="GUI 에서 사용자가 고른 최적화 대상. 이 항목들을 목표로 물리 기반 최적화를 수행",
+                   targets=[{k: t.get(k) for k in keep if k in t} for t in targets])
+        with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
+            json.dump(doc, f, ensure_ascii=False, indent=2)
+        src, dst = os.path.join(out, "handoff.zip"), os.path.join(out, "optimize_input.zip")
+        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zo:
+            for it in zi.infolist():
+                if it.filename != "optimize_targets.json":
+                    zo.writestr(it, zi.read(it.filename))
+            zo.write(os.path.join(out, "optimize_targets.json"), "optimize_targets.json")
+        return self._send(200, {"zip": f"/runs/{rid}/optimize_input.zip", "targets": len(doc["targets"])})
+
     def do_POST(self):
+        if urlparse(self.path).path == "/api/optimize":
+            return self._optimize()
         if urlparse(self.path).path != "/api/design":
             return self._send(404, {"error": "not found"})
         try:

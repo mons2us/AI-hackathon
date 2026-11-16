@@ -295,9 +295,8 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
 
 def _render_pdf(doc, path, sheet=A4):
     """Render the DXF to PDF with an installed CJK font (the DXF itself keeps malgun.ttf)."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from .mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     from ezdxf.addons.drawing import Frontend, RenderContext
     from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
     from ezdxf.addons.drawing.config import Configuration, BackgroundPolicy, ColorPolicy
@@ -319,6 +318,6 @@ def _render_pdf(doc, path, sheet=A4):
     ax.axis("off")
     fig.savefig(path)
     if path.endswith(".pdf"):
-        fig.savefig(path[:-4] + ".png", dpi=150)
+        fig.savefig(path[:-4] + ".png", dpi=170)
     plt.close(fig)
     style.dxf.font = keep

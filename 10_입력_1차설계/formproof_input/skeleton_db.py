@@ -76,9 +76,8 @@ def load(templates=TEMPLATES, path=DB):
 
 
 def _sheet(templates, path, cols=6, size=(2.6, 1.9)):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from .mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     n = len(templates)
     rows = -(-n // cols)
     fig, axes = plt.subplots(rows, cols, figsize=(cols * size[0], rows * size[1]))

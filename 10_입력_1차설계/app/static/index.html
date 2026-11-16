@@ -25,7 +25,7 @@ header.top{background:var(--nav);color:#fff;border-radius:14px;padding:9px 16px;
 .step{border:1px solid #2c3850;background:#1f2a40;color:#c3cbd8;border-radius:999px;padding:4px 11px;font-size:12.5px;white-space:nowrap}
 .step i{font-style:normal;display:inline-grid;place-items:center;width:17px;height:17px;border:1px solid currentColor;border-radius:50%;font-size:10.5px;margin-right:5px}
 .step.done{color:#fff;border-color:#3b4a66}.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 280px 280px;gap:12px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:clamp(340px,25vw,480px) minmax(0,1fr) clamp(280px,18vw,330px);gap:12px}
 .grid>section{min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px}
 .card{background:var(--card);border-radius:14px;border:1px solid #e6e9ef;padding:14px;min-height:0}
 .card.fill{flex:1;display:flex;flex-direction:column;overflow:auto}
@@ -40,6 +40,7 @@ textarea:focus{border-color:var(--blue)}
 .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .pad{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;touch-action:none}
 .pad canvas{display:block;width:100%;aspect-ratio:4/3;cursor:crosshair}
+#sketchBox,#imageBox{margin-top:2px}
 .pad .hint{position:absolute;left:8px;bottom:6px;font-size:11px;color:var(--ink3);pointer-events:none}
 .pad .ico{position:absolute;top:6px;display:flex;gap:4px;right:6px}
 .ico button{width:28px;height:28px;border:1px solid var(--line);background:rgba(255,255,255,.95);border-radius:8px;display:grid;place-items:center;padding:0;color:var(--ink2)}
@@ -52,7 +53,7 @@ select.btn{width:100%;margin-top:8px}
 .btn.opt:disabled{background:#9aa3ae;cursor:default}
 .drop{display:block;border:1.5px dashed #c9d1dd;border-radius:10px;padding:14px;text-align:center;color:var(--ink2);font-size:13px;background:var(--soft);cursor:pointer}
 .drop.over{border-color:var(--blue);background:var(--blue-s)}
-.drop img{max-width:100%;max-height:200px;border-radius:8px;display:block;margin:0 auto 6px}
+.drop img{max-width:100%;border-radius:8px;display:block;margin:0 auto 6px}
 .spacer{flex:1;min-height:10px}
 /* 가운데: 위 = 형상(메인), 아래 = 분포 창 3개. 캔버스 하나로 네 칸을 같은 카메라로 그림 */
 .views{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
@@ -82,9 +83,22 @@ select.btn{width:100%;margin-top:8px}
 /* 오른쪽 두 단 */
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .kpi{background:var(--soft);border-radius:10px;padding:7px 10px}.kpi small{color:var(--ink2);font-size:11.5px;display:block}.kpi b{font-size:17px}
-.metric{margin-bottom:11px}
-.metric .row{display:flex;justify-content:space-between;gap:8px;font-size:13px}.metric .row b{font-size:14px;white-space:nowrap}
+.metrics{display:flex;flex-direction:column;gap:7px}
+.metric{display:block;width:100%;text-align:left;background:#f8f9fb;border:1px solid #eef0f4;border-radius:11px;padding:8px 10px;color:inherit;transition:background .12s,border-color .12s}
+.metric:hover{background:#f2f5fa;border-color:#e2e7ef}
+.metric.sel{background:#eef4ff;border-color:#b9cdf8;box-shadow:inset 3px 0 0 var(--blue)}
+.metric .row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}.metric .row b{font-size:14px;white-space:nowrap}
+.metric .ck{display:inline-grid;place-items:center;width:15px;height:15px;border:1.5px solid #c9d1dd;border-radius:4px;margin-right:6px;vertical-align:-2px;font-size:10px;color:#fff;flex:none}
+.metric.sel .ck{background:var(--blue);border-color:var(--blue)}
 .metric .sub{display:flex;justify-content:space-between;color:var(--ink3);font-size:11.5px;margin-top:2px}
+.pick{font-size:12px;color:var(--ink2);margin:0 0 8px}
+#metrics{min-height:0;overflow:auto}
+.drop img{max-height:min(34vh,420px)}
+@media (max-height:820px){            /* 노트북 화면: 블록 · 요약 칸을 줄여 한 화면에 */
+  .metric{padding:5px 9px}.metrics{gap:5px}.metric .bar{margin-top:3px;height:6px}.metric .sub{margin-top:1px;font-size:11px}
+  .kpis{margin-bottom:8px}.kpi{padding:4px 9px}.kpi b{font-size:15px}.card{padding:12px}.card h2{margin-bottom:7px}.pick{margin-bottom:5px}
+  .btn.primary,.btn.opt{padding:10px}.files a{padding:6px 4px}
+}
 .bar{height:7px;background:#edf0f4;border-radius:99px;overflow:hidden;margin-top:4px}
 .bar i{display:block;height:100%;border-radius:99px;background:var(--green)}.bar i.bad{background:var(--red)}
 .metric.ref{opacity:.7}.metric.ref .bar i{background:var(--ink3)}
@@ -94,7 +108,7 @@ select.btn{width:100%;margin-top:8px}
 .con.info span{white-space:normal;max-width:60%}
 .con.req{background:var(--blue-s)}
 .load{font-size:12px;color:var(--ink2);margin:-4px 0 10px}
-.files{display:flex;gap:6px;margin:12px 0 10px}
+.files{display:flex;gap:6px;margin:12px 0 8px}
 .files a{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 4px;color:var(--ink);text-decoration:none;font-size:12.5px;font-weight:600}
 .files a:hover{border-color:var(--blue);color:var(--blue)}.files a.off{pointer-events:none;color:var(--ink3)}
 .muted{color:var(--ink3);font-size:13px}
@@ -115,7 +129,7 @@ select.btn{width:100%;margin-top:8px}
       <div class="card fill">
         <h2>입력</h2>
         <div class="seg" id="prodSeg"><button data-p="bike" class="on">폰 거치대</button><button data-p="tv">TV 스탠드</button><button data-p="glasses">AI 글래스</button></div>
-        <textarea id="text" placeholder="원하는 조건을 적어 주세요"></textarea>
+        <textarea id="text" placeholder="원하는 조건을 적어 주세요" style="min-height:56px"></textarea>
         <div class="seg" style="margin-top:10px"><button id="mSketch" class="on">스케치</button><button id="mImage">사진</button></div>
         <div id="sketchBox">
           <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
@@ -157,21 +171,13 @@ select.btn{width:100%;margin-top:8px}
       </div>
     </section>
 
-    <!-- 3. 1차 설계 성능 -->
+    <!-- 3. 1차 설계 성능 (항목을 눌러 최적화 대상 고르기) + 파일 + 최적화 실행 -->
     <section>
       <div class="card fill">
         <h2>1차 설계 성능 <span class="tag" id="perfTag">대기 중</span></h2>
         <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>계산 시간</small><b id="kTime">–</b></div></div>
-        <div id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div>
-      </div>
-    </section>
-
-    <!-- 4. 최적화에 넘길 물리 조건 -->
-    <section>
-      <div class="card fill">
-        <h2>최적화에 넘길 물리 조건</h2>
-        <div class="load" id="loadsSub"></div>
-        <div class="cons" id="cons"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div>
+        <p class="pick" id="pickHint" hidden>최적화할 항목을 눌러 고르세요</p>
+        <div class="metrics" id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div>
         <div class="spacer"></div>
         <div class="files" id="files">
           <a class="off" data-f="design_1st.step">STEP</a><a class="off" data-f="design_1st_drawing.pdf">도면 PDF</a><a class="off" data-f="design_1st.stl">STL</a>
@@ -202,10 +208,6 @@ const EASY=[
   [/^응력$/,'가장 큰 힘'],[/^제품 전체 무게.*$/,'제품 전체 무게'],[/^화면 무게$/,'화면 무게'],[/^바퀴 하나 하중$/,'바퀴 하나에 걸리는 힘'],
   [/^내장 부품$/,'내장 부품'],[/^이동$/,'이동'],[/^낙하$/,'떨어뜨림']];
 const easy = n => {for(const [re,t] of EASY) if(re.test(n)) return t; return n.replace(/\s*\((FEM|정역학)\)/g,'').replace(/응력/g,'힘').replace(/변위/g,'휨');};
-const T_EASY=[[/^transmissibility_band_max$/,'자갈길 흔들림','배'],[/^natural_frequency_hz$/,'떨림 주파수 (참고)','Hz'],[/^von_mises_max_mpa$/,'충격 때 가장 큰 힘','MPa'],
-  [/^layer_normal_tension_mpa$/,'출력 층이 벌어지는 힘','MPa'],[/^min_member_thickness_mm$/,'가장 얇은 곳 두께','mm'],[/^phone_clearance_mm$/,'폰 회전 간격','mm'],
-  [/^joint_rot_stiffness_Nm_per_rad$/,'관절 단단함','N·m/rad'],[/^joint_hold_torque_Nm$/,'관절 버티는 힘','N·m'],[/^parked_surface_temp_c$/,'주차 때 표면 온도','°C']];
-const qEasy = q => {for(const [re,t,u] of T_EASY) if(re.test(q)) return [t,u]; return [q,''];};
 // 분포 창 이름 (짧고 쉽게)
 const FIELD={stress:'힘이 몰리는 곳',shake:'흔들림',temp:'온도',disp:'휘는 정도',mode1:'떨림 모양',
   clamp_stress:'쓸 때 힘',clamp_disp:'쓸 때 벌어짐',bridge_stress:'코 부분 누를 때 힘',bridge_disp:'코 부분 누를 때 휨'};
@@ -463,7 +465,7 @@ $('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
 // 서버 버전 확인: 화면만 새것이고 서버가 예전 것이면(업데이트 뒤 서버를 다시 안 켬, 서버 창 두 개) 바로 알려 줌
-const APP_V='2026-11-16d';
+const APP_V='2026-11-16e';
 const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 개 떠 있습니다. 열려 있는 서버 창(검은 창)을 모두 닫고 app\\start.bat 을 다시 실행한 뒤 이 페이지를 새로고침해 주세요.';
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
@@ -475,6 +477,7 @@ async function run(){
   if(S.mode==='image'&&S.image)req.image=S.image;
   if(!req.sketch&&!req.image&&!text){toast('문장을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요.');return;}
   S.last={...req};
+  S.sel=new Set();updateOpt();
   $('#go').disabled=true;$('#empty').style.display='none';$('#busy').classList.add('on');
   // 서버가 실제로 하고 있는 단계와 경과 시간을 0.3 s 마다 받아 표시
   $('#stage').textContent='요청 보내는 중';$('#stageHist').innerHTML='';
@@ -499,57 +502,62 @@ async function run(){
 $('#go').onclick=()=>run();
 
 const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
-function metricHtml(name,val,unit,op,limit,ok,ref){
-  const ge=op==='>=',ratio=ge?val/limit:limit/Math.max(val,1e-6);
-  return `<div class="metric${ref?' ref':''}"><div class="row"><span>${name}</span><b style="color:${ref?'var(--ink2)':ok?'var(--green)':'var(--red)'}">${val} ${unit}</b></div>
-    <div class="bar"><i class="${ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
-    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${limit} ${unit}</span><span>${ref?'참고':ok?'충족':'최적화 대상'}</span></div></div>`;
+// 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
+function showMetrics(rows){
+  S.rows=rows;S.sel=new Set();
+  $('#metrics').innerHTML=rows.map((m,i)=>{const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6);
+    return `<button class="metric${m.ref?' ref':''}" data-i="${i}" title="${noPres(m.source||'')}"><div class="row"><span><i class="ck">✓</i>${m.label}</span><b style="color:${m.ref?'var(--ink2)':m.ok?'var(--green)':'var(--red)'}">${m.value} ${m.unit}</b></div>
+    <div class="bar"><i class="${m.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
+    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;}).join('');
+  $$('#metrics .metric').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;S.sel.has(i)?S.sel.delete(i):S.sel.add(i);b.classList.toggle('sel',S.sel.has(i));updateOpt();});
+  $('#pickHint').hidden=!rows.length;updateOpt();
 }
+function updateOpt(){
+  const n=S.sel?S.sel.size:0,b=$('#optimize');
+  b.disabled=!n||!S.rep;b.textContent=n?`물리 기반 최적화 실행 (${n}개)`:'물리 기반 최적화 실행';
+}
+$('#optimize').onclick=async()=>{
+  const rep=S.rep;if(!rep||!S.sel.size)return;
+  const run=(rep.files['handoff.zip']||'').split('/')[2];
+  const targets=[...S.sel].sort((a,b)=>a-b).map(i=>{const m=S.rows[i];return {name:m.name,label:m.label,value:m.value,unit:m.unit,op:m.op,limit:m.limit,ok:m.ok,ref:!!m.ref,source:m.source||''};});
+  const b=$('#optimize');b.disabled=true;
+  try{const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
+    location.href=j.zip+'?dl=1';setStep(2);
+    toast(`최적화 대상 ${j.targets}개(${targets.map(t=>t.label).join(' · ')})로 최적화 입력을 만들었습니다 (optimize_input.zip).`);}
+  catch(e){toast(e.message);}finally{updateOpt();}
+};
 function setCommon(rep, massG){
   const t=rep.template;
   $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(`${t.id} ${t.name}`);
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
   $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
   $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
-  const b=$('#optimize');b.disabled=!rep.files['handoff.zip'];
-  b.onclick=()=>{location.href=rep.files['handoff.zip']+'?dl=1';setStep(2);toast('최적화 입력(handoff.zip)을 내려받았습니다. 물리 최적화 엔진에 넣어 실행합니다.');};
 }
 function setPerfTag(pass,nFail){$('#perfTag').className='tag '+(pass?'green':'amber');$('#perfTag').textContent=pass?'목표 충족':`미충족 ${nFail}개`;}
+const judgeRows=j=>j.rows.map(r=>({name:r.name,label:easy(r.name),value:r.value,unit:r.unit,op:r.op,limit:r.limit,ok:r.ok,ref:!!r.ref,source:r.source}));
 function renderIntegral(rep){          // P01 (일체형 거치대)
-  const j=rep.judge, ph=rep.physics;
+  const j=rep.judge;
   showMount(rep);
   setCommon(rep, rep.cad.print_total_g||rep.cad.mass_g);
-  $('#metrics').innerHTML=j.rows.map(r=>metricHtml(easy(r.name),r.value,r.unit,r.op,r.limit,r.ok)).join('');
+  showMetrics(judgeRows(j));
   setPerfTag(j.pass_, j.rows.filter(r=>!r.ok).length);
-  $('#loadsSub').textContent=`노면 진동 ${ph.road_vibration.freq_hz.join('–')} Hz · 충격 ${ph.shock.accel_g} g · 화면 터치 ${ph.touch.force_n} N · 폰 발열 ${ph.thermal.heat_w} W`;
-  $('#cons').innerHTML=j.rows.map(r=>`<div class="con" title="${noPres(r.source)}"><b>${easy(r.name)}</b><span>${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit}</span></div>`).join('');
 }
 function renderProduct(rep){          // TV 스탠드 · AI 글래스
   const j=rep.judge;
   showProduct(rep);
   setCommon(rep, rep.cad.mass_g);
-  $('#metrics').innerHTML=j.rows.map(r=>metricHtml(easy(r.name),r.value,r.unit,r.op,r.limit,r.ok,r.ref)).join('');
+  showMetrics(judgeRows(j));
   setPerfTag(j.pass_, j.fails.length);
-  $('#loadsSub').textContent=rep.product==='TV 스탠드'?'TV 무게 · 기울임 · 밀기 (IEC 62368-1)':'무게 · 쓸 때 조임 · 코 부분 누름 · 발열';
-  // 판정 항목은 쉬운 이름 + 목표값, 그 밖의 입력 조건(무게 · 부품 · 이동 등)은 값 그대로
-  const INFO=['화면 무게','제품 전체 무게','이동','내장 부품','떨어뜨림'];
-  $('#cons').innerHTML=j.rows.map(r=>`<div class="con" title="${noPres(r.source)}"><b>${easy(r.name)}</b><span>${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit}</span></div>`).join('')+
-    rep.conditions.filter(c=>INFO.includes(easy(c.name))).map(c=>`<div class="con info" title="${noPres(c.source)}"><b>${easy(c.name)}</b><span>${c.value}</span></div>`).join('');
 }
 function renderTemplate(rep){         // 자전거 거치대 템플릿 (T01 …)
-  const s=rep.summary, c=rep.first_design_check, ck=c.checks, rows=[];
+  const c=rep.first_design_check, ck=c.checks, rows=[], lim=x=>+x.limit.split(' ')[1];
   showMount(rep);
   setCommon(rep, rep.cad.mass_g);
-  const lim=x=>+x.limit.split(' ')[1];
-  if(ck.transmissibility)rows.push(metricHtml('자갈길 흔들림',+ck.transmissibility.value.toFixed(2),'배','<=',lim(ck.transmissibility),ck.transmissibility.pass));
-  if(ck.f1)rows.push(metricHtml('떨림 주파수',+ck.f1.value.toFixed(1),'Hz','>=',lim(ck.f1),ck.f1.pass,ck.f1.reference));
-  if(ck.stress)rows.push(metricHtml('충격 때 가장 큰 힘',+ck.stress.value.toFixed(1),'MPa','<=',lim(ck.stress),ck.stress.pass));
-  if(ck.interlayer)rows.push(metricHtml('출력 층이 벌어지는 힘',+ck.interlayer.value.toFixed(1),'MPa','<=',lim(ck.interlayer),ck.interlayer.pass));
-  $('#metrics').innerHTML=rows.join('');
+  const add=(key,label,d,unit,op)=>{const x=ck[key];if(x)rows.push({name:key,label,value:+x.value.toFixed(d),unit,op,limit:lim(x),ok:x.pass,ref:!!x.reference,source:x.limit});};
+  add('transmissibility','자갈길 흔들림',2,'배','<=');add('f1','떨림 주파수',1,'Hz','>=');add('stress','충격 때 가장 큰 힘',1,'MPa','<=');add('interlayer','출력 층이 벌어지는 힘',1,'MPa','<=');
+  showMetrics(rows);
   setPerfTag(c.pass, Object.values(ck).filter(x=>!x.pass&&!x.reference).length);
-  $('#loadsSub').textContent=`노면 진동 ${s.vib} · 충격 ${s.shock_g} g · 폰 ${s.point_mass_g} g`;
-  $('#cons').innerHTML=rep.criteria.map(x=>{const [q,op,...v]=x.rule.split(' ');const [nm,u]=qEasy(q);
-    return `<div class="con ${x.requirement?'req':''}" title="${noPres(x.why||'')}"><b>${nm}</b><span>${op==='>='?'≥':'≤'} ${(+v[0]).toLocaleString(undefined,{maximumFractionDigits:2})} ${u}${x.requirement?' · 사용자 요구':''}</span></div>`;}).join('');
 }
 function render(rep){
   if(rep.kind==='product') return renderProduct(rep);

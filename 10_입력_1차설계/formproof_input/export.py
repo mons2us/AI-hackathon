@@ -42,13 +42,8 @@ def write_stl(P, dens, path, smooth=0.6):
 
 def side_preview(P, dens, path, title=""):
     """Side view (x-z) of the analysis problem: design space / fixed parts / 1st design / supports."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from matplotlib import font_manager
-    have = {f.name for f in font_manager.fontManager.ttflist}
-    plt.rcParams["font.family"] = [f for f in ("Malgun Gothic", "AppleGothic", "NanumGothic", "Noto Sans CJK KR",
-                                               "Noto Sans CJK JP", "DejaVu Sans") if f in have] or ["sans-serif"]
+    from .mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     nx, ny, nz = P.shape
     lab = P.label.reshape(nz, ny, nx)
     first = (P.design & (dens > 0.5)).reshape(nz, ny, nx).any(1)

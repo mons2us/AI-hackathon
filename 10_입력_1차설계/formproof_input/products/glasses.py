@@ -886,9 +886,8 @@ def _design(geo, out, with_mesh):
 
 # ------------------------------------------------------------------ images
 def analysis_png(photo, an, geo, path):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from ..mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     if photo is not None and an is None:
         fig, ax = plt.subplots(1, 2, figsize=(13, 5.2), gridspec_kw=dict(width_ratios=[1.0, 1.2]))
         ax[0].imshow(np.asarray(photo), cmap="gray" if np.asarray(photo).ndim == 2 else None)
@@ -930,9 +929,8 @@ def analysis_png(photo, an, geo, path):
 
 
 def drawing(body, lenses, info, geo, mb, png, pdf):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from ..mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     from matplotlib.collections import PolyCollection
     verts, tris = body.val().tessellate(0.1, 0.3)
     V = np.array([[p.x, p.y, p.z] for p in verts])
@@ -955,6 +953,6 @@ def drawing(body, lenses, info, geo, mb, png, pdf):
         ax[2].add_patch(plt.Rectangle((p["y0"], p["z"] - p["h"] / 2), p["y1"] - p["y0"], p["h"], fill=False, ec="#e4572e", ls="--"))
     ax[2].text(info["pods"][0]["y0"] + 2, info["pods"][0]["z"] + 8, "부품실 (SoC · 배터리)", fontsize=8, color="#e4572e")
     fig.suptitle(f"AI 글래스 — 1차 설계 · {STYLES[geo['style']]['name']} · {MAT['name']} · 예상 {mb['total_g']} g · 단위 mm", fontsize=12)
-    fig.savefig(png, dpi=120, bbox_inches="tight")
+    fig.savefig(png, dpi=170, bbox_inches="tight")             # 메인 창에 크게 띄워도 글자 선명하게
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

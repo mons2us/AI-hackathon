@@ -739,9 +739,8 @@ def side_skeleton(phone=True):
 
 
 def side_grid_png(rho, path, title=""):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from .mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     M = masks()
     r = full_density(rho, M).reshape(NZ, NY, NX)
     occ = r.max(1)
@@ -767,9 +766,8 @@ def side_grid_png(rho, path, title=""):
 
 def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1차 설계 (처음 설계: 판 + 기둥)", pdf=None, parts=()):
     """측면(세계) · 위(폰 판 좌표) 두 장 도면 (대략 치수)."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    from .mplkr import pyplot
+    plt = pyplot()                                  # 한글 글꼴
     from matplotlib.collections import PolyCollection
     verts, tris = world_body.val().tessellate(0.1, 0.3)
     V = np.array([[p.x, p.y, p.z] for p in verts])
@@ -820,7 +818,7 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
     fig.suptitle(f"{title} · PETG · {mass_g:.1f} g · 단위 mm", fontsize=12)
     fig.text(.5, .02, "보 20×8 mm 단면 · 평판 2 mm · 고정 부품(집게 하우징 · 아래 걸이 · 위 레일 · 클램프)은 팀 cad/parts.py 와 같은 치수 · "
              "출력 방향: 폰 뒷면이 바닥(적층 = 판 법선)", ha="center", fontsize=8, color="#555")
-    fig.savefig(path, dpi=130, bbox_inches="tight")
+    fig.savefig(path, dpi=170, bbox_inches="tight")             # 메인 창에 크게 띄워도 글자 선명하게
     if pdf:
         fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)
