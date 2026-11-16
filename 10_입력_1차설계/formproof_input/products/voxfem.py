@@ -180,20 +180,23 @@ class VoxModel:
         out = {}
         valid = np.zeros(self.n_grid, bool)
         valid[self.gid] = True
-        # CAD 표면은 복셀 계단 사이를 지나가므로, 부품 바로 바깥 절점(≤ 1.5칸)에 가장 가까운 절점 값을 채워 둔다
-        # (안 채우면 얇은 테 · 다리에서 표면 일부가 '값 없음'(회색)으로 끊겨 보임)
+        # CAD 표면은 복셀 계단 사이를 지나가므로, 부품 바로 바깥 절점(이웃 3×3×3 안에 값 있는 절점)에 이웃 값의 가중 평균을 채워 둔다
+        # (안 채우면 얇은 테 · 다리에서 표면 일부가 '값 없음'(회색)으로 끊겨 보임). 거리변환의 '가장 가까운 절점'은 거리가 같을 때
+        # 훑는 순서로 골라 좌우 대칭 부품에서도 왼쪽 · 오른쪽이 다른 값을 가져왔음 → 대칭 커널 평균으로 바꿈.
         shp = (self.NZ, self.NY, self.NX)
-        vg = valid.reshape(shp)
-        dist, idx = ndimage.distance_transform_edt(~vg, return_indices=True)
-        near = (dist > 0) & (dist <= 1.5)
-        src = np.ravel_multi_index(tuple(i[near] for i in idx), shp)
+        vg = valid.reshape(shp).astype(float)
+        r2 = sum(np.meshgrid(*([np.arange(-1, 2) ** 2] * 3), indexing="ij"))
+        ker = np.where(r2 == 0, 0.0, 1.0 / np.sqrt(np.maximum(r2, 1)))     # 면 1 · 모서리 0.71 · 꼭짓점 0.58
+        wsum = ndimage.convolve(vg, ker, mode="constant")
+        near = (vg == 0) & (wsum > 0)
         dst = np.flatnonzero(near.ravel())
         valid2 = valid.copy()
         valid2[dst] = True
         for k, (v, lo, hi, name, unit, note) in fields.items():
             full = np.zeros(self.n_grid)
             full[self.gid] = v
-            full[dst] = full[src]
+            num = ndimage.convolve(full.reshape(shp), ker, mode="constant")
+            full[dst] = (num.ravel()[dst] / wsum.ravel()[dst])
             out[k] = dict(pack_nodes(full, valid2, lo, hi), name=name, unit=unit, note=note)
             out[k]["max"] = round(float(np.max(v)), 2)
         return dict(grid=grid_info(self.origin, self.h, self.shape, 0.0, ysym=0.0, yoff=0.0, mirror=False), fields=out)

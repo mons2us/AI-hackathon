@@ -4,7 +4,7 @@
 사진 분석: 배경 대비 테(어두운 영역) 검출 → 테 안쪽 구멍 = 렌즈 2개 → 좌우 렌즈 윤곽 평균(r(θ)) → mm 환산
 (렌즈 폭 기준, 기본 50 mm = 가정, 텍스트 '렌즈 52' 로 바꿈) → 브리지 · 림 두께 · 엔드피스 폭.
 좌표 (mm): x = 좌우(착용자 기준 아님, 사진 오른쪽 = +x), y = 앞→뒤(앞면 y = 0, 다리는 +y), z = 위.
-물리 조건: 무게(보도 41–50 g), 착용 클램프 힘(문헌 0–1 N 대), 브리지 굽힘(ISO 12870 시험 항목, 하중 가정),
+물리 조건: 무게(보도 41–50 g), 착용 클램프 힘(문헌 0–1 N 대), 브리지 누름(양쪽 힌지 고정 · 가운데 5 N, ISO 12870 브리지 변형과 같은 부위, 하중 가정),
 다리 피부 접촉 온도 ≤ 43 °C(IEC 62368-1 TS1 장시간 접촉, ISO 13732-1 근거). 판정: 응력 · 힘 = 복셀 FEM, 온도 = 집중 열저항.
 """
 import math
@@ -41,7 +41,7 @@ FRAME_DEPTH = 5.0              # 테 앞뒤 두께
 TEMPLE_LEN = 145.0             # 다리 길이 (앞면 → 귀 끝)
 SPREAD_EACH = 5.0              # 착용 시 다리 끝이 바깥으로 벌어지는 양 (한쪽, 가정: 머리 폭 ≈ 테 폭 + 10 mm)
 CLAMP_RANGE = (0.3, 1.1)       # N, 한쪽 — 문헌(0–1 N 대) · 특허(50–110 g) 기반 권장 범위 (하한은 가정)
-BRIDGE_F = 5.0                 # N, 브리지 굽힘 하중 (가정: ISO 12870 브리지 변형 시험 항목, 수치 미확인)
+BRIDGE_F = 5.0                 # N, 브리지 누름 하중 (가정: 손가락으로 브리지를 밀어 올림, ISO 12870 브리지 변형과 같은 부위 · 수치 미확인)
 SOC_W = 0.5                    # W, 촬영 · AI 지속 사용 시 평균 소비 (가정)
 TEMPLE_T = 6.5                 # 1차 설계 다리 두께 (일반 아세테이트 뿔테 수준, 최적화 전) — 얇게 하는 것은 다음 단계
 RIM_EXTRA = 1.0                # 1차 설계 림 = 템플릿 림 + 1 mm (뿔테 두께)
@@ -61,10 +61,12 @@ STYLES = {   # 사진이 없을 때 · 합성 사진용 기본 형상 (보도 �
                     note="초기 공개(구글 I/O) 젠틀몬스터 디자인: 바깥 윗모서리가 올라간 캣아이"),
     # 공식 제품 사진 (examples/glasses/젠틀몬스터_구글_삼성_AI글래스.jpg) 에서 본 형상: 검정 아세테이트 두꺼운 스퀘어 뿔테,
     # 윗선 곧고 아래로 조금 좁아지는 렌즈, 코 쪽 위 모서리 둥금, 굵은 브리지, 오른쪽 테 바깥 위 카메라 · 왼쪽 LED, 넓고 납작한 다리
-    "gm": dict(name="스퀘어 뿔테 (젠틀몬스터 × Google × 삼성)", w=50.0, h=42.0, shape="rrect", r_to=5.0, r_ti=8.0, r_bo=10.0, r_bi=9.0,
-               taper=0.05, rim=7.5, depth=7.0, bridge=19.0, bridge_h=9.0, endpiece=7.5,
-               temple=dict(t=5.0, pod_t=6.5, pod_h=13.0, pod_len=72.0, arm_h=10.0),
-               note="공식 사진 디자인: 두꺼운 검정 스퀘어 뿔테, 오른쪽 테 바깥 위 카메라 · 왼쪽 LED, 넓은 다리(전자부품 내장)"),
+    "gm": dict(name="스퀘어 뿔테 (젠틀몬스터 × Google × 삼성)", w=50.0, h=41.0, shape="rrect", r_to=4.0, r_ti=10.0, r_bo=15.0, r_bi=13.0,
+               taper=0.06, rim=6.5, rim_t=7.5, rim_o=6.5, rim_b=5.5, rim_n=4.0, r_out_to=2.5, r_out_ti=9.0,
+               depth=7.0, bridge=21.0, bridge_dip=5.0, bridge_h=7.0, endpiece=6.5, bevel=(1.0, 0.7),
+               temple=dict(t=5.5, h0=15.5, h40=14.5, h80=11.0, drop80=1.0, bend_y=118.0, drop_b=2.8, h_b=8.6, bend_deg=32.0, tip_len=26.0, tip_h=7.5),
+               note="공식 사진 디자인: 두꺼운 검정 스퀘어 뿔테(모서리 둥글게 깎임), 브로우보다 낮은 아치형 브리지, 오른쪽 테 바깥 위 카메라 · 왼쪽 LED, "
+                    "앞이 높고 뒤로 가늘어지며 귀 쪽에서 꺾이는 넓은 다리(전자부품 내장)"),
 }
 
 
@@ -324,9 +326,169 @@ def offset_poly(P, d, n=None):
 
 
 # ------------------------------------------------------------------ CAD
+GM_VERSION = "2"               # 사진형 뿔테(gm) 형상 · 브리지 대칭 하중 — 바꾸면 글래스 템플릿 결과만 다시 계산
+
+
+def _rrect(xl, xr, zb, zt, r_tl, r_tr, r_bl, r_br, k=24):
+    def arc(cx_, cz, r, a0, a1):
+        t_ = np.linspace(a0, a1, k)
+        return np.c_[cx_ + r * np.cos(t_), cz + r * np.sin(t_)]
+    return np.vstack([arc(xr - r_tr, zt - r_tr, r_tr, 0, np.pi / 2), arc(xl + r_tl, zt - r_tl, r_tl, np.pi / 2, np.pi),
+                      arc(xl + r_bl, zb + r_bl, r_bl, np.pi, 1.5 * np.pi), arc(xr - r_br, zb + r_br, r_br, 1.5 * np.pi, 2 * np.pi)])
+
+
+def _taper(P, b, t):
+    P = np.array(P, float)
+    P[:, 0] *= 1 - t * np.clip(-P[:, 1] / b, 0, 1)
+    return P
+
+
+def _resample(C, step):
+    """Closed curve -> points every `step` mm."""
+    C = np.vstack([C, C[:1]])
+    d = np.r_[0, np.cumsum(np.hypot(*np.diff(C, axis=0).T))]
+    s = np.linspace(0, d[-1], max(int(d[-1] / step), 8), endpoint=False)
+    return np.c_[np.interp(s, d, C[:, 0]), np.interp(s, d, C[:, 1])]
+
+
+def _smooth(C, sigma):
+    return np.c_[ndimage.gaussian_filter1d(C[:, 0], sigma, mode="wrap"), ndimage.gaussian_filter1d(C[:, 1], sigma, mode="wrap")]
+
+
+def _union_outline(polys, res=0.05, pad=2.0):
+    """2D union of closed polygons (raster 0.05 mm, x-symmetric grid) -> outer contour."""
+    from PIL import Image, ImageDraw
+    from skimage import measure
+    allp = np.vstack(polys)
+    xm = float(np.abs(allp[:, 0]).max()) + pad
+    z0, z1 = float(allp[:, 1].min()) - pad, float(allp[:, 1].max()) + pad
+    W, H = 2 * int(xm / res) + 1, int((z1 - z0) / res) + 1
+    x0 = -(W // 2) * res
+    im = Image.new("L", (W, H), 0)
+    dr = ImageDraw.Draw(im)
+    for P in polys:                                      # PIL 래스터 (skimage.draw.polygon 보다 ~100배 빠름)
+        dr.polygon([(float(x), float(z)) for x, z in np.c_[(P[:, 0] - x0) / res, (P[:, 1] - z0) / res]], fill=255)
+    C = max(measure.find_contours(np.asarray(im, float), 127.5), key=len)
+    return np.c_[C[:, 1] * res + x0, C[:, 0] * res + z0]
+
+
+def _mirror_closed(C, step):
+    """Closed outline crossing x = 0 twice -> exactly x-symmetric outline (right half, resampled, + its mirror)."""
+    C = C[:-1] if np.allclose(C[0], C[-1]) else C
+    s = np.sign(C[:, 0])
+    i = np.where((s[:-1] <= 0) & (s[1:] > 0) | (s[:-1] > 0) & (s[1:] <= 0))[0]
+    zc = C[i, 1]
+    a, b_ = int(i[np.argmax(zc)]), int(i[np.argmin(zc)])            # top and bottom crossings
+    R = np.roll(C, -a - 1, 0)
+    n = (b_ - a) % len(C)
+    half = R[:n] if R[: n, 0].mean() > 0 else np.roll(C, -b_ - 1, 0)[: len(C) - n][::-1]
+    zt, zb = float(C[a, 1]), float(C[b_, 1])
+    if half[0, 1] < half[-1, 1]:
+        half = half[::-1]
+    H = np.vstack([[0.0, zt], half, [0.0, zb]])                     # 위 중심 → 오른쪽 반 → 아래 중심
+    d = np.r_[0, np.cumsum(np.hypot(*np.diff(H, axis=0).T))]
+    m = max(int(d[-1] / step), 8)
+    sp = np.linspace(0, d[-1], m + 1)
+    H = np.c_[np.interp(sp, d, H[:, 0]), np.interp(sp, d, H[:, 1])]
+    H[0, 0] = H[-1, 0] = 0.0
+    return np.vstack([H[:-1], (H[1:] * [-1, 1])[::-1]])             # 닫힌 곡선 (중심점 한 번씩)
+
+
+def _offset_in(P, d):
+    T = np.roll(P, -1, 0) - np.roll(P, 1, 0)
+    N = np.c_[T[:, 1], -T[:, 0]]
+    N /= np.linalg.norm(N, axis=1, keepdims=True) + 1e-12
+    if np.mean(np.sum((P - P.mean(0)) * N, 1)) < 0:
+        N = -N
+    return P - d * N
+
+
+def _loft(P, layers, to3):
+    """Ruled loft through insets of the (u, v) polygon P at given layers [(w, inset)] -> one solid with bevelled edges.
+    (다각형 와이어 — 주기 스플라인 로프트는 불리언이 부피를 잃어 쓰지 않음)"""
+    import cadquery as cq
+    ws = [cq.Wire.makePolygon([cq.Vector(*to3(w, u, v)) for u, v in (_offset_in(P, d) if d else P)], close=True) for w, d in layers]
+    return cq.Workplane().add(cq.Solid.makeLoft(ws, True))
+
+
+def gm_front_outline(S, lens, cx):
+    """앞판 윤곽 (x, z): 좌우 테 바깥 + 아치형 브리지의 합 — 매끈하게, 정확히 좌우 대칭."""
+    lw, lh = S["w"], S["h"]
+    a, b = lw / 2, lh / 2
+    bo = b + S["rim_b"]
+    outer = _taper(_rrect(-a - S["rim_n"], a + S["rim_o"], -bo, b + S["rim_t"], S["r_out_ti"], S["r_out_to"], S["r_bi"] + S["rim_b"],
+                          S["r_bo"] + S["rim_b"]), bo, S["taper"])
+    top = b + S["rim_t"]
+    xb = S["bridge"] / 2 + 4.0
+    xs = np.linspace(-xb, xb, 41)
+    zt = top - S["bridge_dip"]
+    zb = zt - S["bridge_h"] - 8.0 * (xs / xb) ** 2                 # 아래는 아치 (코 자리)
+    bridge = np.r_[np.c_[xs, np.full_like(xs, zt)], np.c_[xs[::-1], zb[::-1]]]
+    C = _smooth(_resample(_union_outline([outer + [cx, 0], outer * [-1, 1] + [-cx, 0], bridge]), 1.2), 1.4)
+    return _mirror_closed(C, 1.2), top
+
+
+def gm_temple_profile(tp, D, top):
+    """다리 옆 윤곽 (y, z): 힌지 쪽 높고 뒤로 가늘어지며 귀 쪽에서 아래로 꺾임."""
+    y0 = D - 3.5
+    yb, ang = tp["bend_y"], math.radians(tp["bend_deg"])
+    d = np.array([math.cos(ang), -math.sin(ang)])
+    nrm = np.array([math.sin(ang), math.cos(ang)])
+    pb = np.array([yb, top - tp["drop_b"]])
+    p_end = pb + tp["tip_len"] * d
+    q_end = p_end - tp["tip_h"] * nrm
+    P = np.array([(y0, top), (40.0, top), (80.0, top - tp["drop80"]), tuple(pb), tuple(p_end), tuple(q_end),
+                  (yb - 4.0, top - tp["drop_b"] - tp["h_b"]), (80.0, top - tp["drop80"] - tp["h80"]), (40.0, top - tp["h40"]), (y0, top - tp["h0"])])
+    return _smooth(_resample(P, 1.2), 1.4), float(p_end[0])
+
+
+def build_gm(geo):
+    """공식 사진형 뿔테: 앞판(테 + 아치 브리지) 하나의 매끈한 윤곽 → 모서리 깎인 판, 렌즈 구멍도 앞뒤 모서리 깎음,
+    다리 = 옆 윤곽(앞 높고 뒤로 가늘어짐, 귀 쪽 꺾임) 판, 카메라 링(오른쪽 바깥 위) · LED(왼쪽) · 코받침. 좌우 정확히 대칭(카메라 · LED 제외)."""
+    import cadquery as cq
+    S = STYLES["gm"]
+    lens = geo["lens"]
+    lw, lh = geo["lens_w"], geo["lens_h"]
+    a, b = float(lens[:, 0].max()), float(lens[:, 1].max())
+    cx = geo["bridge"] / 2 + a
+    D = geo["depth"]
+    bf, bb = S["bevel"]
+    C, top = geo["front"], geo["top"]
+    body = _loft(C, [(0.0, bf), (bf, 0.0), (D - bb, 0.0), (D, bb)], lambda y, x, z: (float(x), y, float(z)))
+    for sx in (-1, 1):
+        L = lens * [sx, 1] + [sx * cx, 0]
+        body = body.cut(_loft(L, [(-0.01, -bf), (bf, 0.0), (D - bb, 0.0), (D + 0.01, -bb)], lambda y, x, z: (float(x), y, float(z))))
+    tp = geo["temple"]
+    x_o = float(C[:, 0].max()) - 0.2
+    P, y_end = gm_temple_profile(tp, D, top - 0.3)
+    t = tp["t"]
+    pods = []
+    for sx in (-1, 1):
+        xin = x_o - t if sx > 0 else -x_o
+        lay = [(xin, 1.2), (xin + 1.2, 0.0), (xin + t - 1.2, 0.0), (xin + t, 1.2)]
+        body = body.union(_loft(P, lay, lambda x, y, z: (x, float(y), float(z))))
+        body = body.cut(cq.Workplane().box(0.5, 0.6, tp["h0"]).translate((sx * (x_o - 0.15), D + 5.0, top - 0.3 - tp["h0"] / 2)))  # 힌지 이음 선
+        xt = sx * (x_o - t / 2)
+        pods.append(dict(side=sx, x=xt, y0=D, y1=D + 72.0, z=top - 0.3 - tp["h40"] / 2, h=tp["h40"], t=t))
+    # 카메라 링 (+x 테 바깥 위 모서리) · LED (-x) — 사진과 같은 자리
+    cam = (cx + a + 2.0, b + 0.8)
+    body = body.union(cq.Workplane("XZ").circle(2.5).extrude(0.8).translate((cam[0], 0.0, cam[1])))
+    body = body.cut(cq.Workplane("XZ").circle(1.3).extrude(1.6).translate((cam[0], 0.8, cam[1])))
+    body = body.union(cq.Workplane("XZ").circle(0.9).extrude(0.4).translate((-cam[0], 0.0, cam[1])))
+    for sx in (-1, 1):                                    # 코받침: 안쪽 림 뒤에 붙은 아세테이트 패드
+        body = body.union(cq.Workplane().box(3.5, 6.0, 11.0).edges("|Y").fillet(1.2)
+                          .translate((sx * (geo["bridge"] / 2 - 1.5), D + 2.0, -0.15 * lh)))
+    lenses = [_yprism(lens * [sx, 1] + [sx * cx, 0], 1.5, 1.5 + LENS_T) for sx in (-1, 1)]
+    info = dict(cx=cx, top=top, x_out=x_o, pods=pods, ends=[], endw=0.0, camera=dict(x=cam[0], z=cam[1]), tips_y=y_end,
+                temple_x=[p["x"] for p in pods], width=2 * x_o, depth=D)
+    return body, lenses, info
+
+
 def build(geo):
     """Frame front (rims + bridge + endpieces + nose pads) + temples with electronics pods. Returns body, lens solids, info."""
     import cadquery as cq
+    if geo.get("style") == "gm":
+        return build_gm(geo)
     lens = geo["lens"]
     lw, lh = geo["lens_w"], geo["lens_h"]
     rim, bridge, endw = geo["rim"], geo["bridge"], geo["endpiece"]
@@ -390,7 +552,7 @@ def build(geo):
     body = body.union(cam_s).union(led_s)
     cam = dict(x=cam_pt[0], z=cam_pt[1])
     info = dict(cx=cx, top=top, x_out=x_out, pods=pods, ends=ends, endw=endw, camera=cam, tips_y=TEMPLE_LEN - 25.0 + 27.0 * math.cos(math.radians(28)),
-                temple_x=[p["x"] for p in pods], width=2 * (x_out + endw))
+                temple_x=[p["x"] for p in pods], width=2 * (x_out + endw), depth=D)
     return body, lenses, info
 
 
@@ -497,27 +659,30 @@ def fem(body, info, geo, h=0.9):
     m1 = float(np.percentile(n1, 99.5))              # 격자 계단 모서리 특이점 제외 (상위 0.5 % 절점)
     n1 = np.minimum(n1, m1)
     un1 = np.linalg.norm(u1.reshape(-1, 3), axis=1) * Fc
-    # --- case 2: bridge bending: one rim held, the other rim pushed back (+y)
-    cx = info["cx"]
-    fix_b = np.where(U & (xyz[:, 0] <= -(geo["bridge"] / 2 + 0.3 * geo["lens_w"])) & (xyz[:, 1] <= FRAME_DEPTH + 0.01))[0]
-    load_b = np.where(U & (xyz[:, 0] >= geo["bridge"] / 2 + 0.3 * geo["lens_w"]) & (xyz[:, 0] <= cx + geo["lens_w"] / 2 + geo["rim"])
-                      & (xyz[:, 1] <= FRAME_DEPTH + 0.01))[0]
-    Fb = V.rigid_load(load_b, (cx, 0.0, 0.0), (0.0, BRIDGE_F, 0.0))
-    u2 = V.solve(fix_b, Fb, label=f"FEM 풀이 2/2 — 브리지 굽힘 ({V.ne:,} 요소)")
+    # --- case 2: bridge push (대칭): 양쪽 힌지(다리 앞쪽) 고정, 브리지 가운데를 뒤로 — 손가락으로 안경을 밀어 올릴 때.
+    #     예전(한쪽 테 고정 · 반대 테 밀기)은 하중 자체가 비대칭이라 히트맵이 한쪽만 물들었음.
+    D = info.get("depth", FRAME_DEPTH)
+    xh = min(abs(x) for x in info["temple_x"]) - info["pods"][0]["t"] / 2 - 0.5
+    fix_b = np.where(U & (np.abs(xyz[:, 0]) >= xh) & (xyz[:, 1] >= D + 1.0) & (xyz[:, 1] <= D + 12.0))[0]
+    load_b = np.where(U & (np.abs(xyz[:, 0]) <= 3.0) & (xyz[:, 1] <= D + 0.01) & (xyz[:, 2] > 0.0))[0]
+    cb = xyz[load_b].mean(0)
+    cb[0] = 0.0
+    Fb = V.rigid_load(load_b, tuple(cb), (0.0, BRIDGE_F, 0.0))
+    u2 = V.solve(fix_b, Fb, label=f"FEM 풀이 2/2 — 브리지 누름 ({V.ne:,} 요소)")
     progress.step("응력 · 변위 분포")
     vm2 = V.von_mises(u2)
     n2, _ = V.nodal(vm2)
     m2 = float(np.percentile(n2, 99.5))
     n2 = np.minimum(n2, m2)
-    tr, _ = V.rigid_fit(u2, load_b, (cx, 0.0, 0.0))
+    tr, _ = V.rigid_fit(u2, load_b, tuple(cb))
     un2 = np.linalg.norm(u2.reshape(-1, 3), axis=1)
     heat = V.heat({
         "clamp_stress": (n1, 0.0, max(m1, 1e-3), f"응력 — 착용 벌림 (다리 끝 한쪽 {SPREAD_EACH:.0f} mm)", "MPa",
                          f"빨강 = 이 설계 최대 근처 (허용 {lim:.0f} MPa)"),
         "clamp_disp": (un1, 0.0, max(float(np.percentile(un1[U], 99.5)), 1e-3), "변위 — 착용 벌림", "mm", "자동 척도"),
-        "bridge_stress": (n2, 0.0, max(m2, 1e-3), f"응력 — 브리지 굽힘 ({BRIDGE_F:.0f} N, 한쪽 테 고정)", "MPa",
+        "bridge_stress": (n2, 0.0, max(m2, 1e-3), f"응력 — 브리지 누름 ({BRIDGE_F:.0f} N 뒤로, 양쪽 힌지 고정)", "MPa",
                           f"빨강 = 이 설계 최대 근처 (허용 {lim:.0f} MPa)"),
-        "bridge_disp": (un2, 0.0, max(float(np.percentile(un2[U], 99.5)), 1e-3), "변위 — 브리지 굽힘", "mm", "자동 척도"),
+        "bridge_disp": (un2, 0.0, max(float(np.percentile(un2[U], 99.5)), 1e-3), "변위 — 브리지 누름", "mm", "자동 척도"),
     })
     return dict(h=h, elements=int(V.ne), k_N_per_mm=round(k, 4), clamp_N=round(Fc, 3), clamp_vm=round(m1, 2),
                 bridge_vm=round(m2, 2), bridge_defl=round(float(np.linalg.norm(tr)), 3), solve_s=round(time.time() - t0, 1),
@@ -530,7 +695,8 @@ def conditions(geo, mb, th):
         dict(key="parts", name="내장 부품", value="AR1 Gen1 · 12 MP 카메라 · 스피커 2 · 마이크 4 · 배터리 (약 155 mAh)", source="근거: 언론 보도 · 유출 사양"),
         dict(key="clamp", name="착용 클램프 힘 (한쪽)", value=f"{CLAMP_RANGE[0]}–{CLAMP_RANGE[1]} N, 다리 끝 한쪽 {SPREAD_EACH:.0f} mm 벌림",
              source="근거: 문헌 0–1 N 대 · 특허 50–110 g (하한 · 벌림 양은 가정)"),
-        dict(key="bridge", name="브리지 굽힘", value=f"한쪽 테 고정, 반대 테에 {BRIDGE_F:.0f} N 앞→뒤 → 응력 ≤ 항복/1.5", source="ISO 12870 시험 항목 (하중 수치는 가정)"),
+        dict(key="bridge", name="브리지 누름", value=f"양쪽 힌지 고정, 브리지 가운데 {BRIDGE_F:.0f} N 앞→뒤 (안경 밀어 올리기) → 응력 ≤ 항복/1.5",
+             source="ISO 12870 브리지 변형 시험과 같은 부위 (하중 · 지지 방식은 가정)"),
         dict(key="stress", name="응력", value=f"≤ {MAT['yield_mpa']:.0f} ÷ {SF} = {MAT['yield_mpa'] / SF:.0f} MPa", source=f"{MAT['name']} 일반값 (가정)"),
         dict(key="skin", name="피부 접촉 온도", value=f"≤ {T_SKIN_LIMIT:.0f} °C (주변 {T_AMB:.0f} °C, SoC {SOC_W} W 지속)", source="IEC 62368-1 TS1 장시간 접촉 · ISO 13732-1 (근거), 소비전력은 가정"),
         dict(key="drop", name="낙하", value="1 m 낙하 후 기능 유지 (판정은 다음 단계)", source="가정"),
@@ -551,8 +717,13 @@ def template_geometry(style, lw):
         th, r, c = radial(L, 72)                         # CAD 용 72점 (180점 대비 부피 차 < 0.3 %, 불리언 2.4배 빠름)
         L = from_radial(th, r) + c
     if style == "gm":                                    # 공식 사진 디자인 그대로 (두께 · 다리 크기도 사진 비율)
-        return dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"], bridge=S["bridge"] * lw / 50.0,
-                    bridge_h=S["bridge_h"], depth=S["depth"], endpiece=S["endpiece"], temple=S["temple"], style=style, source="템플릿", lens_w_t=lw)
+        Sg = dict(S, w=lw, h=S["h"] * lw / S["w"], bridge=S["bridge"] * lw / 50.0)
+        L = _smooth(_resample(L, 1.2), 1.0)
+        cx = Sg["bridge"] / 2 + float(L[:, 0].max())
+        front, top = gm_front_outline(Sg, L, cx)
+        return dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"], bridge=Sg["bridge"],
+                    bridge_h=S["bridge_h"], depth=S["depth"], endpiece=S["endpiece"], temple=S["temple"], front=front, top=top,
+                    style=style, source="템플릿", lens_w_t=lw)
     return dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"] + RIM_EXTRA, bridge=18.0,
                 endpiece=12.0, style=style, source="템플릿", lens_w_t=lw)
 
@@ -610,7 +781,7 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
     geo, an = geometry_from(image, text, style)
-    k = memo.key("glasses", geo["style"], geo["lens_w_t"], TEMPLE_T, RIM_EXTRA, STYLES[geo["style"]])
+    k = memo.key("glasses", GM_VERSION, geo["style"], geo["lens_w_t"], TEMPLE_T, RIM_EXTRA, STYLES[geo["style"]])
     rep = memo.get(k, out) if with_mesh else None
     if rep is None:
         before = os.listdir(out)
@@ -664,7 +835,7 @@ def _design(geo, out, with_mesh):
         dict(key="clamp_lo", name="착용 클램프 힘 (한쪽, FEM) — 흘러내림 방지", value=fe["clamp_N"], unit="N", op=">=", limit=CLAMP_RANGE[0], source="흘러내림 방지 (가정)"),
         dict(key="clamp_hi", name="착용 클램프 힘 (한쪽, FEM) — 편안함", value=fe["clamp_N"], unit="N", op="<=", limit=CLAMP_RANGE[1], source="문헌 · 특허 편안한 범위"),
         dict(key="clamp_vm", name="착용 벌림 최대 응력 (FEM)", value=fe["clamp_vm"], unit="MPa", op="<=", limit=round(lim, 1), source=f"{MAT['name']} 항복 ÷ 1.5"),
-        dict(key="bridge_vm", name=f"브리지 굽힘 {BRIDGE_F:.0f} N 최대 응력 (FEM)", value=fe["bridge_vm"], unit="MPa", op="<=", limit=round(lim, 1),
+        dict(key="bridge_vm", name=f"브리지 누름 {BRIDGE_F:.0f} N 최대 응력 (FEM)", value=fe["bridge_vm"], unit="MPa", op="<=", limit=round(lim, 1),
              source="ISO 12870 항목 · 하중 가정"),
         dict(key="skin", name=f"다리 표면 온도 (SoC {SOC_W} W)", value=th["T"], unit="°C", op="<=", limit=T_SKIN_LIMIT, source="IEC 62368-1 TS1"),
     ]
@@ -684,7 +855,7 @@ def _design(geo, out, with_mesh):
                  ["렌즈", f"CR-39 {LENS_T} mm"], ["안전율", SF]],
         design_vars=[["렌즈 폭 × 높이", f"{geo['lens_w']:.1f} × {geo['lens_h']:.1f} mm"], ["브리지", f"{geo['bridge']:.1f} mm"],
                      ["림 두께", f"{geo['rim']:.1f} mm"], ["엔드피스", f"{geo['endpiece']:.1f} mm"], ["테 전체 폭", f"{info['width']:.1f} mm"],
-                     ["다리 길이", f"{TEMPLE_LEN:.0f} mm"], ["테 깊이", f"{FRAME_DEPTH:.0f} mm"],
+                     ["다리 길이", f"{TEMPLE_LEN:.0f} mm"], ["테 깊이", f"{info.get('depth', FRAME_DEPTH):.0f} mm"],
                      ["무게 내역", f"테 {mb['frame_g']} g + 렌즈 {mb['lens_g']} g + 부품 {mb['parts_g']} g"],
                      ["다리 강성 (한쪽)", f"{fe['k_N_per_mm']} N/mm"], ["허용 지속 소비전력", f"{th['P_allow_W']} W (43 °C 기준)"],
                      ["해석 격자", f"{fe['h']} mm · {fe['elements']:,} 요소"]],
@@ -738,9 +909,16 @@ def analysis_png(photo, an, geo, path):
     else:
         fig, a = plt.subplots(figsize=(5.5, 4.2))
     L = geo["lens"]
-    a.fill(L[:, 0], L[:, 1], fc="#dfe9ef", ec="#222", lw=1.5)
-    O = offset_poly(L, geo["rim"])
-    a.plot(np.r_[O[:, 0], O[:, 0][:1]], np.r_[O[:, 1], O[:, 1][:1]], c="#555", lw=1)
+    if geo.get("front") is not None:                     # 사진형 뿔테: 앞판 전체 윤곽 + 렌즈 2개
+        Fo = np.asarray(geo["front"])
+        a.fill(Fo[:, 0], Fo[:, 1], fc="#2b2d31", ec="#111", lw=1)
+        cx_ = geo["bridge"] / 2 + float(L[:, 0].max())
+        for sx in (-1, 1):
+            a.fill(sx * L[:, 0] + sx * cx_, L[:, 1], fc="#dfe9ef", ec="#222", lw=1)
+    else:
+        a.fill(L[:, 0], L[:, 1], fc="#dfe9ef", ec="#222", lw=1.5)
+        O = offset_poly(L, geo["rim"])
+        a.plot(np.r_[O[:, 0], O[:, 0][:1]], np.r_[O[:, 1], O[:, 1][:1]], c="#555", lw=1)
     f = (an or {}).get("features") or describe(L)
     a.set_title(f"렌즈 윤곽 (mm) — {f['style_name']}\n가로 {np.ptp(L[:, 0]):.1f} · 세로 {np.ptp(L[:, 1]):.1f} · 윗선 직선 {f['top_flat']:.2f} · 바깥 올림 {f['outer_lift']:.2f}",
                 fontsize=9)

@@ -165,7 +165,7 @@ def test_glasses_design():
     assert not ok["mass"] and not ok["skin"] and not ok["clamp_hi"] and ok["clamp_lo"] and ok["clamp_vm"] and ok["bridge_vm"], ok
     assert abs(fe["clamp_N"] - fe["k_N_per_mm"] * G.SPREAD_EACH) < 0.01
     t = G.STYLES["gm"]["temple"]
-    per, ac = 2 * (t["pod_h"] + t["pod_t"]) * 1e-3, t["pod_h"] * t["pod_t"] * 1e-6
+    per, ac = 2 * (t["h40"] + t["t"]) * 1e-3, t["h40"] * t["t"] * 1e-6       # 다리 앞쪽 부품실 단면 (높이 14.5 × 두께 5.5)
     m = M.sqrt(G.H_CONV * per / (G.K_FRAME * ac))
     dT = G.SOC_W / (G.H_CONV * per * (G.SOC_LEN * 1e-3 + 2 / m))
     assert abs(th["dT"] - dT) < 0.1, (th, dT)
@@ -173,14 +173,14 @@ def test_glasses_design():
 
 
 def test_glasses_heat_symmetric():
-    """착용 벌림(좌우 대칭 하중)의 응력 · 변위 분포가 좌우 대칭이고, CAD 표면 근처 절점에 값이 다 있음 (끊김 없음)."""
+    """착용 벌림 · 브리지 누름(둘 다 좌우 대칭 하중)의 응력 · 변위 분포가 좌우 대칭이고, CAD 표면에 값이 다 있음 (끊김 없음)."""
     with tempfile.TemporaryDirectory() as d:
         rep = G.design("", out=d, with_mesh=True, style="gm")
     g = rep["heat"]["grid"]
     nx, ny, nz = g["nodes"]
     assert abs(g["origin"][0] + (nx - 1) * g["h"] / 2) < 1e-6          # 격자가 x = 0 에 대칭
     res = {}
-    for k in ("clamp_stress", "clamp_disp"):
+    for k in ("clamp_stress", "clamp_disp", "bridge_stress", "bridge_disp"):
         f = rep["heat"]["fields"][k]
         q = np.frombuffer(zlib.decompress(base64.b64decode(f["qz"])) if "qz" in f else base64.b64decode(f["q"]), np.uint8)
         q = q.reshape(nz, ny, nx).astype(float)
@@ -189,9 +189,17 @@ def test_glasses_heat_symmetric():
         d = np.abs(q - q[:, :, ::-1])[both] / 254
         res[k] = (float(np.percentile(d, 99)), float(d.max()))
     # 변위는 전체가 대칭, 응력은 99 % 절점이 대칭 (나머지는 오른쪽 카메라 Ø6 · 왼쪽 LED Ø2 처럼 실제로 좌우가 다른 앞면 장식 둘레)
-    assert res["clamp_disp"][1] < 0.02 and res["clamp_stress"][0] < 0.08, res
-    return (f"변위 좌우 차 최대 {res['clamp_disp'][1] * 100:.1f} %, 응력 좌우 차 99 % 절점 ≤ {res['clamp_stress'][0] * 100:.1f} % "
-            f"(색 척도 대비, 카메라 · LED 둘레 제외)")
+    for c in ("clamp", "bridge"):
+        assert res[c + "_disp"][1] < 0.02 and res[c + "_stress"][0] < 0.08, res
+    # 화면에 그리는 CAD 표면 꼭짓점마다 값이 있음 (브라우저와 같은 삼선형 보간 · 가중치 > 0.03)
+    from scipy.ndimage import map_coordinates
+    V = np.frombuffer(base64.b64decode(rep["mesh"]["pos"]), np.float32).reshape(-1, 3).astype(float)
+    c = (V - np.array(g["origin"])) / g["h"]
+    w = map_coordinates((q != 255).astype(float), [c[:, 2], c[:, 1], c[:, 0]], order=1, mode="nearest")
+    assert (w > 0.03).mean() > 0.999, (w > 0.03).mean()
+    return (f"착용 벌림 · 브리지 누름: 변위 좌우 차 최대 {max(res['clamp_disp'][1], res['bridge_disp'][1]) * 100:.1f} %, "
+            f"응력 좌우 차 99 % 절점 ≤ {max(res['clamp_stress'][0], res['bridge_stress'][0]) * 100:.1f} % (색 척도 대비, 카메라 · LED 둘레 제외), "
+            f"표면 꼭짓점 {len(V):,}개 모두 값 있음")
 
 
 def test_routing_and_heat_payload():

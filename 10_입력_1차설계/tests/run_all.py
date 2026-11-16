@@ -47,7 +47,7 @@ CHECKS = [
     ("AI 글래스: 합성 제품 사진 → 렌즈 윤곽 · 치수", test_products.test_glasses_photo_analysis),
     ("AI 글래스: 거치대 그림은 안경 아님", test_products.test_glasses_no_false_positive),
     ("AI 글래스: 공식 사진 → 템플릿 1차 설계 · 미충족 판정 · 핀 열계산", test_products.test_glasses_design),
-    ("AI 글래스: 착용 응력 · 변위 분포 좌우 대칭 · 끊김 없음", test_products.test_glasses_heat_symmetric),
+    ("AI 글래스: 착용 · 브리지 응력 · 변위 분포 좌우 대칭 · 끊김 없음", test_products.test_glasses_heat_symmetric),
     ("템플릿 결과 DB: 시나리오마다 4 s 이내", test_products.test_template_db_speed),
     ("제품 선택 · 큰 격자 분포 압축", test_products.test_routing_and_heat_payload),
 ]

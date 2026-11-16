@@ -11,7 +11,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "templates", "db", "precomputed")
-VERSION = "v7"            # 설계 · 해석 코드가 바뀌면 올림 (예전 결과를 쓰지 않게)
+VERSION = "v8"            # 설계 · 해석 코드가 바뀌면 올림 (예전 결과를 쓰지 않게)
 
 
 def _np(o):
@@ -84,6 +84,12 @@ def jobs():
     return out
 
 
+def marker():
+    """'전부 채움' 표시 파일 — 공통 VERSION + 제품별 버전(바뀐 제품만 다시 계산되고, 서버 · setup 이 다시 채우게)."""
+    from .products.glasses import GM_VERSION
+    return os.path.join(DB, f"_complete_{VERSION}_g{GM_VERSION}")
+
+
 def fill(names=None, log=print):
     import tempfile
     import time
@@ -95,7 +101,7 @@ def fill(names=None, log=print):
             fn(d)
         log(f"{name}: {time.time() - t:.1f} s")
     if not names:                                       # 전부 채움 표시 -> 서버가 시작할 때 다시 돌지 않음
-        open(os.path.join(DB, f"_complete_{VERSION}"), "w").close()
+        open(marker(), "w").close()
 
 
 if __name__ == "__main__":

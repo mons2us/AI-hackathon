@@ -203,7 +203,7 @@ def fill_template_db():
     이미 있는 항목은 0.3 s 안에 넘어감. setup.bat 이 미리 채워 두면 여기서는 할 일이 없다."""
     import tempfile
     from formproof_input import memo
-    done_mark = os.path.join(memo.DB, f"_complete_{memo.VERSION}")
+    done_mark = memo.marker()
     if os.path.exists(done_mark):                                    # 이미 다 채움 -> 요청을 기다리게 하지 않음
         return
     t, n = time.time(), 0
