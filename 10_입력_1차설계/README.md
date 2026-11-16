@@ -303,7 +303,7 @@ python app/server.py  →  http://localhost:8765/optimize # 실시간 3D · 목�
 | 풀이 | 자유도 8,000 초과 = pyamg 다중격자(강체 모드) 전처리 CG + 이전 해 웜 스타트, 이하 = splu |
 | 판정 | 10 반복마다(그림 찍는 반복에도) 0/1 형상으로 `fem.evaluate` — 흔들림 · 진동수 · 응력 · 층간 · 연결 |
 | 출력 `out/opt/` | `history.npz`(반복별 밀도 uint8) · `metrics.json`(반복 기록 · 판정) · `final_density.npy` · `final_design.npy`(**`initial_design.npy` 와 같은 형식**) · `frames/iter_XXX.png` · `evolution.gif` · `evolution_strip.png` |
-| 서버 | `POST /api/optimize {run_id 또는 template, iters, vol_frac}` → job, `GET /api/opt_state?id=&since=` (반복 기록 + 최신 표면 메쉬), `GET /api/opt_frame?run=&k=` (끝난 기록의 반복 k 표면) |
+| 서버 | `POST /api/opt_run {run_id 또는 template, iters, vol_frac}` → job, `GET /api/opt_state?id=&since=` (반복 기록 + 최신 표면 메쉬), `GET /api/opt_frame?run=&k=` (끝난 기록의 반복 k 표면) |
 
 **확인한 수치** (2코어 리눅스, 메모리 < 1 GB)
 
@@ -323,7 +323,7 @@ python app/server.py  →  http://localhost:8765/optimize # 실시간 3D · 목�
 - 최소 두께(5 mm) 검사는 하지 않습니다. 필터 반경 1.5 요소(3 mm)라 얇은 판이 남을 수 있습니다.
 
 **이어서 할 일 (구현 담당)**
-- [ ] 메인 화면(`app/static/index.html`) 결과 카드에 "최적화" 버튼 → `POST /api/optimize {run_id}` → `optimize.html` 의 폴링 · 3D 갱신 코드 옮기기 (GUI 담당, 이 브랜치에서 index.html 은 건드리지 않았음)
+- [ ] 메인 화면 '물리 기반 최적화 실행 (n개)' 버튼(`POST /api/optimize` = 대상 묶음 저장) 뒤에 `POST /api/opt_run {run_id}` 를 이어 부르고, `optimize.html` 의 폴링 · 3D 갱신 코드를 옮기기 (GUI 담당, 이 작업에서 index.html 은 건드리지 않았음). 고른 대상(`optimize_targets.json`)을 목적 · 제약에 반영하는 것은 아직 안 함
 - [ ] `final_design.npy` 를 팀 엔진 `START_RHO` 로 넘겨 진동수 · 흔들림 제약 최적화 이어 돌리기 (형식 동일)
 - [ ] 윈도우에서는 pypardiso 직접법이 더 빠를 수 있음 (현재 미사용, 시험 필요)
 - [ ] 무게 목표 자동 찾기(합격하는 가장 작은 부피 이분법) — 지금은 고정 부피

@@ -115,7 +115,7 @@ $("go").onclick=async()=>{
   $("go").disabled=true;hist=[];first=null;lastEval=null;since=-1;frames={};framed=false;
   const body={iters:+$("iters").value,vol_frac:+$("vf").value};
   if($("rid").value.trim())body.run_id=$("rid").value.trim();else body.template=$("tpl").value;
-  const r=await fetch("/api/optimize",{method:"POST",body:JSON.stringify(body)}).then(r=>r.json());
+  const r=await fetch("/api/opt_run",{method:"POST",body:JSON.stringify(body)}).then(r=>r.json());
   if(r.error){$("stage").textContent=r.error;$("go").disabled=false;return;}
   job=r.job;poll();
 };

@@ -183,6 +183,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if urlparse(self.path).path == "/api/optimize":
             return self._optimize()
+        if urlparse(self.path).path == "/api/opt_run":                 # 간이 물리 최적화 실행 (optimize.html)
+            return self._opt_run()
         if urlparse(self.path).path != "/api/design":
             return self._send(404, {"error": "not found"})
         try:
@@ -243,7 +245,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": msg})
 
 
-    def _optimize(self):
+    def _opt_run(self):
         """간이 물리 최적화 시작: {run_id} (이미 만든 1차 설계) 또는 {template} (먼저 1차 설계), iters, vol_frac."""
         try:
             n = int(self.headers.get("Content-Length", 0))
