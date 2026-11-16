@@ -237,6 +237,18 @@ def label_any(r):
         try: return label_full(r)
         finally: reduced_off()
     return label_full(r)
+if MODE=='thermops':   # PINO 용 열전도 연산자 (thermal_T 와 같은 식) — ai/pino.py 가 절점 온도의 잔차 K(r)T - q 를 계산할 때 사용
+    np.savez(env('OUT','../data/thermal_ops.npz'), NX=NX,NY=NY,NZ=NZ,nn=nn,the=the,en_the=en[the],phone_the=phone[the],KTh=KTh,MFq=MFq,
+             ftop=ftop,fbot=fbot,ptop=ptop,pbot=pbot,pfront=pfront,en_ptop=en[ptop][:,ftop],en_pbot=en[pbot][:,fbot],en_pfront=en[pfront][:,ftop],
+             qv=qv,thn=thn,K_PH=K_PH,K_AIR=K_AIR,K_PETG=K_PETG,H_RIDE=H_RIDE,H_FRONT=H_FRONT)
+    if env('CHECK')=='1':   # FEM 정답 온도에서 같은 식의 잔차가 0 인지 (생성기 형상 1개)
+        import gen_frame; occ,_=gen_frame.sample(np.random.default_rng(1),dict(xc=xc,yc=yc,zc=zc,design=design,solid=solid,plate=plate,nx=nx,ny=ny,nz=nz),2 if GRIP2 else 1,None)
+        r=np.where(design,occ.astype(float),fixval); T=thermal_T(r); ke=np.where(phone[the],K_PH,K_AIR+r[the]**3*(K_PETG-K_AIR)); y=np.zeros(nn)
+        np.add.at(y,en[the],ke[:,None]*(T[en[the]]@KTh.T))
+        for els,fl,hv in ((ptop,ftop,H_RIDE*(1-r[ptop])),(pbot,fbot,H_RIDE*r[pbot]),(pfront,ftop,np.full(len(pfront),H_FRONT))):
+            nd_=en[els][:,fl]; np.add.at(y,nd_,hv[:,None]*(T[nd_]@MFq.T))
+        res=(y-qv)[thn]; print('잔차 상대값', float(np.linalg.norm(res)/np.linalg.norm(qv[thn])), '온도 최대', float(T.max()))
+    print('saved thermal ops'); sys.exit()
 if MODE=='bench':   # 원래 방식 vs 재료 칸만: 같은 생성기 형상 N개로 시간 · 값 비교
     import gen_frame; rng=np.random.default_rng(int(env('SEED','2001'))); GM=dict(xc=xc,yc=yc,zc=zc,design=design,solid=solid,plate=plate,nx=nx,ny=ny,nz=nz)
     GRIPN=2 if GRIP2 else (1 if GRIP else 0); n=0

@@ -118,6 +118,36 @@ mkdir -p runs/gate_big && cd runs/gate_big && for f in ../latent_big/cand_*.npy;
 - 시간은 재료 칸만 조립으로 ① 이 약 1/10 로 줄 것으로 봄 (서버 미측정).
 - 11-16 시험 (이 작업 환경, TINY=1): ①~⑤ 통과, 끊긴 뒤 이어하기 확인.
 
+## 4. 정확도 올리기 실험 — `step4_improve.sh` (11-16 추가)
+기존 실행 폴더(BASE, 예: `vcpu`)는 **읽기만** 하고 그대로 둔 채, 새 폴더에서 더 큰 설정으로 다시 학습 → 같은 시험 셋 · FEM 검증으로 비교 → 가장 좋은 조합을 자동으로 고름.
+```bash
+cp -r vcpu vimp && cd vimp && rm -rf runs data/shards_*         # 코드 사본 (또는 GitHub sosopapa 최신 패키지를 새로 풀기)
+BASE=../vcpu nohup bash handoff/step4_improve.sh > step4.out 2>&1 &
+bash handoff/step4_improve.sh status                              # 어디까지 끝났는지
+cat runs/improve/report.md                                        # 끝나면: 비교표 · 선택
+```
+
+| 단계 | 하는 일 | 바뀐 점 (step2 대비) |
+|---|---|---|
+| i1 준비 | BASE 학습 데이터(5,269개) 연결, 열 연산자 저장 | 복사 안 함 (심볼릭 링크) |
+| i2 데이터 | **추가 학습 데이터 5,000개**(씨앗 3001~) + **공통 시험 셋 600개**(씨앗 9001~) | 데이터 약 2배, 어느 모델도 안 본 시험 셋 |
+| i3 학습 | GPU 4장에 동시: 형상 AI · FNO · **PINO** · CNN | 스텝 2배(형상 AI 60,000 · 물리 AI 40,000), FNO 폭 24 → 32, 모드 (10,6,16) → (12,8,16) |
+| i4 확인 | 새 형상 AI 기준 구조 복원 IoU | |
+| i5 채점 | BASE 의 CNN · FNO 와 새 CNN · FNO · PINO 를 **같은 시험 셋**으로 | 기준 근처(80–120 Hz) f1 오차 따로 |
+| i6 최적화 | 조합 5개(새 형상 AI × 새 CNN/FNO/PINO, BASE 형상 AI × BASE FNO/CNN) 각각 후보 6개 | 반복 200 → 300 |
+| i7 검증 | 후보 30개 전부 FEM (원래 방식) | |
+| i8 선택 | FEM 통과 → 가장 가벼움 → (0.5 g 이내면) 기준 근처 f1 오차 작은 쪽 | `runs/improve/report.md`, `best/` (sdf.pt · phys.pt · cand_best.npy · fem_best.json) |
+
+- 설정(앞에 붙임): `NX`(추가 데이터, 기본 5000) · `NT`(시험 셋 600) · `NOX=1`(추가 데이터 없이) · `SDF_STEPS` · `PHYS_STEPS` · `FNO_W` · `FNO_MODES="12 8 16"` · `WPHYS`(PINO 물리 가중치 0.1) · `SDF_HID` · `GPUS` · `J`
+- 시간(추정, 미측정): i2 약 10~15분(CPU, J 에 따라) · i3 가장 긴 형상 AI 약 40분~1시간(step2 의 2배 스텝) · i6 · i7 수십 분 이내.
+- **keep 스크립트(GPU 유지용)를 같이 돌리지 말 것.** 11-16 step2 에서 같이 돌 때 형상 AI 학습이 멈춘 사례(CPU 사용 0, GPU 사용률은 keep 스크립트가 차지, 원인 추정: HAMi 사용량 제한).
+
+### PINO (물리 정보 신경 연산자) — `ai/pino.py`
+- **구조**: FNO 와 같은 몸통 + 온도를 절점 격자에 직접 예측하는 머리(요소 온도 = 8개 절점 평균, 학습 데이터 정의와 같음).
+- **물리 손실**: 엔진 `thermal_T` 와 **같은 열전도 FEM 연산자**로 잔차 `K(r) T − q` (야코비 전처리, 온도 단위). 연산자는 `engine/opt_int.py MODE=thermops` 가 `data/thermal_ops.npz` 로 저장. FEM 정답 온도에서 잔차 상대값 **8 × 10⁻¹⁴** 확인(11-16) → 정답이면 0.
+- 손실 = 데이터 손실(FNO 와 같음) + `WPHYS` × 물리 손실 (처음 2,000 스텝은 0 → 1 로 서서히).
+- **한계**: 물리 식은 **열(폰 온도)만**. 진동수 · 터치 · 충격은 데이터로만 배우므로 PINO 가 f1 을 더 잘 맞힌다는 보장은 없음 — 그래서 FNO · CNN 과 같은 시험 셋 · FEM 검증으로 비교해서 고름. 열은 대류가 약해(받침판 · 폰) 잔차가 온도의 절대 수준보다 분포 모양을 주로 잡아 줌(추정).
+
 ## 3. 회사 PC: 결과 보기
 서버의 `fp11/results_fp11.zip` 을 회사 PC 의 `FormProof_구현` 폴더에 복사한 뒤 `handoff\step3_pc_view.bat` 를 더블클릭 → `runs\report.html` 이 열림.
 - 결과 묶음에는 학습 데이터(수 GB)를 넣지 않음. 대신 서버에서 데이터 통계까지 넣어 만든 `runs/report.html` 이 들어 있고, step3 는 그것을 그대로 엶.

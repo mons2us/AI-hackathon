@@ -42,11 +42,16 @@ class FNO3D(nn.Module):
         for s, p in zip(self.spec, self.pw): h = F.gelu(s(h) + p(h))
         return self.head(torch.cat([h.mean((2, 3, 4)), h.amax((2, 3, 4))], 1)), self.proj(h)
 
+def build(kind, cfg):
+    if kind == 'pino':
+        from .pino import PINO; return PINO(**cfg)
+    return FNO3D(**cfg) if kind == 'fno' else CNN3D(**cfg)
+
 class Surrogate:
     """학습된 물리 AI 를 감싼 공통 인터페이스. 모델 종류(CNN/FNO/이후 GINO)를 바꿔도 호출 방식은 같다."""
     def __init__(self, ckpt, grid, dev=None):
         st = torch.load(ckpt, map_location='cpu', weights_only=False); self.kind = st['kind']; self.grid = grid; self.dev = dev or device()
-        self.net = (FNO3D(**st['cfg']) if self.kind == 'fno' else CNN3D(**st['cfg'])).to(self.dev); self.net.load_state_dict(st['state']); self.net.eval()
+        self.net = build(self.kind, st['cfg']).to(self.dev); self.net.load_state_dict(st['state']); self.net.eval()
         self.norm = LabelNorm(state=st['norm']); self.coords = grid.coords(self.dev)
     def predict(self, occ_d):
         """occ_d: (B, nd) torch(미분 가능) 또는 numpy. 반환 scalars 는 원래 단위 (mass 는 정확식으로 대체)."""
@@ -56,22 +61,25 @@ class Surrogate:
         return dict(scalars=y, fields=fld)
 
 def train(a):
-    dev = device(); grid = Grid(a.meta); D = load_shards(a.data, grid, fields=a.model == 'fno')
+    dev = device(); grid = Grid(a.meta); FLD = a.model in ('fno', 'pino'); D = load_shards(a.data, grid, fields=FLD)
     N = len(D['occ']); tr, te = split(N, seed=a.seed); norm = LabelNorm(D['lab'][tr]); Yn = norm.encode(D['lab'])
-    cfg = dict(width=a.width, modes=tuple(a.modes)) if a.model == 'fno' else {}
-    net = (FNO3D(**cfg) if a.model == 'fno' else CNN3D()).to(dev); coords = grid.coords(dev)
+    cfg = dict(width=a.width, modes=tuple(a.modes)) if FLD else {}
+    net = build(a.model, cfg).to(dev); coords = grid.coords(dev)
+    if a.model == 'pino':   # 물리 손실: 엔진과 같은 열전도 FEM 연산자 (ai/pino.py)
+        from .pino import ThermalResidual; TR = ThermalResidual(a.thermal_ops).to(dev); NN = (grid.nz + 1, grid.ny + 1, grid.nx + 1)
     opt = torch.optim.AdamW(net.parameters(), lr=a.lr, weight_decay=1e-4); sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.steps)
     occ = torch.as_tensor(D['occ']); Y = torch.as_tensor(Yn); w_lab = torch.tensor([0.] + [1.] * 6)   # 무게는 정확식이 있어 학습 제외
-    if a.model == 'fno':
+    if FLD:
         Tf = torch.as_tensor(D['T']).view(N, 1, grid.nz, grid.ny, grid.nx); Vf = torch.log1p(torch.as_tensor(D['vm'])).view(N, 1, grid.nz, grid.ny, grid.nx)
         tmask = torch.as_tensor(grid.thermal_region, dtype=torch.float32).view(1, 1, grid.nz, grid.ny, grid.nx)
         ts, vs = Tf[tr].std() + 1e-6, Vf[tr].std() + 1e-6
     rng = np.random.default_rng(a.seed); t0 = time.time(); log = []
     def evaluate(idx):
-        net.eval(); P = []; FE = []
+        net.eval(); P = []; FE = []; PR = []
         with torch.no_grad():
             for i in range(0, len(idx), a.bs):
                 b = idx[i:i + a.bs]; g = grid.to_grid(occ[b].to(dev)); yn, fl = net(g, coords)
+                if a.model == 'pino': PR.append(TR(g.flatten(1), net.forward_full(g, coords)[2].flatten(1) * ts).abs().mean(1).cpu())
                 P.append(norm.decode_t(yn).cpu())
                 if fl is not None:
                     tgt = torch.cat([Tf[b] / ts, Vf[b] / vs], 1).to(dev); m = torch.cat([tmask.to(dev).expand(len(b), -1, -1, -1, -1), g], 1)
@@ -80,24 +88,30 @@ def train(a):
         rel = np.abs(P / np.maximum(np.abs(T_), 1e-6) - 1).mean(0)
         r = {f'relerr_{n}': float(v) for n, v in zip(LAB_NAMES, rel) if n != 'mass_g'}
         if FE: fe = torch.cat(FE).mean(0).cpu().numpy(); r.update(field_relL2_T=float(fe[0]), field_relL2_vm=float(fe[1]))
+        if PR: r['phys_residual_T'] = float(torch.cat(PR).mean())   # 열전도 잔차 평균 (°C, 정답이면 0)
         return r
     for it in range(a.steps):
-        b = rng.choice(tr, min(a.bs, len(tr))); g = grid.to_grid(occ[b].to(dev)); yn, fl = net(g, coords)
+        b = rng.choice(tr, min(a.bs, len(tr))); g = grid.to_grid(occ[b].to(dev))
+        if a.model == 'pino': yn, fl, Tn = net.forward_full(g, coords)
+        else: yn, fl = net(g, coords)
         loss = ((yn - Y[b].to(dev)) ** 2 * w_lab.to(dev)).mean()
         if fl is not None:
             tgt = torch.cat([Tf[b] / ts, Vf[b] / vs], 1).to(dev); m = torch.cat([tmask.to(dev).expand(len(b), -1, -1, -1, -1), g], 1)
             loss = loss + a.wfield * (((fl - tgt) * m) ** 2).sum() / m.sum()
+        if a.model == 'pino' and a.wphys > 0:   # 물리 손실 (온도 정규화 단위). 처음 warm 스텝 동안 0 → wphys 로 키움
+            res = TR(g.flatten(1), Tn.flatten(1) * ts) / ts; loss = loss + a.wphys * min(1.0, it / max(a.phys_warm, 1)) * (res ** 2).mean().float()
         opt.zero_grad(); loss.backward(); opt.step(); sch.step()
         if it % a.log_every == 0 or it == a.steps - 1:
             r = dict(it=it, loss=float(loss), t=round(time.time() - t0, 1), **evaluate(te)); log.append(r); print(json.dumps(r), flush=True)
-    st = dict(kind=a.model, cfg=cfg, state=net.state_dict(), norm=norm.state(), field_scale=[float(ts), float(vs)] if a.model == 'fno' else None,
+    st = dict(kind=a.model, cfg=cfg, state=net.state_dict(), norm=norm.state(), field_scale=[float(ts), float(vs)] if FLD else None,
               n_train=len(tr), n_test=len(te), final=log[-1])
     torch.save(st, a.out); json.dump(dict(final=log[-1], log=log), open(a.out.replace('.pt', '.json'), 'w'), indent=1); print('saved', a.out)
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(); p.add_argument('--meta', required=True); p.add_argument('--data', required=True)
-    p.add_argument('--model', choices=['cnn', 'fno'], default='fno'); p.add_argument('--out', required=True)
+    p.add_argument('--model', choices=['cnn', 'fno', 'pino'], default='fno'); p.add_argument('--out', required=True)
     p.add_argument('--steps', type=int, default=20000); p.add_argument('--bs', type=int, default=16); p.add_argument('--lr', type=float, default=1e-3)
     p.add_argument('--width', type=int, default=24); p.add_argument('--modes', type=int, nargs=3, default=[10, 6, 16]); p.add_argument('--wfield', type=float, default=1.0)
+    p.add_argument('--thermal_ops', default='data/thermal_ops.npz'); p.add_argument('--wphys', type=float, default=0.1); p.add_argument('--phys_warm', type=int, default=2000)
     p.add_argument('--seed', type=int, default=0); p.add_argument('--log_every', type=int, default=500)
     train(p.parse_args())
