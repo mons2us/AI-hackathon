@@ -103,7 +103,9 @@ select.btn{width:100%;margin-top:8px}
 .metric .sub{display:flex;justify-content:space-between;color:var(--ink3);font-size:11.5px;margin-top:2px}
 .pick{font-size:12px;color:var(--ink2);margin:0 0 8px}
 .nopick .metric{cursor:default}.nopick .metric:hover{background:#f8f9fb;border-color:#eef0f4}.nopick .ck{display:none}
-.metric .src{font-size:10.5px;color:var(--blue);margin-left:6px;font-weight:600}
+.metric .src{font-size:10.5px;color:var(--blue);margin-left:6px;font-weight:600;white-space:nowrap}
+.metric .row>span{min-width:0}.metric .v0{color:var(--ink3);font-weight:500}.metric .v0 s{text-decoration:line-through}
+.optinfo .ph{font-size:11px;font-weight:700;letter-spacing:.3px;opacity:.85;margin-bottom:2px}.optinfo canvas{display:block;width:280px;height:32px;margin:6px auto 0}
 .optinfo{position:absolute;left:50%;transform:translateX(-50%);top:9px;z-index:4;background:rgba(20,28,44,.9);color:#fff;border-radius:10px;padding:7px 12px;font-size:12.5px;min-width:300px;text-align:center}
 .optinfo .pb{height:4px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:5px;overflow:hidden}.optinfo .pb i{display:block;height:100%;background:#5b9cff;width:0}
 .optinfo.ok{background:rgba(15,159,110,.92)}.optinfo.bad{background:rgba(211,58,75,.92)}
@@ -124,7 +126,7 @@ select.btn{width:100%;margin-top:8px}
 .con.req{background:var(--blue-s)}
 .load{font-size:12px;color:var(--ink2);margin:-4px 0 10px}
 .files{display:flex;gap:6px;margin:12px 0 8px}
-.files a{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 4px;color:var(--ink);text-decoration:none;font-size:12.5px;font-weight:600}
+.files a{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 4px;color:var(--ink);text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap}
 .files a:hover{border-color:var(--blue);color:var(--blue)}.files a.off{pointer-events:none;color:var(--ink3)}
 .muted{color:var(--ink3);font-size:13px}
 /* 필요 물리 조건 카드 (스케치 아래): 말 · 스케치 메모 한 토막 → 조건 + 근거. 형상보다 먼저 하나씩 나타남 */
@@ -192,11 +194,11 @@ select.btn{width:100%;margin-top:8px}
     <!-- 2. 형상(메인) + 분포 3개 -->
     <section>
       <div class="card fill" style="overflow:hidden">
-        <h2>1차 설계 <span class="tag" id="tplTag">대기 중</span></h2>
+        <h2><span id="vTitle">1차 설계</span> <span class="tag" id="tplTag">대기 중</span></h2>
         <div class="views" id="views">
           <div class="vp vmain" id="vMain">
             <span class="ovl" id="ovl3d">드래그 = 회전 · 휠 = 확대</span>
-            <div class="optinfo" id="optInfo" hidden><span id="optText"></span><div class="pb"><i id="optBar"></i></div></div>
+            <div class="optinfo" id="optInfo" hidden><div class="ph" id="optPhase"></div><span id="optText"></span><div class="pb"><i id="optBar"></i></div><canvas id="optSpark" width="560" height="64"></canvas></div>
             <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
             <img class="draw" id="imgDraw" alt="">
             <div class="empty" id="empty">왼쪽에서 입력하고 1차 설계 만들기를 누르세요</div>
@@ -214,7 +216,7 @@ select.btn{width:100%;margin-top:8px}
     <!-- 3. 1차 설계 성능 (항목을 눌러 최적화 대상 고르기) + 파일 + 최적화 실행 -->
     <section>
       <div class="card fill">
-        <h2>1차 설계 성능 <span class="tag" id="perfTag">대기 중</span></h2>
+        <h2><span id="pTitle">1차 설계 성능</span> <span class="tag" id="perfTag">대기 중</span></h2>
         <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>계산 시간</small><b id="kTime">–</b></div></div>
         <p class="pick" id="pickHint" hidden>최적화할 항목을 눌러 고르세요</p>
         <div class="metrics" id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div>
@@ -517,7 +519,7 @@ $('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
 // 서버 버전 확인: 화면만 새것이고 서버가 예전 것이면(업데이트 뒤 서버를 다시 안 켬, 서버 창 두 개) 바로 알려 줌
-const APP_V='2026-11-16g';
+const APP_V='2026-11-16h';
 const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 개 떠 있습니다. 열려 있는 서버 창(검은 창)을 모두 닫고 app\\start.bat 을 다시 실행한 뒤 이 페이지를 새로고침해 주세요.';
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
@@ -580,14 +582,16 @@ $('#go').onclick=()=>run();
 const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
 // 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
 function metricHtml(m,i){
-  const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6),v=typeof m.value==='number'?+m.value.toPrecision(4):m.value;
+  const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6),v=typeof m.value==='number'?+m.value.toPrecision(4):m.value,
+    v0=(typeof m.v0==='number'&&Math.abs(m.v0-m.value)>1e-9)?`<span class="v0"> · 1차 <s>${+m.v0.toPrecision(4)}</s></span>`:'';
   return `<button class="metric${m.ref?' ref':''}${S.sel&&S.sel.has(i)?' sel':''}" data-i="${i}" title="${noPres(m.source||'')}"><div class="row"><span><i class="ck">✓</i>${m.label}${m.src?`<span class="src">${m.src}</span>`:''}</span><b style="color:${m.ref?'var(--ink2)':m.ok?'var(--green)':'var(--red)'}">${v} ${m.unit}</b></div>
     <div class="bar"><i class="${m.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
-    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;
+    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}${v0}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;
 }
 // 1차 설계 성능 항목 = 연한 블록. P01 은 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐.
 // 다른 제품(TV 스탠드 · AI 글래스 · 템플릿 거치대)은 1차 설계까지만 → 고르기 · 실행 버튼 없음
 function showMetrics(rows,pick){
+  rows.forEach(m=>{if(typeof m.value==='number')m.v0=m.value;});
   S.rows=rows;S.sel=new Set();S.pick=!!pick;
   drawMetrics();
   $('#metrics').classList.toggle('nopick',!S.pick);$('#pickHint').hidden=!S.pick||!rows.length;$('#optimize').hidden=!S.pick;
@@ -627,9 +631,16 @@ function applyFrame(f){
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
   $('#optText').textContent=`역설계 반복 ${f.it} / ${f.iters} · 무게 ${fmt(f.mass_g)} g · 기준 벌점 ${f.pen.toFixed(2)}`;
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
+  if(S.opt&&S.opt.hist){S.opt.hist.push({m:f.mass_g,p:f.pen});spark();}
 }
+// 반복마다 무게(흰 선) · 기준 벌점(주황 선) — 형상이 바뀌며 둘 다 내려가는 것이 보이게
+function spark(){const c=$('#optSpark');if(!c)return;const g=c.getContext('2d'),W=c.width,H=c.height,h=(S.opt&&S.opt.hist)||[];g.clearRect(0,0,W,H);
+  if(h.length<2)return;const line=(k,col)=>{const v=h.map(x=>x[k]),lo=Math.min(...v),hi=Math.max(...v),r=hi-lo||1;g.beginPath();
+    v.forEach((y,i)=>{const X=i/(h.length-1)*(W-8)+4,Y=H-6-(y-lo)/r*(H-12);i?g.lineTo(X,Y):g.moveTo(X,Y);});g.strokeStyle=col;g.lineWidth=3;g.stroke();};
+  line('p','#ffb36b');line('m','#ffffff');}
 function finishOpt(r){
   const g=r.gate;
+  $('#optPhase').textContent='② FEM 검증 · 최종 형상만 정밀 계산';$('#vTitle').textContent='최적 설계';$('#pTitle').textContent='성능 · 1차 → 최적';
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='FEM 검증';}});
   drawMetrics();applyHeat(g.heat);
   $('#kMass').textContent=`${fmt(g.mass_g)} g`;
@@ -647,6 +658,7 @@ $('#optimize').onclick=async()=>{
   const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
   S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();$('#go').disabled=true;
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='역설계 준비 (형상 AI · 물리 AI)';$('#optBar').style.width='0';
+  S.opt.hist=[];spark();$('#optPhase').textContent='① AI 탐색 · 형상 AI가 만들고 물리 AI가 예측';$('#vTitle').textContent='형상 탐색 (AI)';$('#pTitle').textContent='성능 · 물리 AI 예측';setStep(2);
   V3.optBox=null;
   if(V3.kind!=='close')view('close');
   try{
@@ -672,6 +684,7 @@ $('#optimize').onclick=async()=>{
 };
 function setCommon(rep, massG){
   const t=rep.template;
+  $('#vTitle').textContent='1차 설계';$('#pTitle').textContent='1차 설계 성능';
   $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(`${t.id} ${t.name}`);
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
   $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
