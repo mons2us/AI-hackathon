@@ -1,0 +1,2 @@
+{"_설명": "설계 명세(bike_mount_spec.json)에서 계산에 쓰는 판정 기준만 뽑은 것. 엔진 opt_int.py 의 FT · TLIM · DLIM 과 같은 값",
+ "f1_min_hz": 95, "phone_Tmax_rise_max_c": 21, "touch_max_mm": 0.3, "shock_vm_max_mpa": 26, "shock_interlayer_max_mpa": 10.9}

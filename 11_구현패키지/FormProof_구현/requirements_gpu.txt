@@ -1,0 +1,3 @@
+# 학습 (GPU): 형상 AI(DeepSDF) · 물리 AI(CNN/FNO) · 잠재 공간 탐색. CUDA 버전에 맞는 torch 를 설치할 것
+torch>=2.2
+numpy>=1.26

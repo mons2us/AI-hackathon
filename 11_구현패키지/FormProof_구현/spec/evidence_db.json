@@ -1,0 +1,9 @@
+{"_설명": "근거 DB (예시 시작본). 조건 생성기는 수치를 여기서만 고르고 id 를 source 로 단다. 항목 추가 시 출처를 반드시 기록",
+ "items": [
+  {"id": "road_vib_isbs2020", "what": "자전거 조약돌길 핸들바 진동", "value": {"center_freq_hz": [34.6, 45.6], "shock_g": 48.5, "band_hz": [10, 100]}, "source": "ISBS 2020 학회 발표 (조약돌길 실측)", "note": "자갈길 최대값과 혼동 주의 — 중앙값 사용"},
+  {"id": "petg_prusament", "what": "PETG 물성", "value": {"E_mpa": 1700, "yield_mpa": 39, "density_g_cm3": 1.27, "nu": 0.38}, "source": "Prusament PETG 기술 자료(TDS)"},
+  {"id": "petg_interlayer", "what": "FDM 출력 층간 강도 (설계 한계)", "value": {"interlayer_max_mpa": 10.9}, "source": "확인 필요 — 해커톤에서 쓴 값, 원 출처 재확인", "note": "제출 전 출처 확정"},
+  {"id": "handlebar_std", "what": "핸들바 클램프부 지름", "value": {"d_mm": [25.4, 31.8, 35.0]}, "source": "자전거 부품 표준 치수(로드 · MTB)", "note": "31.8 이 가장 흔함 → 사용자 확인 질문"},
+  {"id": "phone_range", "what": "시판 폰 + 케이스 범위", "value": {"width_mm": [64, 90], "thickness_mm": [6, 14], "mass_g_max": 290}, "source": "시판 폰 사양 조사(폴더블 펼침 제외)"},
+  {"id": "phone_heat_nav", "what": "내비 사용 시 폰 발열", "value": {"q_w": 4}, "source": "가정 — 사용자 확인 질문"},
+  {"id": "safety_factor", "what": "정적 안전계수", "value": {"sf": 1.5}, "source": "가정(일반 기구 설계 관행)"}]}
