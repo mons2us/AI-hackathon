@@ -16,6 +16,7 @@ import time
 import traceback
 import uuid
 import webbrowser
+import numpy as np
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlparse
 
@@ -32,6 +33,7 @@ EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
 APP_VERSION = "2026-11-16e"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
+OPT_JOBS = {}                                              # 간이 물리 최적화 job id -> 진행 (반복 · 기록 · 최신 표면)
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
 WAIT_LOCK = threading.Lock()
 FILL = dict(active=False, i=0, n=0, name="")               # 템플릿 결과 DB 채우는 중인지 (대기 문구에 씀)                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
@@ -78,6 +80,8 @@ class Handler(BaseHTTPRequestHandler):
         p = unquote(u.path)
         if p == "/favicon.ico":
             return self._send(204, b"", "image/x-icon")
+        if p in ("/optimize", "/optimize.html"):         # 간이 물리 최적화 화면 (메인 화면과 따로)
+            return self._file(os.path.join(STATIC, "optimize.html"))
         if p in ("/", "/index.html"):
             return self._file(os.path.join(STATIC, "index.html"))
         if p.startswith("/static/"):
@@ -119,6 +123,27 @@ class Handler(BaseHTTPRequestHandler):
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")
             return self._send(200, ["/examples/presentation/input_sketch.png"] + [f"/examples/hand/{f}" for f in hand])
+        if p == "/api/opt_state":                     # 간이 물리 최적화 진행 (optimize.html 이 0.5 s 마다 물음)
+            from urllib.parse import parse_qs
+            q = parse_qs(u.query)
+            J = OPT_JOBS.get(q.get("id", [""])[0])
+            if not J:
+                return self._send(404, {"error": "unknown job"})
+            since = int(q.get("since", ["-1"])[0])
+            out = {k: J[k] for k in ("run_id", "stage", "iter", "iters", "done", "error", "first", "target")}
+            out["history"] = J["history"][since + 1:]
+            if J["mesh"] is not None and J["mesh"]["iter"] > since:
+                out["mesh"] = J["mesh"]
+            out["elapsed"] = time.time() - J["t0"]
+            return self._send(200, out)
+        if p == "/api/opt_frame":                     # 끝난 최적화의 반복 k 형상 (다시 보기)
+            from urllib.parse import parse_qs
+            q = parse_qs(u.query)
+            rid, k = q.get("run", [""])[0], int(q.get("k", ["-1"])[0])
+            d = os.path.realpath(os.path.join(RUNS, rid))
+            if not d.startswith(os.path.realpath(RUNS) + os.sep) or not os.path.isfile(os.path.join(d, "opt", "history.npz")):
+                return self._send(404, {"error": "no optimisation history"})
+            return self._send(200, _opt_frame(d, k))
         if p == "/api/photos":                        # AI 글래스 예시 사진 (실제 제품 사진은 사용자가 넣음)
             d = os.path.join(EXAMPLES, "glasses")
             fs = sorted(f for f in os.listdir(d) if f.lower().endswith((".png", ".jpg", ".jpeg"))) if os.path.isdir(d) else []
@@ -216,6 +241,79 @@ class Handler(BaseHTTPRequestHandler):
             if "no strokes" in msg:
                 msg = "스케치나 이미지에서 선을 찾지 못했습니다. 조금 더 진하게 그려 주세요."
             return self._send(400, {"error": msg})
+
+
+    def _optimize(self):
+        """간이 물리 최적화 시작: {run_id} (이미 만든 1차 설계) 또는 {template} (먼저 1차 설계), iters, vol_frac."""
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+            rid = req.get("run_id") or ""
+            if rid:
+                d = os.path.realpath(os.path.join(RUNS, rid))
+                if not d.startswith(os.path.realpath(RUNS) + os.sep) or not os.path.isfile(os.path.join(d, "spec.json")):
+                    return self._send(400, {"error": "run_id 의 1차 설계가 없습니다"})
+            elif not req.get("template"):
+                return self._send(400, {"error": "run_id 또는 template 이 필요합니다"})
+            iters = max(1, min(int(req.get("iters", 40)), 120))
+            vf = float(req.get("vol_frac", 0.15))
+            jid = "opt-" + uuid.uuid4().hex[:8]
+            J = OPT_JOBS[jid] = dict(run_id=rid, stage="대기 (앞 요청 계산 중)", iter=0, iters=iters, done=False, error=None,
+                                     history=[], mesh=None, first=None, target=vf, t0=time.time())
+
+            def work():
+                from formproof_input import optimize
+                try:
+                    with LOCK:
+                        r = rid
+                        if not r:
+                            J["stage"] = "1차 설계 만드는 중"
+                            r = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+                            pipeline.design("", None, None, req["template"], os.path.join(RUNS, r))
+                            J["run_id"] = r
+                        d = os.path.join(RUNS, r)
+
+                        def on_iter(rec, opt):
+                            if rec["iter"] == 0:
+                                J["first"] = rec.get("eval")
+                            J["history"].append(rec)
+                            J.update(iter=rec["iter"], stage=f"최적화 {rec['iter']}/{iters}")
+                            from formproof_input import fem
+                            dens = opt.full_density()
+                            if not fem.connected(opt.P, fem.on_mask(opt.P, dens))[0]:
+                                return                                   # 끊긴 중간 형상은 보내지 않음
+                            v, f = optimize.surface(opt.P, dens)
+                            J["mesh"] = dict(iter=rec["iter"], v=np.round(v, 2).ravel().tolist(), f=f.ravel().tolist())
+
+                        J["stage"] = "최적화 준비"
+                        optimize.run(d, iters=iters, vol_frac=vf, on_iter=on_iter, render=False)
+                    J.update(stage="끝", done=True)
+                except Exception as e:
+                    traceback.print_exc()
+                    J.update(error=str(e) or type(e).__name__, done=True)
+
+            threading.Thread(target=work, daemon=True).start()
+            return self._send(200, {"job": jid})
+        except Exception as e:
+            traceback.print_exc()
+            return self._send(400, {"error": str(e)})
+
+
+def _opt_frame(d, k):
+    from formproof_input import optimize
+    from formproof_input.compile import Problem
+    H = np.load(os.path.join(d, "opt", "history.npz"))
+    x = H["x"]
+    k = len(x) - 1 if k < 0 or k >= len(x) else k
+    P = Problem(json.load(open(os.path.join(d, "spec.json"), encoding="utf-8")))
+    dens = np.zeros(len(P.label))
+    dens[P.solid | P.rigid] = 1.0
+    dens[H["var"]] = x[k] / 255.0
+    from formproof_input import fem
+    if not fem.connected(P, fem.on_mask(P, dens))[0]:
+        return dict(iter=int(k), n=int(len(x)), broken=True)          # 끊긴 중간 형상은 보여 주지 않음
+    v, f = optimize.surface(P, dens)
+    return dict(iter=int(k), n=int(len(x)), v=np.round(v, 2).ravel().tolist(), f=f.ravel().tolist())
 
 
 class Server(ThreadingHTTPServer):

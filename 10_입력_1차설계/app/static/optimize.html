@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FormProof 간이 최적화</title>
+<script src="/static/vendor/three.min.js"></script>
+<script src="/static/vendor/OrbitControls.js"></script>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--fg:#1b2533;--mut:#5c6b80;--line:#d9e0ea;--acc:#1428a0;--ok:#1d7a4f;--ng:#b0452c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+header{padding:14px 20px;background:var(--acc);color:#fff;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+header h1{margin:0;font-size:18px}header span{opacity:.8;font-size:13px}
+main{display:grid;grid-template-columns:300px 1fr 340px;gap:14px;padding:14px}
+@media(max-width:1100px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.card h2{margin:0 0 10px;font-size:14px;color:var(--acc)}
+label{display:block;margin:8px 0 3px;color:var(--mut);font-size:12px}
+select,input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;font:inherit}
+button{margin-top:12px;width:100%;padding:9px;border:0;border-radius:6px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+#view{height:460px;border-radius:6px;background:#eef1f6;position:relative}
+#badge{position:absolute;left:10px;top:8px;font-weight:600;color:var(--acc)}
+#stage{color:var(--mut);font-size:12px;margin-top:8px;min-height:18px}
+#replay{width:100%;margin-top:10px}
+canvas#curve{width:100%;height:150px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+.ok{color:var(--ok);font-weight:600}.ng{color:var(--ng);font-weight:600}
+.note{color:var(--mut);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<header><h1>간이 물리 최적화</h1><span>1차 설계에서 시작해 형상이 바뀌어 가는 과정 · 3D SIMP (충격 하중 강성, 부피 제약)</span></header>
+<main>
+<section class="card">
+  <h2>시작 설계</h2>
+  <label>1차 설계 템플릿</label>
+  <select id="tpl"></select>
+  <label>또는 이미 만든 1차 설계 run_id (메인 화면 결과)</label>
+  <input id="rid" placeholder="예: 20261116-195012-ab12cd">
+  <label>반복 수</label>
+  <input id="iters" type="number" value="40" min="5" max="120">
+  <label>목표 부피 비율 (설계 영역 대비)</label>
+  <input id="vf" type="number" value="0.15" step="0.01" min="0.03" max="0.6">
+  <button id="go">최적화 시작</button>
+  <div id="stage"></div>
+  <p class="note">(참고) 행은 판정에 들지 않는 안내선입니다 (1자유도 근사 진동수).</p>
+  <p class="note">P01 발표 사례는 팀 엔진(opt_int.py)으로 최적화합니다. 이 화면은 T · 외형 템플릿용 시연 단계입니다.</p>
+</section>
+<section class="card">
+  <div id="view"><div id="badge"></div></div>
+  <input id="replay" type="range" min="0" max="0" value="0" disabled>
+</section>
+<section class="card">
+  <h2>목적 함수 (충격 컴플라이언스, 시작 = 1)</h2>
+  <canvas id="curve" width="620" height="300"></canvas>
+  <h2 style="margin-top:14px">판정 (0/1 형상)</h2>
+  <table id="checks"><tr><th>항목</th><th>1차 설계</th><th>현재</th><th>기준</th></tr></table>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const NAMES={mass:"무게 g",f1:"1차 진동수 Hz",transmissibility:"최대 흔들림 배",stress:"충격 응력 MPa",interlayer:"층간 응력 MPa"};
+let job=null,since=-1,hist=[],first=null,lastEval=null,runId="",frames={};
+// ---------- 3D
+const view=$("view"),R=new THREE.WebGLRenderer({antialias:true});
+R.setPixelRatio(devicePixelRatio);R.setClearColor(0xeef1f6);view.appendChild(R.domElement);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(35,1,1,5000);
+cam.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8899aa,0.75));
+const dl=new THREE.DirectionalLight(0xffffff,0.65);dl.position.set(200,-300,400);scene.add(dl);
+const ctl=new THREE.OrbitControls(cam,R.domElement);ctl.enableDamping=true;
+const mat=new THREE.MeshStandardMaterial({color:0x2f6bd8,roughness:.55,metalness:.05,side:THREE.DoubleSide});
+let mesh=null,framed=false;
+function size(){const w=view.clientWidth,h=view.clientHeight;R.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();}
+addEventListener("resize",size);size();
+(function loop(){requestAnimationFrame(loop);ctl.update();R.render(scene,cam);})();
+function show(m){
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.Float32BufferAttribute(m.v,3));g.setIndex(m.f);g.computeVertexNormals();
+  if(mesh){scene.remove(mesh);mesh.geometry.dispose();}
+  mesh=new THREE.Mesh(g,mat);scene.add(mesh);
+  if(!framed){g.computeBoundingSphere();const s=g.boundingSphere;ctl.target.copy(s.center);
+    cam.position.set(s.center.x+s.radius*1.6,s.center.y-s.radius*2.4,s.center.z+s.radius*1.1);framed=true;}
+  $("badge").textContent="반복 "+m.iter;
+}
+// ---------- curve + table
+function curve(){
+  const c=$("curve"),x=c.getContext("2d"),W=c.width,H=c.height,p=36;
+  x.clearRect(0,0,W,H);x.strokeStyle="#d9e0ea";x.lineWidth=1;x.strokeRect(p,10,W-p-10,H-p-10);
+  const pts=hist.filter(r=>r.objective!==undefined);if(!pts.length)return;
+  const n=Math.max(+$("iters").value,pts[pts.length-1].iter),ymax=Math.max(...pts.map(r=>r.objective));
+  x.fillStyle="#5c6b80";x.font="20px sans-serif";x.fillText(ymax.toFixed(2),2,24);x.fillText("0",18,H-p);x.fillText("반복 "+n,W-110,H-6);
+  x.strokeStyle="#1428a0";x.lineWidth=3;x.beginPath();
+  pts.forEach((r,i)=>{const X=p+(W-p-10)*r.iter/n,Y=10+(H-p-10)*(1-r.objective/ymax);i?x.lineTo(X,Y):x.moveTo(X,Y);});x.stroke();
+}
+function row(k,a,b,lim,ok){return `<tr><td>${NAMES[k]||k}</td><td>${a??"-"}</td><td class="${ok===undefined?"":ok?"ok":"ng"}">${b??"-"}</td><td>${lim||""}</td></tr>`;}
+function table(){
+  let h="<tr><th>항목</th><th>1차 설계</th><th>현재</th><th>기준</th></tr>";
+  const e=lastEval||{};h+=row("mass",first?.mass_g,e.mass_g,"");
+  const ks=Object.keys((e.checks||first?.checks||{}));
+  for(const k of ks){const a=first?.checks?.[k],b=e.checks?.[k],ref=(b||a)?.reference;
+    h+=row(k,a?.value,b?.value,((b||a)?.limit||"")+(ref?" (참고)":""),ref?undefined:b?.ok);}
+  if(lastEval)h+=`<tr><td>판정</td><td></td><td class="${e.passed?"ok":"ng"}">${e.passed?"통과":"미달"}</td><td>${e.connected?"연결됨":"끊김"}</td></tr>`;
+  $("checks").innerHTML=h;
+}
+// ---------- run
+fetch("/api/templates").then(r=>r.json()).then(ts=>{
+  $("tpl").innerHTML=ts.filter(t=>/^(T|G)\d/.test(t.id)).map(t=>`<option value="${t.id}">${t.id} · ${t.name}</option>`).join("");
+});
+$("go").onclick=async()=>{
+  $("go").disabled=true;hist=[];first=null;lastEval=null;since=-1;frames={};framed=false;
+  const body={iters:+$("iters").value,vol_frac:+$("vf").value};
+  if($("rid").value.trim())body.run_id=$("rid").value.trim();else body.template=$("tpl").value;
+  const r=await fetch("/api/optimize",{method:"POST",body:JSON.stringify(body)}).then(r=>r.json());
+  if(r.error){$("stage").textContent=r.error;$("go").disabled=false;return;}
+  job=r.job;poll();
+};
+async function poll(){
+  const s=await fetch(`/api/opt_state?id=${job}&since=${since}`).then(r=>r.json()).catch(()=>null);
+  if(!s){setTimeout(poll,800);return;}
+  runId=s.run_id||runId;if(s.first)first=s.first;
+  for(const rec of s.history){hist.push(rec);since=rec.iter;if(rec.eval)lastEval=rec.eval;}
+  if(s.mesh){frames[s.mesh.iter]=s.mesh;show(s.mesh);}
+  $("stage").textContent=`${s.stage} · ${s.elapsed.toFixed(0)} s`+(s.error?` · 오류: ${s.error}`:"");
+  curve();table();
+  if(s.done){$("go").disabled=false;
+    if(!s.error){const rp=$("replay");rp.max=s.iters;rp.value=s.iters;rp.disabled=false;}
+    return;}
+  setTimeout(poll,500);
+}
+$("replay").oninput=async e=>{
+  const k=+e.target.value;
+  if(frames[k])return show(frames[k]);
+  const m=await fetch(`/api/opt_frame?run=${encodeURIComponent(runId)}&k=${k}`).then(r=>r.json());
+  if(m.broken){$("badge").textContent=`반복 ${k} · 중간 형상이 끊겨 있어 생략`;return;}
+  if(!m.error){frames[k]=m;show(m);}
+};
+</script>
+</body>
+</html>

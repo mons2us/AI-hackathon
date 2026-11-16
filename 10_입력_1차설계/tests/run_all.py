@@ -3,7 +3,7 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
-import test_looks, test_integral, test_products
+import test_looks, test_integral, test_products, test_optimize
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
@@ -50,6 +50,7 @@ CHECKS = [
     ("AI 글래스: 착용 · 브리지 응력 · 변위 분포 좌우 대칭 · 끊김 없음", test_products.test_glasses_heat_symmetric),
     ("템플릿 결과 DB: 시나리오마다 4 s 이내", test_products.test_template_db_speed),
     ("제품 선택 · 큰 격자 분포 압축", test_products.test_routing_and_heat_payload),
+    ("간이 물리 최적화: T01 12 반복 (목적 감소 · 부피 · 연결 · 개선)", test_optimize.test_simple_optimizer),
 ]
 
 if __name__ == "__main__":
