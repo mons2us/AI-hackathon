@@ -11,7 +11,7 @@ import zipfile
 
 import numpy as np
 
-from . import requirements, text_rules
+from . import progress, requirements, text_rules
 from .cad import export_step
 from .compile import Problem
 from .drawing import make_drawing
@@ -190,6 +190,7 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     if sketch is not None or image is not None:
         g = sketch if sketch is not None else image
         photo = image is not None and looks_like_photo(image)
+        progress.step("스케치 · 사진 → 템플릿 비교")
         match = matcher().match_image(g, photo=photo, k=len(ALL))
         match["source"] = "사진(에지 검출)" if photo else ("스케치" if sketch is not None else "스케치 이미지")
         match = rerank_with_words(match, parsed.get("look_hint") or {})
@@ -206,9 +207,11 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
 
     params = dict(tpl["params"])
     params.update(parsed["params"])
+    progress.step("설계 명세 · 물리 조건")
     spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
     P = Problem(spec)
     dens = P.initial_density()
+    progress.step("1차 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소")
     check = evaluate(P, dens, fields=with_mesh)
     fields = check.pop("fields", None)
     rep["first_design_check"] = check
@@ -246,6 +249,7 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
         json.dump(spec, f, ensure_ascii=False, indent=1)
     P.to_npz(os.path.join(out, "problem.npz"))
     np.save(os.path.join(out, "initial_design.npy"), dens.astype(np.uint8))
+    progress.step("CAD · STEP · STL · 도면")
     rep["stl"] = write_stl(P, dens, os.path.join(out, "design_1st.stl"))
     side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 1차 설계 / 설계 영역")
     body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))

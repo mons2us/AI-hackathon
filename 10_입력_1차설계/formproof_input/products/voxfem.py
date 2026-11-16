@@ -3,8 +3,15 @@ von Mises / displacement node fields for the viewer's heat maps (same packing as
 
 hex8 element = fem.hex8_KB (team 3D code). Loads are rigid-body distributions over node sets (least squares, like
 the team's phone payload), supports = fixed node sets."""
+import hashlib
+import os
+import tempfile
+import time
+
 import numpy as np
 import scipy.sparse as sp
+
+from .. import progress
 
 from ..fem import hex8_KB
 from ..heat import grid_info, pack_nodes
@@ -33,6 +40,17 @@ def voxelize(mesh, h, pad=1):
                 w[bb] += Path(P).contains_points(pts[bb])
         occ[k] = ((w % 2) == 1).reshape(n[1], n[0])
     return occ, lo
+
+
+CACHE = os.path.join(tempfile.gettempdir(), "formproof_fem_cache")
+
+
+def _trim_cache(max_mb=300):
+    fs = sorted((os.path.join(CACHE, f) for f in os.listdir(CACHE)), key=os.path.getmtime)
+    tot = sum(os.path.getsize(f) for f in fs)
+    while fs and tot > max_mb * 1e6:
+        tot -= os.path.getsize(fs[0])
+        os.remove(fs.pop(0))
 
 
 class VoxModel:
@@ -70,24 +88,47 @@ class VoxModel:
             del rows, cols
         return self._K
 
-    def solve(self, fixed_nodes, F):
-        """Linear static: fixed node indices (all dofs), F (3*nn,). Returns u (3*nn,)."""
-        K = self.stiffness()
+    def _key(self, fixed_nodes, F):
+        h = hashlib.sha1()
+        for a in (np.packbits(self.occ), np.asarray(self.occ.shape), self.origin, np.r_[self.h], self.KE, np.asarray(fixed_nodes, np.int64),
+                  np.round(np.asarray(F, float), 9)):
+            h.update(np.ascontiguousarray(a).tobytes())
+        return h.hexdigest()
+
+    def solve(self, fixed_nodes, F, label="연립방정식 풀이"):
+        """Linear static: fixed node indices (all dofs), F (3*nn,). Returns u (3*nn,).
+        같은 형상 · 경계 · 하중이면 디스크 캐시에서 바로 (데모 반복 실행). 풀이기: pypardiso(MKL) → 없으면 scipy (약 10배 느림)."""
         fixed_nodes = np.asarray(fixed_nodes, np.int64)
+        path = os.path.join(CACHE, self._key(fixed_nodes, F) + ".npy")
+        if os.path.exists(path):
+            progress.step(label, "캐시 (같은 형상 · 하중을 전에 풀었음)")
+            self.last_solver = "cache"
+            return np.load(path)
+        K = self.stiffness()
         fd = np.r_[3 * fixed_nodes, 3 * fixed_nodes + 1, 3 * fixed_nodes + 2]
         free = np.setdiff1d(np.arange(3 * self.nn), fd)
         A = K[free][:, free].tocsr()
         u = np.zeros(3 * self.nn)
         try:
             import pypardiso
+            progress.step(label, f"{len(free):,} 자유도 · 직접 풀이 (MKL PARDISO)")
             solver = pypardiso.PyPardisoSolver()
             try:
                 u[free] = solver.solve(A, F[free])
             finally:
                 solver.free_memory(everything=True)              # MKL keeps the factors otherwise
-        except Exception:                                   # pragma: no cover - no MKL
+            self.last_solver = "pardiso"
+        except ImportError:                                  # pragma: no cover - no MKL
             from scipy.sparse.linalg import spsolve
+            progress.step(label, f"{len(free):,} 자유도 · scipy 직접 풀이 (pypardiso 없음 → 약 10배 느림)")
             u[free] = spsolve(A.tocsc(), F[free])
+            self.last_solver = "scipy"
+        try:
+            os.makedirs(CACHE, exist_ok=True)
+            np.save(path, u)
+            _trim_cache()
+        except OSError:
+            pass
         return u
 
     def von_mises(self, u):

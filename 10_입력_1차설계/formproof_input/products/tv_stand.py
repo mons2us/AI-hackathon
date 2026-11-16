@@ -16,6 +16,7 @@ import time
 
 import numpy as np
 
+from .. import progress
 from ..sketch import Matcher, ink_points
 
 SOURCES = {
@@ -312,6 +313,7 @@ def fem_checks(body, info, tv, total_kg, h=VOXEL):
         mesh = trimesh.load(p)
     from .voxfem import pick_h
     h = max(h, pick_h(mesh, target=35000, lo=VOXEL, hi=8.0))         # 큰 화면(큰 스탠드)도 메모리 ≤ 약 2.5 GB
+    progress.step("복셀 격자 만들기", f"{h:.1f} mm")
     occ, o = voxelize(mesh, h)
     V = VoxModel(occ, o, h, MAT["E"], MAT["nu"])
     xyz = V.node_xyz
@@ -326,7 +328,8 @@ def fem_checks(body, info, tv, total_kg, h=VOXEL):
     F = V.rigid_load(load_nodes, c, (0.0, 0.0, -Wtv))
     F += V.rigid_load(load_nodes, c, (0.0, Fh, 0.0), np.cross(top - c, [0.0, Fh, 0.0]))
     t0 = time.time()
-    u = V.solve(fixed, F)
+    u = V.solve(fixed, F, label=f"FEM 풀이 — 화면 무게 + 수평력 ({V.ne:,} 요소)")
+    progress.step("응력 · 변위 분포")
     vm = V.von_mises(u)
     tr, rot = V.rigid_fit(u, load_nodes, top)
     nv, _ = V.nodal(vm)
@@ -375,6 +378,7 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     if template:
         tid, how = template, "지정"
     elif sketch is not None:
+        progress.step("정면 스케치 → 템플릿 비교 · 높이 읽기")
         match = match_sketch(sketch)
         tid, how = (match["candidates"][0]["id"], "스케치 매칭") if match else (keyword_template(text), "텍스트")
     else:
@@ -384,6 +388,7 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
         zc_req = height_from_sketch(sketch, tid, tv, top.get("with_screen", True))
         zc_how = "스케치 비율" if zc_req is not None else None
     T = BY_ID[tid]
+    progress.step("CAD (받침 · 바퀴 · 기둥 · 헤드) · 화면 겹침 검사")
     body, info = build(tid, tv, zc_req)
     L = info["layout"]
     lo, hi = L["z_range"]
@@ -393,6 +398,7 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     sol = body.val()
     mass_stand = sol.Volume() * MAT["rho"] * 1e-3
     cgv = sol.Center()
+    progress.step("넘어짐 · 바퀴 하중 (정역학)")
     tip = tip_checks(tv, info, mass_stand, [cgv.x, cgv.y, cgv.z])
     total = tip["total_kg"]
     fem = fem_checks(body, info, tv, total)
@@ -409,6 +415,7 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     ]
     for r in rows:
         r["ok"] = bool(r["value"] >= r["limit"] if r["op"] == ">=" else r["value"] <= r["limit"])
+    progress.step("도면 · 결과 파일")
     drawing(body, info, tv, T, os.path.join(out, "design_1st_drawing.png"), os.path.join(out, "design_1st_drawing.pdf"), mass_stand)
     sketch_png(tid, tv, os.path.join(out, "side_view.png"), L["zc"])
     g = L["g"]
@@ -480,7 +487,7 @@ def drawing(body, info, tv, T, png, pdf, mass_kg):
     fig, ax = plt.subplots(1, 3, figsize=(16, 7), gridspec_kw=dict(width_ratios=[1.1, 1.0, 0.9]))
     views = ((0, 2, "정면", (W, H)), (1, 2, "옆 (앞 = 왼쪽)", (D, H)), (0, 1, "위 (앞 = 아래)", (W, D)))
     for a, (i, j, ttl, (sw, sh)) in zip(ax, views):
-        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#b9c2c9", ec="none"))
+        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#b9c2c9", ec="none", rasterized=True))
         a.add_patch(plt.Rectangle((c[i] - sw / 2, c[j] - sh / 2), sw, sh, fill=False, ls="--", ec="#555"))
         if j == 2:
             a.axhline(0, c="#888", lw=1)

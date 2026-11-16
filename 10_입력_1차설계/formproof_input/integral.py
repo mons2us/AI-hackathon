@@ -759,13 +759,13 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
     F = np.array(tris)
     fig, ax = plt.subplots(1, 2, figsize=(15, 6.2), gridspec_kw=dict(width_ratios=[1.0, 1.1]))
     a = ax[0]
-    a.add_collection(PolyCollection(V[F][:, :, [0, 2]], fc="#d6e9e7", ec="none"))
+    a.add_collection(PolyCollection(V[F][:, :, [0, 2]], fc="#d6e9e7", ec="none", rasterized=True))
     PV = []                                                    # 고정 부품 (출력품 주황 · 구매품 회색)
     for p in parts:
         pv, pt_ = p["world"].val().tessellate(0.1, 0.3)
         pv = np.array([[q.x, q.y, q.z] for q in pv])
         PV.append((pv, np.array(pt_), "#e9c9a0" if p["kind"] == "print" else "#b8bec4"))
-        a.add_collection(PolyCollection(pv[np.array(pt_)][:, :, [0, 2]], fc=PV[-1][2], ec="none"))
+        a.add_collection(PolyCollection(pv[np.array(pt_)][:, :, [0, 2]], fc=PV[-1][2], ec="none", rasterized=True))
     tt = np.linspace(0, 2 * np.pi, 100)
     a.plot(15.9 * np.cos(tt), 15.9 * np.sin(tt), c="#333", lw=1)
     t = math.radians(TILT)
@@ -782,11 +782,11 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
     Vp = V.copy()
     Vp[:, 0], Vp[:, 2] = V[:, 0] * math.cos(t) + V[:, 2] * math.sin(t), -V[:, 0] * math.sin(t) + V[:, 2] * math.cos(t)
     b = ax[1]
-    b.add_collection(PolyCollection(Vp[F][:, :, [0, 1]], fc="#d6e9e7", ec="none"))
+    b.add_collection(PolyCollection(Vp[F][:, :, [0, 1]], fc="#d6e9e7", ec="none", rasterized=True))
     for pv, pt_, col in PV:
         q = pv.copy()
         q[:, 0] = pv[:, 0] * math.cos(t) + pv[:, 2] * math.sin(t)
-        b.add_collection(PolyCollection(q[pt_][:, :, [0, 1]], fc=col, ec="none"))
+        b.add_collection(PolyCollection(q[pt_][:, :, [0, 1]], fc=col, ec="none", rasterized=True))
     for (x0, x1, lab) in ((0, 140, "보 20 × 8 (x' 0–140)"), (-10, 140, "평판 2 mm (x' −10–140, 폭 80)")):
         pass
     b.annotate("", (-10, -46), (140, -46), arrowprops=dict(arrowstyle="<->", lw=.7))
@@ -891,6 +891,8 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
     M = masks()
     rho = base_design(M)
     full = full_density(rho, M)
+    from . import progress
+    progress.step("팀 엔진 판정 (opt_int.py MODE=eval)", "같은 형상은 캐시")
     res = evaluate(full, tag="p01_base")
     j = judge(res, tg)
     spec = dict(format="formproof.spec/0.1", kind="integral_mount", template=dict(id=tid, name=name or "일체형 거치대 (발표 사례)"),
@@ -920,13 +922,16 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
     np.save(os.path.join(out, "initial_design.npy"), rho)
     side_grid_png(rho, os.path.join(out, "side_view.png"), f"{tid} 처음 설계 (판 + 기둥) — 측면, 폰 판 좌표")
     import cadquery as cq
+    progress.step("출력 몸체 (격자 평활 + 고정부 결합 − 구멍)")
     pw_world, _ = print_body(full)                      # 출력용 몸체 (발표와 같은 절차) -> STL · 무게 · 3D 보기
     pw_world.export(os.path.join(out, "design_1st.stl"))
     mass_g = round(pw_world.volume * MATERIAL["density_g_cm3"] * 1e-3, 1)
+    progress.step("파라메트릭 CAD · STEP")
     world, _ = build_cad()                               # 파라메트릭 CAD (평활 전, 편집용) -> STEP
     cq.exporters.export(world, os.path.join(out, "design_1st.step"), exportType="STEP")
     vol = world.val().Volume()
     step_g = round(vol * MATERIAL["density_g_cm3"] * 1e-3, 1)
+    progress.step("폰 고정 부품 (집게 ×2 · 위 걸이) · 조립 STEP")
     parts = parts_world(fixing_parts())                  # 폰 4면 고정 부품 (팀 cad/parts.py, 발표 9 · 22쪽)
     part_rows = []
     for p in parts:
@@ -942,6 +947,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
         asm.add(p["world"], name=p["key"], color=cq.Color(r_, g2, b_))
     asm.save(os.path.join(out, "design_1st_assembly.step"))
     print_g = round(mass_g + sum(r["mass_g"] or 0 for r in part_rows), 1)
+    progress.step("도면")
     drawing_png(world, os.path.join(out, "design_1st_drawing.png"), mass_g, pdf=os.path.join(out, "design_1st_drawing.pdf"), parts=parts)
     shake_ok = next(r for r in j["rows"] if r["key"] == "shake")
     checks = {
@@ -988,6 +994,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
                 z.write(os.path.join(out, n), n)
     if with_mesh:
         from .templates.bike_mount import Y_SYM                        # 스템 옆 (다른 템플릿과 같은 자리)
+        progress.step("3D 보기 · 응력 · 흔들림 · 온도 분포")
         rep.update(view_payload(pw_world, full, fields(full, tag="p01_base")))
         rep["aux"] = parts_view(parts)
         pw = phone_world()

@@ -16,6 +16,8 @@ import time
 import numpy as np
 from scipy import ndimage
 
+from .. import progress
+
 SOURCES = {
     "weight41": dict(title="SammyGuru 보도: 표준 렌즈 기준 약 41 g, 이전 보도 46–50 g, Snapdragon AR1 Gen 1, 12 MP, 스피커 2 · 마이크 4",
                      url="https://ppc.land/samsung-smart-glasses-weigh-41g-in-leak-down-from-a-reported-50g/"),
@@ -425,6 +427,7 @@ def fem(body, info, geo, h=0.9):
         p = os.path.join(td, "g.stl")
         cq.exporters.export(body, p, tolerance=0.08, angularTolerance=0.2)
         mesh = trimesh.load(p)
+    progress.step("복셀 격자 만들기", f"{h:.2f} mm")
     occ, o = voxelize(mesh, h)
     V = VoxModel(occ, o, h, MAT["E"], MAT["nu"])
     xyz = V.node_xyz
@@ -442,7 +445,7 @@ def fem(body, info, geo, h=0.9):
         tips.append(nodes)
         c = xyz[nodes].mean(0)
         F += V.rigid_load(nodes, c, (sx * 1.0, 0.0, 0.0))
-    u1 = V.solve(fix_c, F)
+    u1 = V.solve(fix_c, F, label=f"FEM 풀이 1/2 — 착용 벌림 ({V.ne:,} 요소)")
     d_tip = float(np.mean([np.mean(sx * u1[3 * n]) for sx, n in zip((-1, 1), tips)]))   # mm per 1 N
     k = 1.0 / d_tip
     Fc = k * SPREAD_EACH
@@ -457,7 +460,8 @@ def fem(body, info, geo, h=0.9):
     load_b = np.where(U & (xyz[:, 0] >= geo["bridge"] / 2 + 0.3 * geo["lens_w"]) & (xyz[:, 0] <= cx + geo["lens_w"] / 2 + geo["rim"])
                       & (xyz[:, 1] <= FRAME_DEPTH + 0.01))[0]
     Fb = V.rigid_load(load_b, (cx, 0.0, 0.0), (0.0, BRIDGE_F, 0.0))
-    u2 = V.solve(fix_b, Fb)
+    u2 = V.solve(fix_b, Fb, label=f"FEM 풀이 2/2 — 브리지 굽힘 ({V.ne:,} 요소)")
+    progress.step("응력 · 변위 분포")
     vm2 = V.von_mises(u2)
     n2, _ = V.nodal(vm2)
     m2 = float(np.percentile(n2, 99.5))
@@ -500,6 +504,7 @@ def geometry_from(photo=None, text="", style=None):
     lw = parse_lens_w(text)
     an = None
     if photo is not None:
+        progress.step("사진 분석 (테 · 렌즈 윤곽 · 치수)")
         an = analyze_photo(photo, lens_w=lw)
     if an is not None:
         geo = dict(lens=an["lens"], lens_w=an["lens_w"], lens_h=an["lens_h"], rim=an["rim"], bridge=an["bridge"],
@@ -510,6 +515,8 @@ def geometry_from(photo=None, text="", style=None):
         L = lens_outline(st, w=lw, h=S["h"] * lw / S["w"])
         geo = dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"], bridge=18.0,
                    endpiece=7.0, style=st, source="기본 형상 (사진 없음/인식 실패)")
+    th, r, c = radial(geo["lens"], 72)                   # CAD 용 72점 (180점 대비 부피 차 < 0.3 %, 불리언 2.4배 빠름)
+    geo["lens"] = from_radial(th, r) + c
     return geo, an
 
 
@@ -519,9 +526,11 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
     geo, an = geometry_from(image, text, style)
+    progress.step("CAD (테 · 브리지 · 다리 · 부품실)")
     body, lenses, info = build(geo)
     cq.exporters.export(body, os.path.join(out, "design_1st.step"), exportType="STEP")
     cq.exporters.export(body, os.path.join(out, "design_1st.stl"), tolerance=0.08, angularTolerance=0.2)
+    progress.step("무게 · 발열 계산")
     mb = mass_budget(body, lenses, info)
     th = thermal(info)
     fe = fem(body, info, geo)
@@ -537,6 +546,7 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
     ]
     for r in rows:
         r["ok"] = bool(r["value"] >= r["limit"] if r["op"] == ">=" else r["value"] <= r["limit"])
+    progress.step("도면 · 결과 파일")
     analysis_png(image, an, geo, os.path.join(out, "analysis.png"))
     drawing(body, lenses, info, geo, mb, os.path.join(out, "design_1st_drawing.png"), os.path.join(out, "design_1st_drawing.pdf"))
     analysis_png(None, None, geo, os.path.join(out, "side_view.png"))
@@ -619,7 +629,7 @@ def drawing(body, lenses, info, geo, mb, png, pdf):
     F = np.array(tris)
     fig, ax = plt.subplots(1, 3, figsize=(17, 5), gridspec_kw=dict(width_ratios=[1.4, 1.4, 1.5]))
     for a, (i, j, ttl) in zip(ax, ((0, 2, "정면"), (0, 1, "위 (앞 = 아래)"), (1, 2, "옆 (앞 = 왼쪽)"))):
-        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#2b2d31", ec="none"))
+        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#2b2d31", ec="none", rasterized=True))
         if i == 0 and j == 2:
             for sx in (-1, 1):
                 L = geo["lens"] * [sx, 1] + [sx * info["cx"], 0]

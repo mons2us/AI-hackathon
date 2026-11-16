@@ -23,13 +23,14 @@ APP = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(APP)
 sys.path.insert(0, ROOT)
 
-from formproof_input import pipeline                       # noqa: E402
+from formproof_input import pipeline, progress             # noqa: E402
 from formproof_input.templates.library import ALL as TEMPLATES    # noqa: E402
 
 STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
+JOBS = {}                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("model/step", ".step")
 mimetypes.add_type("model/stl", ".stl")
@@ -81,6 +82,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._file(_safe_join(EXAMPLES, p[len("/examples/"):]))
         if p.startswith("/runs/"):
             return self._file(_safe_join(RUNS, p[len("/runs/"):]), download="dl=1" in (u.query or ""))
+        if p == "/api/job":                           # 진행 상태 (GUI 가 0.3 s 마다 물음)
+            from urllib.parse import parse_qs
+            jid = parse_qs(u.query).get("id", [""])[0]
+            J = JOBS.get(jid)
+            if not J:
+                return self._send(404, {"error": "unknown job"})
+            now = time.time()
+            out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
+                       history=J["history"], done=J["done"], error=J["error"])
+            if J["done"]:
+                out["result"] = J["rep"]
+                JOBS.pop(jid, None)
+            return self._send(200, out)
         if p == "/api/templates":
             from formproof_input.products.tv_stand import TEMPLATES as TV
             return self._send(200, [dict(id=t["id"], name=t["name"], desc=t["desc"],
@@ -112,12 +126,45 @@ class Handler(BaseHTTPRequestHandler):
             image = pipeline.decode_image(req["image"]) if req.get("image") else None
             rid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
             out = os.path.join(RUNS, rid)
-            with LOCK:
-                rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
-                                      product=req.get("product") or None)
-            rep["run_id"] = rid
-            rep["files"] = {name: f"/runs/{rid}/{name}" for name in sorted(os.listdir(out))}
-            return self._send(200, rep)
+            now = time.time()
+            J = JOBS[rid] = dict(stage="대기 (앞 요청 계산 중)", detail="", t0=now, ts=now, history=[], done=False, error=None, rep=None)
+
+            def note(name, detail=""):
+                t = time.time()
+                if J["stage"] and not J["stage"].startswith("대기"):
+                    J["history"].append(dict(name=J["stage"], s=round(t - J["ts"], 2)))
+                J.update(stage=name, detail=detail, ts=t)
+
+            def work():
+                try:
+                    with LOCK:
+                        progress.set_listener(note)
+                        note("입력 읽기 · 제품 판단")
+                        try:
+                            rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
+                                                  product=req.get("product") or None)
+                        finally:
+                            note("결과 보내는 중")
+                            progress.set_listener(None)
+                    rep["run_id"] = rid
+                    rep["timings"] = J["history"][:]
+                    rep["files"] = {name: f"/runs/{rid}/{name}" for name in sorted(os.listdir(out))}
+                    J.update(rep=json.loads(json.dumps(rep, ensure_ascii=False)), done=True)
+                except Exception as e:                                   # show the reason in the page
+                    traceback.print_exc()
+                    msg = str(e)
+                    if "no strokes" in msg:
+                        msg = "스케치나 이미지에서 선을 찾지 못했습니다. 조금 더 진하게 그려 주세요."
+                    J.update(error=msg, done=True)
+
+            if urlparse(self.path).query == "wait=1":                    # 명령줄 · 시험용: 끝날 때까지 기다려 결과 바로
+                work()
+                if J["error"]:
+                    return self._send(400, {"error": J["error"]})
+                JOBS.pop(rid, None)
+                return self._send(200, J["rep"])
+            threading.Thread(target=work, daemon=True).start()
+            return self._send(200, {"job": rid})
         except Exception as e:                                          # show the reason in the page
             traceback.print_exc()
             msg = str(e)
