@@ -3,9 +3,10 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
-import test_looks, test_integral, test_products, test_optimize, test_inverse
+import test_looks, test_integral, test_products, test_spec_view, test_optimize, test_inverse
 
 CHECKS = [
+    ("설계 사양 카드: 4개 제품 경로 같은 형식 · 출처 태그", test_spec_view.test_spec_rows_all_products),
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
     ("폰 강체(팀 v3) = 팀 전체 모델 opt3d_am", test_rigid_payload.test_rigid_payload_matches_team_full_model),
     ("폰 강체 충격 하중 합력", test_rigid_payload.test_payload_load_resultant),

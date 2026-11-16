@@ -160,7 +160,19 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
     return "bike"
 
 
-def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
+def design(*a, **k):
+    """_design + 설계 사양 카드 행(rep['spec_rows'], 제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
+    rep = _design(*a, **k)
+    try:
+        from .spec_view import spec_rows
+        rep["spec_rows"] = spec_rows(rep)
+    except Exception as e:                       # 카드는 보조 표시 — 실패해도 1차 설계는 그대로
+        rep["spec_rows"] = []
+        rep["spec_rows_error"] = str(e)
+    return rep
+
+
+def _design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
     """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate).
     product: 'bike' | 'tv' | 'glasses' (None = from template id, text words, or a glasses photo)."""
     t0 = time.time()

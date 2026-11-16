@@ -52,6 +52,21 @@ python tests/run_all.py                                                   # 전�
 python tests/e2e_gui.py                                                   # (선택) 헤드리스 크롬으로 GUI 전 과정 확인
 ```
 
+
+## 설계 사양 카드 (입력 칸 아래, 2026-11-16)
+
+어떤 제품 · 입력(말 · 스케치 · 사진)이든 **같은 형식**으로 "사용자 말 → 계산 조건 [출처]"를 보여 줍니다. 발표 5쪽 A(설계 사양 표)와 같은 모양입니다.
+
+- 코드: `formproof_input/spec_view.py` `spec_rows(rep)` → `pipeline.design()` 결과에 `rep["spec_rows"]` (서버 수정 없음)
+- 행 = `{group, said, cond, src}` — group 순서 **제품 → 목표 → 기준 → 질문**, src 태그 = `입력` · `근거 DB` · `가정` · `질문`
+- 제품별 원본: P01 = `design_spec`(+ `criteria` 수치) · 템플릿 T/G = `text.fired` + `criteria` + `text.questions` · TV · 안경 = `conditions`
+- GUI: `index.html` `renderSpec()` (입력 카드의 "1차 설계 만들기" 아래, 결과가 오면 펼침). 제작(3D 출력) 조건은 별도 행 없이 기준의 "층간 응력"으로
+- 시험: `tests/test_spec_view.py` (4개 경로 · 순서 · 태그)
+
+**질문은 누가 만드나**: 지금 GUI는 규칙판 조건 생성기(`text_rules.py` · `integral.py`)가 근거 없는 항목을 질문으로 남깁니다(LLM 호출 없음, 같은 형식). LLM 판은 팀 패키지 `11_구현패키지/FormProof_구현/agent/condition_generator.py`(규칙: 요청 · 스케치 · 근거 DB 어디에도 없으면 `questions_to_user`)이며, 출력 형식(`design_spec` 스키마)이 같아 `spec_rows` 를 그대로 씁니다.
+
+TODO (GUI 담당): 질문 행을 눌러 값 고치기 → 다시 계산, 기준 행 ↔ 오른쪽 성능 항목 강조 연결, TV · 안경 조건에 사용자 말(`said`) 연결.
+
 ## 물리 단계로 넘기는 것
 
 | 파일 | 내용 |

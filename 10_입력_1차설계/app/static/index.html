@@ -55,6 +55,16 @@ select.btn{width:100%;margin-top:8px}
 .drop.over{border-color:var(--blue);background:var(--blue-s)}
 .drop img{max-width:100%;border-radius:8px;display:block;margin:0 auto 6px}
 .spacer{flex:1;min-height:10px}
+.spec{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;max-height:38vh;overflow:auto}
+.spec h3{font-size:13px;margin:0 0 6px;display:flex;align-items:baseline;gap:6px}.spec h3 small{font-weight:500;color:var(--ink3);font-size:11px}
+.spec .g{font-size:11px;font-weight:700;color:var(--ink2);margin:7px 0 3px}
+.spec .r{display:flex;gap:6px;align-items:flex-start;font-size:12px;line-height:1.35;padding:2px 0}
+.spec .r .t{flex:1;min-width:0}.spec .r .t q{color:var(--ink2);quotes:"\201C" "\201D"}.spec .r .t q+span:before{content:" → ";color:var(--ink3)}
+.spec .r .s{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:42%}
+.spec .s i{font-style:normal;font-size:10.5px;font-weight:600;border-radius:999px;padding:1px 6px;white-space:nowrap}
+.spec .s i.in{background:#e6f4fb;color:#0b6e99}.spec .s i.db{background:var(--blue-s);color:var(--blue-d)}.spec .s i.as,.spec .s i.qq{background:var(--soft);color:var(--ink2)}
+.spec .r.q .t{color:var(--ink2)}
+
 /* 가운데: 위 = 형상(메인), 아래 = 분포 창 3개. 캔버스 하나로 네 칸을 같은 카메라로 그림 */
 .views{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
 .views>canvas{position:absolute;inset:0;z-index:1;pointer-events:none}
@@ -152,6 +162,7 @@ select.btn{width:100%;margin-top:8px}
         </div>
         <div class="spacer"></div>
         <button class="btn primary" id="go">1차 설계 만들기</button>
+        <div class="spec" id="specBox" hidden><h3>설계 사양 <small>입력 → 계산 조건 · 항목마다 출처</small></h3><div id="specRows"></div></div>
       </div>
     </section>
 
@@ -635,7 +646,16 @@ function renderTemplate(rep){         // 자전거 거치대 템플릿 (T01 …)
   showMetrics(rows);
   setPerfTag(c.pass, Object.values(ck).filter(x=>!x.pass&&!x.reference).length);
 }
+function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 · 입력이든 같은 형식 (formproof_input/spec_view.py)
+  const box=$('#specBox');if(!rows||!rows.length){box.hidden=true;return;}
+  const cls={'입력':'in','근거 DB':'db','가정':'as','질문':'qq'}, esc=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  let h='',g='';
+  rows.forEach(r=>{if(r.group!==g){g=r.group;h+=`<div class="g">${esc(g)}</div>`;}
+    h+=`<div class="r${g==='질문'?' q':''}"><div class="t">${r.said?`<q>${esc(r.said)}</q>`:''}<span>${esc(r.cond)}</span></div><div class="s">${r.src.map(x=>`<i class="${cls[x]||'as'}">${esc(x)}</i>`).join('')}</div></div>`;});
+  $('#specRows').innerHTML=h;box.hidden=false;
+}
 function render(rep){
+  renderSpec(rep.spec_rows);
   if(rep.kind==='product') return renderProduct(rep);
   if(rep.kind==='integral') return renderIntegral(rep);
   return renderTemplate(rep);
