@@ -185,6 +185,7 @@ EXT_NAMES=['f3_hz','f4_hz','band_vert','band_fore','peak80_vert','peak80_fore','
 def label_full(r, neig=int(env('NEIG','10')), zeta=0.03):
     """구조 정답 한 번에: 모드 neig 개 → 흔들림(진동 전달 5–100 Hz, 위아래·앞뒤) · 터치 · 충격(위아래·앞뒤 von Mises, 층간)
     frf() · eval 과 같은 식. 반환: (label2 와 같은 7개 중 구조 6개 dict, 추가값 dict, 요소 vm(위아래))"""
+    global _LASTU; _LASTU={}
     out,phis,ps,A,MM=analyse(r,neig,True); f=[float(np.sqrt(max(l,0))/2/np.pi) for l,_ in out]
     fr=np.linspace(5,100,191); ext={}
     for nm,dvec in (('vert',(st,ct)),('fore',(ct,-st))):
@@ -195,12 +196,12 @@ def label_full(r, neig=int(env('NEIG','10')), zeta=0.03):
         T_=np.abs(H); b=(fr>=34.6)&(fr<=45.6); s8=(fr>=6.3)&(fr<=80)
         ext['band_'+nm]=float(T_[b].max()); ext['peak80_'+nm]=float(T_[s8].max()); ext['rms80_'+nm]=float(np.sqrt(np.mean(T_[s8]**2)))
     tch=[]
-    for f_ in FT_:
-        u=np.zeros(3*nn); u[free]=ps.solve(A,f_[free]); tch.append(float(f_@u)/FTCH)
+    for q_,f_ in enumerate(FT_):
+        u=np.zeros(3*nn); u[free]=ps.solve(A,f_[free]); tch.append(float(f_@u)/FTCH); _LASTU['touch_'+('top','bot')[q_]]=u
     vm_el=np.zeros(len(ei)); sh={}
     for nm,dvec in (('vert',(st,ct)),('fore',(ct,-st))):
         Fr=Mrb@np.array([dvec[0],dvec[1],0.])*48.5*9810.; fn=Tp.T@Fr; F=np.zeros(3*nn); F[dd]=fn
-        U=np.zeros(3*nn); U[free]=ps.solve(A,F[free]); on=np.where((r>0.5)&active)[0]
+        U=np.zeros(3*nn); U[free]=ps.solve(A,F[free]); on=np.where((r>0.5)&active)[0]; _LASTU['shock_'+nm]=U
         s_=(C@B0@U[edof[on]].T).T; vm=np.sqrt(0.5*((s_[:,0]-s_[:,1])**2+(s_[:,1]-s_[:,2])**2+(s_[:,2]-s_[:,0])**2)+3*(s_[:,3:]**2).sum(1))
         szt=np.maximum(s_[:,2],0); k_=rr[on]>19
         sh[nm]=(float(np.percentile(vm[k_],99.9)) if k_.any() else 0., float(np.percentile(szt[k_],99.9)) if k_.any() else 0.)
@@ -233,10 +234,29 @@ def reduced_off():
     if _FULL is not None: active,free,iK,jK=_FULL
 def label_any(r):
     """REDUCE=1(기본): 재료 칸만 조립해 label_full, 안 되면 원래 방식"""
+    global _LASTRED
     if env('REDUCE','1')=='1' and reduced_on(r):
+        _LASTRED=True
         try: return label_full(r)
         finally: reduced_off()
-    return label_full(r)
+    _LASTRED=False; return label_full(r)
+U_CASES=['shock_vert','shock_fore','touch_top','touch_bot']   # STORE_U=1 이면 label3 가 이 순서로 절점 변위(3 성분) 저장 — 구조 PINO 정답
+if MODE=='structops':   # 구조 PINO 용: 요소 강성 KE, 요소-자유도 연결, 고정 자유도, 하중 4개 (U_CASES 순서) — ai/pino.py StructResidual
+    Fs=[]
+    for nm,dvec in (('vert',(st,ct)),('fore',(ct,-st))):
+        Fr=Mrb@np.array([dvec[0],dvec[1],0.])*48.5*9810.; fn=Tp.T@Fr; F=np.zeros(3*nn); F[dd]=fn; Fs.append(F)
+    Fs+=list(FT_); fdm=np.zeros(3*nn,bool); fdm[fd]=True
+    np.savez(env('OUT','../data/struct_ops.npz'),KE=KE,edof=edof.astype(np.int32),active=active,solid=solid,design=design,fixed=fdm,F=np.array(Fs),nn=nn,
+             NX=NX,NY=NY,NZ=NZ,u_cases=np.array(['shock_vert','shock_fore','touch_top','touch_bot']))
+    if env('CHECK')=='1':   # FEM 정답 변위(float64 / float32 / float16)에서 재료 칸 연산자 잔차
+        import gen_frame; occ,_=gen_frame.sample(np.random.default_rng(1),_gen_meta() if '_gen_meta' in globals() else None,2 if GRIP2 else 1,None)
+        r=np.where(design,occ.astype(float),fixval); label_any(r); oc=(r>0.5)&active
+        for c,k in enumerate(['shock_vert','shock_fore','touch_top','touch_bot']):
+            for dt in (np.float64,np.float32,np.float16):
+                u=_LASTU[k].astype(dt).astype(np.float64); y=np.zeros(3*nn); np.add.at(y,edof[oc],u[edof[oc]]@KE.T)
+                nu_=np.zeros(3*nn,bool); nu_[edof[oc].ravel()]=True; m_=nu_&~fdm
+                print(k, dt.__name__, '잔차 상대', float(np.linalg.norm((y-Fs[c])[m_])/np.linalg.norm(Fs[c][m_])))
+    print('saved struct ops'); sys.exit()
 if MODE=='thermops':   # PINO 용 열전도 연산자 (thermal_T 와 같은 식) — ai/pino.py 가 절점 온도의 잔차 K(r)T - q 를 계산할 때 사용
     np.savez(env('OUT','../data/thermal_ops.npz'), NX=NX,NY=NY,NZ=NZ,nn=nn,the=the,en_the=en[the],phone_the=phone[the],KTh=KTh,MFq=MFq,
              ftop=ftop,fbot=fbot,ptop=ptop,pbot=pbot,pfront=pfront,en_ptop=en[ptop][:,ftop],en_pbot=en[pbot][:,fbot],en_pfront=en[pfront][:,ftop],
@@ -275,7 +295,7 @@ if MODE=='label3':  # 구조 + 열 정답 (프레임 생성기 또는 SRC). lab 
         _d=np.load(SR); _R=np.unpackbits(_d['r'],axis=1)[:,:len(ei)]; _N=list(_d['names']); a0,a1=int(env('I0','0')),int(env('I1',str(len(_N))))
         src=[(_N[q],_R[q]) for q in range(a0,min(a1,len(_N)))]
     N=len(src) if src else int(env('NS','40')); FAM=env('FAMILY') or None; GM=_gen_meta()
-    O=[];L=[];X=[];FT_T=[];FT_V=[];NAMES=[];PRM=[]
+    O=[];L=[];X=[];FT_T=[];FT_V=[];NAMES=[];PRM=[];UU=[];USC=[];URED=[]; SU=env('STORE_U')=='1'
     for i in range(N):
         if src: nm,_r=src[i]; occ=(np.asarray(_r).ravel()>0.5)&design; prm={}
         else:
@@ -287,11 +307,14 @@ if MODE=='label3':  # 구조 + 열 정답 (프레임 생성기 또는 SRC). lab 
         except Exception as e: print('fail',nm,e,flush=True); continue
         L.append([massg(r),base['f1'],base['f2'],float(T[phn].max()),base['touch_top'],base['touch_bot'],base['vm_vert']])
         X.append([ext[k] for k in EXT_NAMES]); O.append(np.packbits(occ[didx]))
+        if SU:   # 하중별 최대값으로 나눠 float16 저장 (크기는 U_scale) — 데이터 손실 정답용, 물리 잔차는 학습 때 float64 로 계산
+            u4=np.stack([_LASTU[k].reshape(-1,3).T for k in U_CASES]); sc=np.abs(u4).reshape(4,-1).max(1)+1e-30
+            UU.append((u4/sc[:,None,None]).astype(np.float16)); USC.append(sc); URED.append(_LASTRED)
         FT_T.append(np.asarray(T)[en].mean(1).astype(np.float16)); FT_V.append(vm_el.astype(np.float16)); NAMES.append(nm); PRM.append(json.dumps(prm))
         print(json.dumps(dict(i=i,name=nm,lab=[round(v,3) for v in L[-1]],ext=[round(v,3) for v in X[-1]],dt=round(time.time()-t1,1),t=round(time.time()-t0))),flush=True)
     np.savez_compressed(env('OUT'),occ=np.array(O),lab=np.array(L),lab_ext=np.array(X),T=np.array(FT_T),vm=np.array(FT_V),names=np.array(NAMES),
         prm=np.array(PRM),grip=GRIPN,lab_names=np.array(['mass_g','f1_hz','f2_hz','phone_Tmax_rise_c','touch_top_mm','touch_bottom_mm','shock_vm999_mpa']),
-        ext_names=np.array(EXT_NAMES))
+        ext_names=np.array(EXT_NAMES),**(dict(U=np.array(UU,np.float16),U_scale=np.array(USC),U_reduced=np.array(URED),u_cases=np.array(U_CASES)) if SU else {}))
     print('done',len(O),round(time.time()-t0),flush=True); sys.exit()
 if MODE=='tlabel':  # 열 전용: 받침판 패턴만 바꿔 폰 온도장. 판 아래 몸체는 열 모델에 없으므로 비움
     import gen_frame; rng=np.random.default_rng(int(env('SEED','0'))); N=int(env('NS','200')); t0=time.time()

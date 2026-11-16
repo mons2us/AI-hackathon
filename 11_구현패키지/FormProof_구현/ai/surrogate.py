@@ -6,7 +6,7 @@
 인터페이스(에이전트 · 잠재 탐색이 쓰는 것):  predict(occ_d) -> dict(scalars=(B,7) 원래 단위, fields=(B,2,nz,ny,nx) 또는 None)
 """
 import argparse, json, time, numpy as np, torch, torch.nn as nn, torch.nn.functional as F
-from .data import Grid, load_shards, LabelNorm, split, device, LAB_NAMES
+from .data import Grid, load_shards, LabelNorm, split, device, LAB_NAMES, LOG_LABS, EXT_NAMES
 
 class CNN3D(nn.Module):
     """해커톤에서 쓴 구조와 같은 계열: 3D 합성곱 4층(스트라이드 2) → 평균·최대 풀링 → MLP."""
@@ -61,50 +61,86 @@ class Surrogate:
         return dict(scalars=y, fields=fld)
 
 def train(a):
-    dev = device(); grid = Grid(a.meta); FLD = a.model in ('fno', 'pino'); D = load_shards(a.data, grid, fields=FLD)
-    N = len(D['occ']); tr, te = split(N, seed=a.seed); norm = LabelNorm(D['lab'][tr]); Yn = norm.encode(D['lab'])
-    cfg = dict(width=a.width, modes=tuple(a.modes)) if FLD else {}
+    """물리 AI 학습. 추가(11-16): --ext (흔들림 · 층간 등 11개도 출력, 회귀), --model pino [--struct] (열 / 구조 물리 손실)"""
+    dev = device(); grid = Grid(a.meta); FLD = a.model in ('fno', 'pino'); ST = a.model == 'pino' and a.struct
+    D = load_shards(a.data, grid, fields=FLD, ext=a.ext, disp=a.disp_max if ST else 0)
+    names = [n for n in LAB_NAMES] + (EXT_NAMES if a.ext else [])
+    LAB = np.concatenate([D['lab'], D['ext']], 1) if a.ext else D['lab']; nout = LAB.shape[1]
+    log_idx = list(LOG_LABS) + (list(range(len(LAB_NAMES), nout)) if a.ext else [])
+    N = len(D['occ']); tr, te = split(N, seed=a.seed); norm = LabelNorm(LAB[tr], log_idx=log_idx); Yn = norm.encode(LAB)
+    fin = torch.as_tensor(np.isfinite(Yn)); Y = torch.as_tensor(np.nan_to_num(Yn))
+    cfg = dict(n_out=nout)
+    if FLD: cfg.update(width=a.width, modes=tuple(a.modes))
+    if ST: cfg['struct'] = True
     net = build(a.model, cfg).to(dev); coords = grid.coords(dev)
-    if a.model == 'pino':   # 물리 손실: 엔진과 같은 열전도 FEM 연산자 (ai/pino.py)
-        from .pino import ThermalResidual; TR = ThermalResidual(a.thermal_ops).to(dev); NN = (grid.nz + 1, grid.ny + 1, grid.nx + 1)
+    if a.model == 'pino':   # 물리 손실: 엔진과 같은 FEM 연산자 (ai/pino.py)
+        from .pino import ThermalResidual; TR = ThermalResidual(a.thermal_ops).to(dev)
+    if ST:
+        from .pino import StructResidual; SR = StructResidual(a.struct_ops).to(dev)
+        has_u = np.full(N, -1); has_u[D.get('U_idx', np.zeros(0, int))] = np.arange(len(D.get('U_idx', [])))
+        Ut = torch.as_tensor(D['U']) if 'U' in D else None; Usc = torch.as_tensor(D['U_scale']) if 'U' in D else None
+        us = torch.as_tensor(np.median(D['U_scale'], 0) if 'U' in D else np.ones(4), dtype=torch.float32)   # 하중별 변위 크기 (정규화)
+        print(json.dumps(dict(struct=True, n_with_U=int((has_u >= 0).sum()), n_all=N, u_scale_mm=[round(float(v), 5) for v in us])), flush=True)
     opt = torch.optim.AdamW(net.parameters(), lr=a.lr, weight_decay=1e-4); sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, a.steps)
-    occ = torch.as_tensor(D['occ']); Y = torch.as_tensor(Yn); w_lab = torch.tensor([0.] + [1.] * 6)   # 무게는 정확식이 있어 학습 제외
+    occ = torch.as_tensor(D['occ']); w_lab = torch.tensor([0.] + [1.] * 6 + [a.wext] * (nout - 7))   # 무게는 정확식이 있어 학습 제외
     if FLD:
         Tf = torch.as_tensor(D['T']).view(N, 1, grid.nz, grid.ny, grid.nx); Vf = torch.log1p(torch.as_tensor(D['vm'])).view(N, 1, grid.nz, grid.ny, grid.nx)
         tmask = torch.as_tensor(grid.thermal_region, dtype=torch.float32).view(1, 1, grid.nz, grid.ny, grid.nx)
         ts, vs = Tf[tr].std() + 1e-6, Vf[tr].std() + 1e-6
+    def u_true(b):   # 정답 변위 (B, 4, 3nn) 물리 단위, 없는 형상은 None
+        k = has_u[b]; ok = k >= 0
+        if not ok.any(): return None, ok
+        u = Ut[k[ok]].float().view(int(ok.sum()), 4, 3, -1).transpose(2, 3).reshape(int(ok.sum()), 4, -1) * Usc[k[ok]][..., None]
+        return u, ok
+    def struct_losses(g, Un, b):   # (데이터 손실, 물리 손실, 잔차 크기) — 물리 손실은 모든 형상, 데이터 손실은 정답 있는 형상만
+        U = Un * us.to(Un.device)[None, :, None]; r = g.flatten(1); lp = 0.; rr = []
+        for c in range(4):
+            res, m = SR(r, U[:, c], c); lp = lp + ((res / us[c]) ** 2).sum() / m.sum().clamp_min(1); rr.append((res.abs().sum(1) / m.sum(1).clamp_min(1)).float())
+        ut, ok = u_true(b); ld = torch.zeros((), device=Un.device)
+        if ut is not None:
+            ut = ut.to(Un.device); pu = U[torch.as_tensor(ok, device=Un.device)]
+            ld = (((pu - ut) ** 2).sum(-1) / (ut ** 2).sum(-1).clamp_min(1e-30)).mean()
+        return ld, lp / 4, torch.stack(rr, 1)
     rng = np.random.default_rng(a.seed); t0 = time.time(); log = []
     def evaluate(idx):
-        net.eval(); P = []; FE = []; PR = []
+        net.eval(); P = []; FE = []; PR = []; SRr = []; UE = []
         with torch.no_grad():
             for i in range(0, len(idx), a.bs):
-                b = idx[i:i + a.bs]; g = grid.to_grid(occ[b].to(dev)); yn, fl = net(g, coords)
-                if a.model == 'pino': PR.append(TR(g.flatten(1), net.forward_full(g, coords)[2].flatten(1) * ts).abs().mean(1).cpu())
+                b = idx[i:i + a.bs]; g = grid.to_grid(occ[b].to(dev)); o = net.forward_full(g, coords) if a.model == 'pino' else net(g, coords)
+                yn, fl = o[0], o[1]
+                if a.model == 'pino': PR.append(TR(g.flatten(1), o[2].flatten(1) * ts).abs().mean(1).cpu())
+                if ST:
+                    ld, _, rr = struct_losses(g, o[3], b); SRr.append(rr.cpu())
+                    if has_u[b].max() >= 0: UE.append(float(ld))
                 P.append(norm.decode_t(yn).cpu())
                 if fl is not None:
                     tgt = torch.cat([Tf[b] / ts, Vf[b] / vs], 1).to(dev); m = torch.cat([tmask.to(dev).expand(len(b), -1, -1, -1, -1), g], 1)
                     FE.append((((fl - tgt) * m) ** 2).sum((2, 3, 4)).sqrt() / ((tgt * m) ** 2).sum((2, 3, 4)).sqrt().clamp_min(1e-6))
-        net.train(); P = torch.cat(P).numpy(); T_ = D['lab'][idx]
-        rel = np.abs(P / np.maximum(np.abs(T_), 1e-6) - 1).mean(0)
-        r = {f'relerr_{n}': float(v) for n, v in zip(LAB_NAMES, rel) if n != 'mass_g'}
+        net.train(); P = torch.cat(P).numpy(); T_ = LAB[idx]
+        rel = np.nanmean(np.abs(P / np.maximum(np.abs(T_), 1e-6) - 1), 0)
+        r = {f'relerr_{n}': float(v) for n, v in zip(names, rel) if n != 'mass_g'}
         if FE: fe = torch.cat(FE).mean(0).cpu().numpy(); r.update(field_relL2_T=float(fe[0]), field_relL2_vm=float(fe[1]))
         if PR: r['phys_residual_T'] = float(torch.cat(PR).mean())   # 열전도 잔차 평균 (°C, 정답이면 0)
+        if SRr: r['phys_residual_u_mm'] = [float(v) for v in torch.cat(SRr).mean(0)]   # 구조 잔차 평균 (하중 4개, mm)
+        if UE: r['disp_relL2sq'] = float(np.mean(UE))   # 변위 상대 오차 제곱 (정답 있는 형상)
         return r
     for it in range(a.steps):
         b = rng.choice(tr, min(a.bs, len(tr))); g = grid.to_grid(occ[b].to(dev))
-        if a.model == 'pino': yn, fl, Tn = net.forward_full(g, coords)
-        else: yn, fl = net(g, coords)
-        loss = ((yn - Y[b].to(dev)) ** 2 * w_lab.to(dev)).mean()
+        o = net.forward_full(g, coords) if a.model == 'pino' else net(g, coords); yn, fl = o[0], o[1]
+        fb = fin[b].to(dev); loss = (((yn - Y[b].to(dev)) ** 2) * w_lab.to(dev) * fb).sum() / fb.sum().clamp_min(1)
         if fl is not None:
             tgt = torch.cat([Tf[b] / ts, Vf[b] / vs], 1).to(dev); m = torch.cat([tmask.to(dev).expand(len(b), -1, -1, -1, -1), g], 1)
             loss = loss + a.wfield * (((fl - tgt) * m) ** 2).sum() / m.sum()
-        if a.model == 'pino' and a.wphys > 0:   # 물리 손실 (온도 정규화 단위). 처음 warm 스텝 동안 0 → wphys 로 키움
-            res = TR(g.flatten(1), Tn.flatten(1) * ts) / ts; loss = loss + a.wphys * min(1.0, it / max(a.phys_warm, 1)) * (res ** 2).mean().float()
+        ramp = min(1.0, it / max(a.phys_warm, 1))
+        if a.model == 'pino' and a.wphys > 0:   # 열 물리 손실 (온도 정규화 단위). 처음 warm 스텝 동안 0 → wphys 로 키움
+            res = TR(g.flatten(1), o[2].flatten(1) * ts) / ts; loss = loss + a.wphys * ramp * (res ** 2).mean().float()
+        if ST:   # 구조: 변위 데이터 손실 + 물리 손실
+            ld, lp, _ = struct_losses(g, o[3], b); loss = loss + a.wdisp * ld + a.wstruct * ramp * lp.float()
         opt.zero_grad(); loss.backward(); opt.step(); sch.step()
         if it % a.log_every == 0 or it == a.steps - 1:
-            r = dict(it=it, loss=float(loss), t=round(time.time() - t0, 1), **evaluate(te)); log.append(r); print(json.dumps(r), flush=True)
+            r = dict(it=it, loss=float(loss.detach()), t=round(time.time() - t0, 1), **evaluate(te)); log.append(r); print(json.dumps(r), flush=True)
     st = dict(kind=a.model, cfg=cfg, state=net.state_dict(), norm=norm.state(), field_scale=[float(ts), float(vs)] if FLD else None,
-              n_train=len(tr), n_test=len(te), final=log[-1])
+              names=names, u_scale=[float(v) for v in us] if ST else None, n_train=len(tr), n_test=len(te), final=log[-1])
     torch.save(st, a.out); json.dump(dict(final=log[-1], log=log), open(a.out.replace('.pt', '.json'), 'w'), indent=1); print('saved', a.out)
 
 if __name__ == '__main__':
@@ -113,5 +149,8 @@ if __name__ == '__main__':
     p.add_argument('--steps', type=int, default=20000); p.add_argument('--bs', type=int, default=16); p.add_argument('--lr', type=float, default=1e-3)
     p.add_argument('--width', type=int, default=24); p.add_argument('--modes', type=int, nargs=3, default=[10, 6, 16]); p.add_argument('--wfield', type=float, default=1.0)
     p.add_argument('--thermal_ops', default='data/thermal_ops.npz'); p.add_argument('--wphys', type=float, default=0.1); p.add_argument('--phys_warm', type=int, default=2000)
+    p.add_argument('--ext', action='store_true', help='흔들림 · 층간 등 추가값 11개도 학습 (lab_ext)'); p.add_argument('--wext', type=float, default=1.0)
+    p.add_argument('--struct', action='store_true', help='pino: 정적 구조(충격 · 터치) 변위 머리 + 구조 물리 손실'); p.add_argument('--struct_ops', default='data/struct_ops.npz')
+    p.add_argument('--wstruct', type=float, default=0.1); p.add_argument('--wdisp', type=float, default=1.0); p.add_argument('--disp_max', type=int, default=2000, help='변위 정답을 읽을 최대 형상 수 (메모리)')
     p.add_argument('--seed', type=int, default=0); p.add_argument('--log_every', type=int, default=500)
     train(p.parse_args())

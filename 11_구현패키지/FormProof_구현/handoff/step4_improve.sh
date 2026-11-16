@@ -7,7 +7,9 @@
 #
 #  i1 준비     BASE 의 학습 데이터 · 격자 연결(복사 안 함, 읽기만) + 열 연산자(thermal_ops.npz, PINO 용)
 #  i2 데이터   추가 학습 데이터 NX 개(씨앗 3001~) + 공통 시험 셋 NT 개(씨앗 9001~, 어느 모델도 학습에 안 씀)   [CPU]
-#  i3 학습     형상 AI(SDF_STEPS) · CNN · FNO(큰 폭) · PINO(FNO + 열전도 잔차) 를 GPU 에 나눠 동시에         [GPU]
+#              두 데이터 모두 충격 · 터치 변위 정답 저장(STORE_U=1, 구조 PINO 용)
+#  i3 학습     형상 AI(SDF_STEPS) · CNN · FNO(큰 폭) · PINO(열 잔차) · PINO-S(열 + 구조 잔차) 를 GPU 에 나눠 동시에 [GPU]
+#              물리 AI 는 모두 흔들림 · 층간 등 추가값 11개도 예측(--ext, 회귀)
 #  i4 확인     새 형상 AI 표현력(기준 구조 복원 IoU)
 #  i5 채점     물리 AI 전부(BASE 의 CNN · FNO 포함)를 같은 시험 셋으로
 #  i6 최적화   조합마다 잠재 공간 최적화 (새 형상 AI × CNN / FNO / PINO, + BASE 조합)
@@ -19,6 +21,7 @@
 #   BASE=../vcpu   기존 실행 폴더 (data/shards_frame, runs/{sdf,cnn,fno}.pt, runs/latent, runs/gate)
 #   NX=5000 추가 데이터 · NT=600 시험 셋 · J 병렬 수(기본 자동, step2 와 같은 식) · NOX=1 이면 추가 데이터 없이
 #   SDF_STEPS=60000 · PHYS_STEPS=40000 · FNO_W=32 · FNO_MODES="12 8 16" · WPHYS=0.1 (PINO 물리 손실 가중치)
+#   WSTRUCT=0.1 (구조 물리 가중치) · DISP_MAX=2000 (변위 정답을 읽을 최대 형상 수, 형상당 메모리 약 1.7 MB)
 #   SDF_HID=256 (형상 AI 폭) · GPUS=0,1,2,3 (기본 nvidia-smi 자동) · TINY=1 시험(작게)
 # =====================================================================================================
 set -e
@@ -33,7 +36,7 @@ else
   NXS=${NX:-5000}; NT=${NT:-600}; SDF_STEPS=${SDF_STEPS:-60000}; PHYS_STEPS=${PHYS_STEPS:-40000}; FNO_W=${FNO_W:-32}; LK=${LK:-6}; LIT=${LIT:-300}
   SDF_X="--hid ${SDF_HID:-256}"; FIT_X=''; PHYS_X=''
 fi
-FNO_MODES=${FNO_MODES:-"12 8 16"}; WPHYS=${WPHYS:-0.1}
+FNO_MODES=${FNO_MODES:-"12 8 16"}; WPHYS=${WPHYS:-0.1}; WSTRUCT=${WSTRUCT:-0.1}; DISP_MAX=${DISP_MAX:-2000}
 say() { echo "[$(date '+%m-%d %H:%M:%S')] $*"; }
 stage() { local name=$1 desc=$2; shift 2
   if [ -f $ST/$name.done ]; then say "건너뜀 (이미 끝남): $desc"; return; fi
@@ -77,6 +80,7 @@ prep() {
   mkdir -p data/shards_frame; cp $BASE/data/grid_meta.npz $M
   for f in $BASE/data/shards_frame/*.npz; do ln -sf $f data/shards_frame/base_$(basename $f); done
   (cd engine && env $COMMON MODE=thermops OUT=../data/thermal_ops.npz CHECK=1 python3 opt_int.py)
+  (cd engine && env $COMMON MODE=structops OUT=../data/struct_ops.npz CHECK=1 python3 opt_int.py)
   ls data/shards_frame | wc -l | xargs echo "연결한 BASE 묶음:"
 }
 stage i1_prep "준비 (BASE 데이터 연결 · 열 연산자)" prep
@@ -86,7 +90,7 @@ gen() {   # gen 출력폴더 씨앗시작 개수 이름
   local out=$1 s0=$2 n=$3 nm=$4; mkdir -p $out; local per=$(( (n + J - 1) / J ))
   for s in $(seq 1 $J); do
     f=$out/${nm}_s$((s0+s)).npz; [ -f $f ] && continue
-    (cd engine && env $COMMON MODE=label3 NS=$per SEED=$((s0+s)) OUT=../$f python3 -u opt_int.py > ../$out/${nm}_s$((s0+s)).log 2>&1) &
+    (cd engine && env $COMMON MODE=label3 STORE_U=1 NS=$per SEED=$((s0+s)) OUT=../$f python3 -u opt_int.py > ../$out/${nm}_s$((s0+s)).log 2>&1) &
   done; wait
 }
 data() {
@@ -117,14 +121,16 @@ train_one() {   # 이름 GPU 명령...
   on "$g" "$@" > runs/logs/train_$nm.log 2>&1 || { echo "실패: $nm — runs/logs/train_$nm.log"; tail -20 runs/logs/train_$nm.log; return 1; }
 }
 train_all() {
-  echo "학습 GPU ${NG}장: ${G[*]:-없음} (4개 학습을 돌아가며 배정)"
+  echo "학습 GPU ${NG}장: ${G[*]:-없음} (5개 학습을 돌아가며 배정, GPU 4장이면 1번째 GPU 에 형상 AI + PINO-S)"
   train_one sdf  "$(gpu_of 0)" python3 -m ai.deepsdf train --meta $M --data "$DA" --out runs/sdf.pt --steps $SDF_STEPS $SDF_X & P0=$!
-  train_one fno  "$(gpu_of 1)" python3 -m ai.surrogate --meta $M --data "$DA" --model fno  --out runs/fno.pt  --steps $PHYS_STEPS --width $FNO_W --modes $FNO_MODES $PHYS_X & P1=$!
-  train_one pino "$(gpu_of 2)" python3 -m ai.surrogate --meta $M --data "$DA" --model pino --out runs/pino.pt --steps $PHYS_STEPS --width $FNO_W --modes $FNO_MODES --wphys $WPHYS --thermal_ops data/thermal_ops.npz $PHYS_X & P2=$!
-  train_one cnn  "$(gpu_of 3)" python3 -m ai.surrogate --meta $M --data "$DA" --model cnn  --out runs/cnn.pt  --steps $PHYS_STEPS $PHYS_X & P3=$!
-  F=0; for p in $P0 $P1 $P2 $P3; do wait $p || F=1; done; return $F
+  train_one fno  "$(gpu_of 1)" python3 -m ai.surrogate --meta $M --data "$DA" --model fno  --out runs/fno.pt  --steps $PHYS_STEPS --ext --width $FNO_W --modes $FNO_MODES $PHYS_X & P1=$!
+  train_one pino "$(gpu_of 2)" python3 -m ai.surrogate --meta $M --data "$DA" --model pino --out runs/pino.pt --steps $PHYS_STEPS --ext --width $FNO_W --modes $FNO_MODES --wphys $WPHYS --thermal_ops data/thermal_ops.npz $PHYS_X & P2=$!
+  train_one cnn  "$(gpu_of 3)" python3 -m ai.surrogate --meta $M --data "$DA" --model cnn  --out runs/cnn.pt  --steps $PHYS_STEPS --ext $PHYS_X & P3=$!
+  train_one pino_s "$(gpu_of 4)" python3 -m ai.surrogate --meta $M --data "$DA" --model pino --struct --out runs/pino_s.pt --steps $PHYS_STEPS --ext --width $FNO_W --modes $FNO_MODES \
+      --wphys $WPHYS --thermal_ops data/thermal_ops.npz --wstruct $WSTRUCT --struct_ops data/struct_ops.npz --disp_max $DISP_MAX $PHYS_X & P4=$!
+  F=0; for p in $P0 $P1 $P2 $P3 $P4; do wait $p || F=1; done; return $F
 }
-stage i3_train "학습: 형상 AI · FNO · PINO · CNN (GPU 동시) — 진행은 runs/logs/train_*.log" train_all
+stage i3_train "학습: 형상 AI · FNO · PINO · CNN · PINO-S (GPU 동시) — 진행은 runs/logs/train_*.log" train_all
 
 # ---------- i4 형상 AI 표현력
 sdf_fit() {
@@ -142,23 +148,23 @@ stage i4_sdf_fit "형상 AI 표현력 (기준 구조 복원 IoU, 통과 0.8)" sd
 # ---------- i5 채점 (같은 시험 셋)
 evalall() {
   on "$(gpu_of 1)" python3 scripts/eval_models.py --meta $M --test "$DT/*.npz" --out $A/eval.json \
-    --model base_cnn=$BASE/runs/cnn.pt --model base_fno=$BASE/runs/fno.pt --model cnn=runs/cnn.pt --model fno=runs/fno.pt --model pino=runs/pino.pt
+    --model base_cnn=$BASE/runs/cnn.pt --model base_fno=$BASE/runs/fno.pt --model cnn=runs/cnn.pt --model fno=runs/fno.pt --model pino=runs/pino.pt --model pino_s=runs/pino_s.pt
 }
 stage i5_eval "물리 AI 채점 (BASE 포함, 같은 시험 셋)" evalall
 
 # ---------- i6 최적화 (조합별) · i7 FEM 검증
-COMBOS="new_cnn|runs/sdf.pt|runs/cnn.pt|cnn new_fno|runs/sdf.pt|runs/fno.pt|fno new_pino|runs/sdf.pt|runs/pino.pt|pino base_fno|$BASE/runs/sdf.pt|$BASE/runs/fno.pt|base_fno base_cnn|$BASE/runs/sdf.pt|$BASE/runs/cnn.pt|base_cnn"
-search() {
-  local i=0
-  for c in $COMBOS; do
-    IFS='|' read nm sdf phys ev <<< "$c"; out=$A/latent_$nm
-    [ -f $sdf ] && [ -f $phys ] || { echo "건너뜀 $nm (모델 없음)"; continue; }
-    [ -f $out/latent_search.json ] && continue
-    on "$(gpu_of $i)" python3 -m ai.latent_search --meta $M --sdf $sdf --phys $phys --data "$DA" --spec $SPEC --out $out --k $LK --iters $LIT > runs/logs/search_$nm.log 2>&1 &
-    i=$((i+1))
-  done; wait
+COMBOS="new_cnn|runs/sdf.pt|runs/cnn.pt|cnn new_fno|runs/sdf.pt|runs/fno.pt|fno new_pino|runs/sdf.pt|runs/pino.pt|pino new_pino_s|runs/sdf.pt|runs/pino_s.pt|pino_s base_fno|$BASE/runs/sdf.pt|$BASE/runs/fno.pt|base_fno base_cnn|$BASE/runs/sdf.pt|$BASE/runs/cnn.pt|base_cnn"
+search() {   # 동시에 최대 SPAR 개(기본 GPU 수, GPU 없으면 1) — 한꺼번에 띄우면 메모리 부족으로 죽음(11-16 시험). 실패한 조합은 한 번 더 혼자
+  local SPAR=${SPAR:-$(( NG > 0 ? NG : 1 ))} i=0
+  run1() { IFS='|' read nm sdf phys ev <<< "$1"; out=$A/latent_$nm
+    [ -f $sdf ] && [ -f $phys ] || { echo "건너뜀 $nm (모델 없음)"; return 0; }
+    [ -f $out/latent_search.json ] && return 0
+    on "$(gpu_of $2)" python3 -m ai.latent_search --meta $M --sdf $sdf --phys $phys --data "$DA" --spec $SPEC --out $out --k $LK --iters $LIT > runs/logs/search_$nm.log 2>&1; }
+  for c in $COMBOS; do run1 "$c" $i & i=$((i+1)); while [ $(jobs -r | wc -l) -ge $SPAR ]; do sleep 2; done; done; wait
   for c in $COMBOS; do IFS='|' read nm sdf phys ev <<< "$c"
-    [ -f $A/latent_$nm/latent_search.json ] || { [ -f runs/logs/search_$nm.log ] && { echo "최적화 실패: $nm — runs/logs/search_$nm.log"; tail -5 runs/logs/search_$nm.log; }; }; done
+    [ -f $sdf ] && [ -f $phys ] && [ ! -f $A/latent_$nm/latent_search.json ] && { echo "다시 (혼자): $nm"; run1 "$c" 0 || true; }
+    [ -f $sdf ] && [ -f $phys ] && [ ! -f $A/latent_$nm/latent_search.json ] && { echo "최적화 실패: $nm — runs/logs/search_$nm.log"; tail -5 runs/logs/search_$nm.log; }
+  done
   ls $A/latent_*/cand_*.npy | wc -l | xargs echo "후보 수:"
 }
 stage i6_search "최적화: 조합별 잠재 공간 탐색 (후보 ${LK}개씩)" search

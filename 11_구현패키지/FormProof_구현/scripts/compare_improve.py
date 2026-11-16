@@ -40,9 +40,9 @@ choice = win[0] if win else None
 pct = lambda v: '-' if v is None else f'{100 * v:.1f}%'
 L = ['# 개선 실험 비교 (FEM 재계산으로 판정)', '',
      f"기준: f1 ≥ {tg['f1_min_hz']} Hz · 폰 온도 ≤ {tg['phone_Tmax_rise_max_c']} °C · 터치 ≤ {tg['touch_max_mm']} mm · 충격 ≤ {tg['shock_vm_max_mpa']} MPa · 층간 ≤ {tg.get('shock_interlayer_max_mpa', '-')} MPa", '',
-     '## 물리 AI 채점 (같은 시험 셋, 학습에 안 쓴 형상)', '', '| 모델 | 종류 | 학습 수 | f1 오차 평균 | f1 오차 (80–120 Hz) | f1 ±5% 이내 | 폰 온도 오차 | 온도 분포 L2 | 응력 분포 L2(log) |', '|---|---|---|---|---|---|---|---|---|']
+     '## 물리 AI 채점 (같은 시험 셋, 학습에 안 쓴 형상)', '', '| 모델 | 종류 | 학습 수 | f1 오차 평균 | f1 오차 (80–120 Hz) | f1 ±5% 이내 | 폰 온도 오차 | 충격 응력 오차 | 흔들림(대역 최대, 위아래) 오차 | 층간(앞뒤) 오차 | 온도 분포 L2 | 응력 분포 L2(log) |', '|---|---|---|---|---|---|---|---|---|---|---|---|']
 for r in ev.values():
-    L.append(f"| {r['name']} | {r['kind']} | {r.get('n_train') or '-'} | {pct(r['mean_f1_hz'])} | {pct(r.get('f1_band_mean'))} | {pct(r['f1_within5pct'])} | {pct(r['mean_phone_Tmax_rise_c'])} | {pct(r.get('field_L2_T'))} | {pct(r.get('field_L2_vm_log'))} |")
+    L.append(f"| {r['name']} | {r['kind']} | {r.get('n_train') or '-'} | {pct(r['mean_f1_hz'])} | {pct(r.get('f1_band_mean'))} | {pct(r['f1_within5pct'])} | {pct(r['mean_phone_Tmax_rise_c'])} | {pct(r.get('mean_shock_vm999_mpa'))} | {pct(r.get('mean_band_vert'))} | {pct(r.get('mean_interlayer999_fore_mpa'))} | {pct(r.get('field_L2_T'))} | {pct(r.get('field_L2_vm_log'))} |")
 L += ['', '## 조합별 최적화 → FEM 검증', '', '| 조합 | 후보 | FEM 통과 | 가장 가벼운 통과 | f1 | 폰 온도 | 터치 | 충격 | 층간 | 흔들림 최대 |', '|---|---|---|---|---|---|---|---|---|---|']
 for r in rows:
     b = r['best']

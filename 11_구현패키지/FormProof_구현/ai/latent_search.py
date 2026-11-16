@@ -14,6 +14,12 @@ from .data import Grid, load_shards
 from .deepsdf import ShapeAI
 from .surrogate import Surrogate
 
+def penx(y, tg):
+    """물리 AI 가 추가값(--ext, 18개 출력)도 예측하면: 층간 응력(위아래 · 앞뒤) ≤ 한도, 터치 아래 · 충격 앞뒤도 같이 제약. 아니면 0"""
+    if y.shape[-1] <= 7: return 0.
+    IL = tg.get('shock_interlayer_max_mpa', 1e9); SL = tg['shock_vm_max_mpa']; DL = tg['touch_max_mm']
+    return (torch.relu(y[16] - IL) / IL * 10 + torch.relu(y[17] - IL) / IL * 10 + torch.relu(y[15] - SL) / SL * 10 + torch.relu(y[5] - DL) / DL * 10)
+
 def main(a):
     grid = Grid(a.meta); S = ShapeAI(a.sdf, grid); M = Surrogate(a.phys, grid, S.dev); tg = json.load(open(a.spec))
     FT, TL, DL, SL = tg['f1_min_hz'], tg['phone_Tmax_rise_max_c'], tg['touch_max_mm'], tg['shock_vm_max_mpa']
@@ -28,7 +34,7 @@ def main(a):
         z = S.Z[name2z[D['names'][s]]].clone().to(S.dev)[None].requires_grad_(True); opt = torch.optim.Adam([z], lr=a.lr)
         for it in range(a.iters):
             o = S.decode(z, sharp=2.0); y = M.predict(o)['scalars'][0]
-            pen = torch.relu(FT - y[1]) / FT * 10 + torch.relu(y[3] - TL) / TL * 10 + torch.relu(y[4] - DL) / DL * 10 + torch.relu(y[6] - SL) / SL * 10
+            pen = torch.relu(FT - y[1]) / FT * 10 + torch.relu(y[3] - TL) / TL * 10 + torch.relu(y[4] - DL) / DL * 10 + torch.relu(y[6] - SL) / SL * 10 + penx(y, tg)
             loss = y[0] + a.w * pen ** 2 + 1e-3 * (z ** 2).sum(); opt.zero_grad(); loss.backward(); opt.step()
         with torch.no_grad(): o = S.decode(z, sharp=2.0); y = M.predict(o)['scalars'][0].cpu().numpy()
         r = np.where(grid.design, 0.0, grid.solid.astype(float)); r[grid.didx] = (o[0].cpu().numpy() > 0.5).astype(float)
@@ -55,7 +61,7 @@ def trace_run(a):
     z = z.detach().clone().requires_grad_(True); opt = torch.optim.Adam([z], lr=a.lr); Zs, its, preds, pens = [], [], [], []
     for it in range(a.iters + 1):   # 2) 최적화 (main 과 같은 목적 · 벌점)
         o = S.decode(z, sharp=2.0); y = M.predict(o)['scalars'][0]
-        pen = torch.relu(FT - y[1]) / FT * 10 + torch.relu(y[3] - TL) / TL * 10 + torch.relu(y[4] - DL) / DL * 10 + torch.relu(y[6] - SL) / SL * 10
+        pen = torch.relu(FT - y[1]) / FT * 10 + torch.relu(y[3] - TL) / TL * 10 + torch.relu(y[4] - DL) / DL * 10 + torch.relu(y[6] - SL) / SL * 10 + penx(y, tg)
         if it % a.trace_every == 0 or it == a.iters:
             Zs.append(z.detach().cpu().numpy()[0].copy()); its.append(it); preds.append(y.detach().cpu().numpy()); pens.append(float(pen))
         if it == a.iters: break
