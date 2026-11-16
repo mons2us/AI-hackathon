@@ -1,0 +1,3 @@
+[{"name":"p_base","show":["base","bar","phone"],"pos":[300,-620,140],"tgt":[40,0,30],"fov":17},
+ {"name":"c_base","show":["base_c","bar","phone"],"pos":[300,-620,140],"tgt":[40,0,30],"fov":17},
+ {"name":"c_body","show":["body_c","bar","phone"],"pos":[300,-620,140],"tgt":[40,0,30],"fov":17}]
