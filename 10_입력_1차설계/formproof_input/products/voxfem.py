@@ -4,6 +4,7 @@ von Mises / displacement node fields for the viewer's heat maps (same packing as
 hex8 element = fem.hex8_KB (team 3D code). Loads are rigid-body distributions over node sets (least squares, like
 the team's phone payload), supports = fixed node sets."""
 import hashlib
+import math
 import os
 import tempfile
 import time
@@ -17,13 +18,18 @@ from ..fem import hex8_KB
 from ..heat import grid_info, pack_nodes
 
 
-def voxelize(mesh, h, pad=1):
-    """Watertight trimesh -> occupancy (nz, ny, nx) of element centres inside (layer slices, even-odd), grid origin."""
+def voxelize(mesh, h, pad=1, sym_x=False):
+    """Watertight trimesh -> occupancy (nz, ny, nx) of element centres inside (layer slices, even-odd), grid origin.
+    sym_x: 좌우 대칭 부품 — 격자를 x = 0 에 대칭으로 놓아 왼쪽 · 오른쪽 복셀이 똑같이 잘리게 (대칭 하중에 대칭 결과)."""
     import manifold3d as mf
     from matplotlib.path import Path
     lo = mesh.bounds[0] - pad * h
     hi = mesh.bounds[1] + pad * h
-    n = np.ceil((hi - lo) / h).astype(int)
+    if sym_x:
+        m = (math.ceil(max(abs(mesh.bounds[0][0]), abs(mesh.bounds[1][0])) / h) + pad) * h
+        lo[0], hi[0] = -m, m
+    n = np.round((hi - lo) / h).astype(int) if sym_x else np.ceil((hi - lo) / h).astype(int)
+    n = np.maximum(n, 1)
     xs, ys, zs = (lo[a] + h * (np.arange(n[a]) + 0.5) for a in range(3))
     A = mf.Manifold(mf.Mesh(vert_properties=np.asarray(mesh.vertices, np.float32), tri_verts=np.asarray(mesh.faces, np.uint32)))
     X, Y = np.meshgrid(xs, ys)
@@ -111,6 +117,7 @@ class VoxModel:
         u = np.zeros(3 * self.nn)
         try:
             import pypardiso
+            pypardiso.PyPardisoSolver                          # 빈 껍데기 모듈(시험 스텁)이면 AttributeError -> scipy
             progress.step(label, f"{len(free):,} 자유도 · 직접 풀이 (MKL PARDISO)")
             solver = pypardiso.PyPardisoSolver()
             try:
@@ -118,7 +125,7 @@ class VoxModel:
             finally:
                 solver.free_memory(everything=True)              # MKL keeps the factors otherwise
             self.last_solver = "pardiso"
-        except ImportError:                                  # pragma: no cover - no MKL
+        except (ImportError, AttributeError):                # pragma: no cover - no MKL
             from scipy.sparse.linalg import spsolve
             progress.step(label, f"{len(free):,} 자유도 · scipy 직접 풀이 (pypardiso 없음 → 약 10배 느림)")
             u[free] = spsolve(A.tocsc(), F[free])
@@ -169,13 +176,26 @@ class VoxModel:
 
     def heat(self, fields):
         """fields: {key: (compact node values, lo, hi, name, unit, note)} -> viewer payload on the full grid (no mirror)."""
+        from scipy import ndimage
         out = {}
         valid = np.zeros(self.n_grid, bool)
         valid[self.gid] = True
+        # CAD 표면은 복셀 계단 사이를 지나가므로, 부품 바로 바깥 절점(≤ 1.5칸)에 가장 가까운 절점 값을 채워 둔다
+        # (안 채우면 얇은 테 · 다리에서 표면 일부가 '값 없음'(회색)으로 끊겨 보임)
+        shp = (self.NZ, self.NY, self.NX)
+        vg = valid.reshape(shp)
+        dist, idx = ndimage.distance_transform_edt(~vg, return_indices=True)
+        near = (dist > 0) & (dist <= 1.5)
+        src = np.ravel_multi_index(tuple(i[near] for i in idx), shp)
+        dst = np.flatnonzero(near.ravel())
+        valid2 = valid.copy()
+        valid2[dst] = True
         for k, (v, lo, hi, name, unit, note) in fields.items():
             full = np.zeros(self.n_grid)
             full[self.gid] = v
-            out[k] = dict(pack_nodes(full, valid, lo, hi), name=name, unit=unit, note=note)
+            full[dst] = full[src]
+            out[k] = dict(pack_nodes(full, valid2, lo, hi), name=name, unit=unit, note=note)
+            out[k]["max"] = round(float(np.max(v)), 2)
         return dict(grid=grid_info(self.origin, self.h, self.shape, 0.0, ysym=0.0, yoff=0.0, mirror=False), fields=out)
 
 

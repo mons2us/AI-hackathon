@@ -650,12 +650,31 @@ def grid_mesh(rho_full, iso=0.45, sig=0.6):
     return m
 
 
+def cluster_decimate(V, F, cell=0.9):
+    """정점 군집 간소화 (추가 패키지 없이): cell mm 격자 칸마다 정점 하나(평균), 납작해진 삼각형 · 중복 삼각형 제거."""
+    key = np.floor(V / cell).astype(np.int64)
+    _, inv = np.unique(key, axis=0, return_inverse=True)
+    inv = inv.ravel()
+    n = inv.max() + 1
+    Vn = np.zeros((n, 3))
+    np.add.at(Vn, inv, V)
+    Vn /= np.bincount(inv, minlength=n)[:, None]
+    Fn = inv[F]
+    ok = (Fn[:, 0] != Fn[:, 1]) & (Fn[:, 1] != Fn[:, 2]) & (Fn[:, 0] != Fn[:, 2])
+    Fn = Fn[ok]
+    _, keep = np.unique(np.sort(Fn, axis=1), axis=0, return_index=True)
+    return Vn, Fn[np.sort(keep)]
+
+
 def view_payload(world_mesh, rho_full, F):
     """3D 보기용: 메쉬(스템 옆 자리) + 분포(절점 값)."""
     from .templates.bike_mount import Y_SYM
-    pos = world_mesh.vertices[world_mesh.faces].reshape(-1, 3).astype(np.float32).copy()
+    V, Fc = np.asarray(world_mesh.vertices), np.asarray(world_mesh.faces)
+    if len(Fc) > 80000:                                 # 0.5 mm 평활 표면 30 만 삼각형 -> 보기용 (STL 파일은 원본 그대로)
+        V, Fc = cluster_decimate(V, Fc, cell=0.7)        # 18 만 -> 8 만, 표면 오차 p99 0.4 mm (0.5 mm 격자와 같은 수준)
+    pos = V[Fc].reshape(-1, 3).astype(np.float32).copy()
     pos[:, 1] += Y_SYM
-    return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(world_mesh.faces))),
+    return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(Fc))),
                 heat=heat_payload(rho_full, F))
 
 
@@ -880,6 +899,45 @@ HANDOFF = ["spec.json", "design_spec.json", "targets.json", "problem.npz", "init
            "part_3_tophook.step", "part_3_tophook.stl", "design_1st_drawing.pdf", "report.json"]
 
 
+def _heavy(full, out, with_mesh):
+    """P01 출력 몸체 · 파라메트릭 CAD · 고정 부품 · 조립 STEP · 도면 · (3D 보기 · 분포) — 형상이 같으면 결과도 같아 DB 에 저장."""
+    from . import progress
+    import cadquery as cq
+    progress.step("출력 몸체 (격자 평활 + 고정부 결합 − 구멍)")
+    pw_world, _ = print_body(full)                      # 출력용 몸체 (발표와 같은 절차) -> STL · 무게 · 3D 보기
+    pw_world.export(os.path.join(out, "design_1st.stl"))
+    mass_g = round(pw_world.volume * MATERIAL["density_g_cm3"] * 1e-3, 1)
+    progress.step("파라메트릭 CAD · STEP")
+    world, _ = build_cad()                               # 파라메트릭 CAD (평활 전, 편집용) -> STEP
+    cq.exporters.export(world, os.path.join(out, "design_1st.step"), exportType="STEP")
+    vol = world.val().Volume()
+    step_g = round(vol * MATERIAL["density_g_cm3"] * 1e-3, 1)
+    progress.step("폰 고정 부품 (집게 ×2 · 위 걸이) · 조립 STEP")
+    parts = parts_world(fixing_parts())                  # 폰 4면 고정 부품 (팀 cad/parts.py, 발표 9 · 22쪽)
+    part_rows = []
+    for p in parts:
+        g_ = round(p["wp"].val().Volume() * MATERIAL["density_g_cm3"] * 1e-3, 1)
+        part_rows.append(dict(name=p["name"], kind="출력" if p["kind"] == "print" else "구매", mass_g=g_ if p["kind"] == "print" else None,
+                              file=(p["file"] + ".step") if p["file"] else None))
+        if p["file"]:
+            cq.exporters.export(p["world"], os.path.join(out, p["file"] + ".step"), exportType="STEP")
+            cq.exporters.export(p["world"], os.path.join(out, p["file"] + ".stl"), tolerance=0.05)
+    asm = cq.Assembly(world, name="body", color=cq.Color(0.17, 0.64, 0.65))
+    for p in parts:
+        r_, g2, b_ = (int(PART_COLOR[p["kind"]][i:i + 2], 16) / 255 for i in (1, 3, 5))
+        asm.add(p["world"], name=p["key"], color=cq.Color(r_, g2, b_))
+    asm.save(os.path.join(out, "design_1st_assembly.step"))
+    print_g = round(mass_g + sum(r["mass_g"] or 0 for r in part_rows), 1)
+    progress.step("도면")
+    drawing_png(world, os.path.join(out, "design_1st_drawing.png"), mass_g, pdf=os.path.join(out, "design_1st_drawing.pdf"), parts=parts)
+    hv = dict(mass_g=mass_g, step_g=step_g, part_rows=part_rows, print_g=print_g)
+    if with_mesh:
+        progress.step("3D 보기 · 응력 · 흔들림 · 온도 분포")
+        hv.update(view_payload(pw_world, full, fields(full, tag="p01_base")))
+        hv["aux"] = parts_view(parts)
+    return hv
+
+
 def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍스트", match=None, tid="P01", name=None):
     """P01: 말(+ 스케치) → 설계 명세 · 판정 기준 · 1차 설계(격자 · CAD · 도면) · 팀 엔진 판정 · 넘길 파일."""
     t0 = time.time()
@@ -921,34 +979,16 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
                         shape=np.array([NZ, NY, NX]), h=H, origin=np.array(ORIGIN))
     np.save(os.path.join(out, "initial_design.npy"), rho)
     side_grid_png(rho, os.path.join(out, "side_view.png"), f"{tid} 처음 설계 (판 + 기둥) — 측면, 폰 판 좌표")
-    import cadquery as cq
-    progress.step("출력 몸체 (격자 평활 + 고정부 결합 − 구멍)")
-    pw_world, _ = print_body(full)                      # 출력용 몸체 (발표와 같은 절차) -> STL · 무게 · 3D 보기
-    pw_world.export(os.path.join(out, "design_1st.stl"))
-    mass_g = round(pw_world.volume * MATERIAL["density_g_cm3"] * 1e-3, 1)
-    progress.step("파라메트릭 CAD · STEP")
-    world, _ = build_cad()                               # 파라메트릭 CAD (평활 전, 편집용) -> STEP
-    cq.exporters.export(world, os.path.join(out, "design_1st.step"), exportType="STEP")
-    vol = world.val().Volume()
-    step_g = round(vol * MATERIAL["density_g_cm3"] * 1e-3, 1)
-    progress.step("폰 고정 부품 (집게 ×2 · 위 걸이) · 조립 STEP")
-    parts = parts_world(fixing_parts())                  # 폰 4면 고정 부품 (팀 cad/parts.py, 발표 9 · 22쪽)
-    part_rows = []
-    for p in parts:
-        g_ = round(p["wp"].val().Volume() * MATERIAL["density_g_cm3"] * 1e-3, 1)
-        part_rows.append(dict(name=p["name"], kind="출력" if p["kind"] == "print" else "구매", mass_g=g_ if p["kind"] == "print" else None,
-                              file=(p["file"] + ".step") if p["file"] else None))
-        if p["file"]:
-            cq.exporters.export(p["world"], os.path.join(out, p["file"] + ".step"), exportType="STEP")
-            cq.exporters.export(p["world"], os.path.join(out, p["file"] + ".stl"), tolerance=0.05)
-    asm = cq.Assembly(world, name="body", color=cq.Color(0.17, 0.64, 0.65))
-    for p in parts:
-        r_, g2, b_ = (int(PART_COLOR[p["kind"]][i:i + 2], 16) / 255 for i in (1, 3, 5))
-        asm.add(p["world"], name=p["key"], color=cq.Color(r_, g2, b_))
-    asm.save(os.path.join(out, "design_1st_assembly.step"))
-    print_g = round(mass_g + sum(r["mass_g"] or 0 for r in part_rows), 1)
-    progress.step("도면")
-    drawing_png(world, os.path.join(out, "design_1st_drawing.png"), mass_g, pdf=os.path.join(out, "design_1st_drawing.pdf"), parts=parts)
+    from . import memo
+    hkey = memo.key("p01", list(map(int, rho)), bool(with_mesh))
+    before = os.listdir(out)
+    HV = memo.get(hkey, out)
+    if HV is None:
+        HV = _heavy(full, out, with_mesh)
+        HV = memo.put(hkey, out, memo.new_files(out, before), HV)
+    else:
+        progress.step("템플릿 결과 DB에서 출력 몸체 · CAD · 부품 · 도면 · 분포 불러오기", "P01")
+    mass_g, step_g, part_rows, print_g = HV["mass_g"], HV["step_g"], HV["part_rows"], HV["print_g"]
     shake_ok = next(r for r in j["rows"] if r["key"] == "shake")
     checks = {
         "transmissibility": dict(value=j["shake"], limit=f"<= {SHAKE_LIMIT}", pass_=shake_ok["ok"], label="최대 흔들림 (10–100 Hz)"),
@@ -994,9 +1034,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
                 z.write(os.path.join(out, n), n)
     if with_mesh:
         from .templates.bike_mount import Y_SYM                        # 스템 옆 (다른 템플릿과 같은 자리)
-        progress.step("3D 보기 · 응력 · 흔들림 · 온도 분포")
-        rep.update(view_payload(pw_world, full, fields(full, tag="p01_base")))
-        rep["aux"] = parts_view(parts)
+        rep.update(mesh=HV["mesh"], heat=HV["heat"], aux=HV["aux"])
         pw = phone_world()
         c = [pw["center"][0], Y_SYM, pw["center"][2]]
         rep["phone"] = dict(H=pw["H"], W=pw["W"], D=pw["D"], cog=[c[0], c[2]], clamp_t=0, pose=dict(center=c, tilt_deg=TILT))

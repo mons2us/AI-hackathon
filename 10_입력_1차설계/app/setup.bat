@@ -40,6 +40,10 @@ if errorlevel 1 (
 
 rem 3) check
 ".venv\Scripts\python.exe" -c "import cadquery, pypardiso, manifold3d, mmapy, skimage, ezdxf; print('setup OK')"
+
+rem 4) template result DB (1st designs are templates: compute once, then every run loads in < 4 s) - about 3 min
+echo Building template result DB (once, about 3 min)...
+".venv\Scripts\python.exe" -m formproof_input.memo
 echo.
 echo Done. Start the GUI with app\start.bat
 pause

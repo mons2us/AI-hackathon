@@ -109,8 +109,10 @@ def test_tv_designs():
     out = []
     for t in TV.TEMPLATES:
         with tempfile.TemporaryDirectory() as d:
-            rep = TV.design("", template=t["id"], out=d)
-            assert rep["judge"]["pass_"], (t["id"], rep["judge"])
+            rep = TV.design("", template=t["id"], out=d, with_mesh=True)
+            ok = {r["key"]: r["ok"] for r in rep["judge"]["rows"]}
+            # 1차 설계 = 스케치 비율 그대로 (작은 받침 · 가는 기둥) -> 넘어짐 · 흔들림 미충족 (최적화 대상), 응력 · 바퀴는 충족
+            assert not rep["judge"]["pass_"] and not ok["tilt"] and not ok["defl"] and ok["stress"] and ok["caster"], (t["id"], ok)
             assert all(r.get("ref") for r in rep["judge"]["rows"] if r["key"] in ("push", "down"))
             for f in ("design_1st.step", "design_1st.stl", "design_1st_drawing.pdf", "spec.json", "report.json", "handoff.zip"):
                 assert os.path.exists(os.path.join(d, f)), f
@@ -151,15 +153,45 @@ def test_glasses_no_false_positive():
 
 
 def test_glasses_design():
-    """무게 · 클램프 힘(문헌 범위) · 응력 · 온도 판정, 클램프 힘 = 강성 × 벌림, 온도 = P/(hA)."""
+    """공식 제품 사진 → 'gm' 템플릿 1차 설계: 무게 · 피부 온도 · 클램프 힘(너무 조임) 미충족(통 아세테이트 굵은 뿔테 · 방열 시트 없음), 응력 충족.
+    클램프 힘 = 강성 × 벌림, 온도 = P / (h · 둘레 · (SoC 길이 + 2/m)), m = √(hP/kA) (핀 이론) 손계산."""
+    import math as M
+    photo = pipeline.decode_image(open(os.path.join(HERE, "examples", "glasses", "젠틀몬스터_구글_삼성_AI글래스.jpg"), "rb").read())
     with tempfile.TemporaryDirectory() as d:
-        rep = G.design("", image=G.render_photo("slim_oval"), out=d)
+        rep = G.design("", image=photo, out=d, with_mesh=True)
+    assert rep["template"]["id"] == "AG-gm" and rep["template"]["chosen_by"] == "공식 제품 사진 → 템플릿"
     fe, th = rep["extra"]["fem"], rep["extra"]["thermal"]
-    assert rep["judge"]["pass_"], rep["judge"]
+    ok = {r["key"]: r["ok"] for r in rep["judge"]["rows"]}
+    assert not ok["mass"] and not ok["skin"] and not ok["clamp_hi"] and ok["clamp_lo"] and ok["clamp_vm"] and ok["bridge_vm"], ok
     assert abs(fe["clamp_N"] - fe["k_N_per_mm"] * G.SPREAD_EACH) < 0.01
-    assert abs(th["dT"] - G.SOC_W / (G.H_CONV * th["area_cm2"] * 1e-4)) < 0.2
-    assert 35 <= rep["extra"]["mass"]["total_g"] <= 50
-    return f"{rep['extra']['mass']['total_g']} g, 클램프 {fe['clamp_N']} N, 다리 {th['T']} °C"
+    t = G.STYLES["gm"]["temple"]
+    per, ac = 2 * (t["pod_h"] + t["pod_t"]) * 1e-3, t["pod_h"] * t["pod_t"] * 1e-6
+    m = M.sqrt(G.H_CONV * per / (G.K_FRAME * ac))
+    dT = G.SOC_W / (G.H_CONV * per * (G.SOC_LEN * 1e-3 + 2 / m))
+    assert abs(th["dT"] - dT) < 0.1, (th, dT)
+    return f"{rep['extra']['mass']['total_g']} g, 클램프 {fe['clamp_N']} N, 다리 {th['T']} °C (손계산 ΔT {dT:.1f} K)"
+
+
+def test_glasses_heat_symmetric():
+    """착용 벌림(좌우 대칭 하중)의 응력 · 변위 분포가 좌우 대칭이고, CAD 표면 근처 절점에 값이 다 있음 (끊김 없음)."""
+    with tempfile.TemporaryDirectory() as d:
+        rep = G.design("", out=d, with_mesh=True, style="gm")
+    g = rep["heat"]["grid"]
+    nx, ny, nz = g["nodes"]
+    assert abs(g["origin"][0] + (nx - 1) * g["h"] / 2) < 1e-6          # 격자가 x = 0 에 대칭
+    res = {}
+    for k in ("clamp_stress", "clamp_disp"):
+        f = rep["heat"]["fields"][k]
+        q = np.frombuffer(zlib.decompress(base64.b64decode(f["qz"])) if "qz" in f else base64.b64decode(f["q"]), np.uint8)
+        q = q.reshape(nz, ny, nx).astype(float)
+        both = (q != 255) & (q[:, :, ::-1] != 255)
+        assert ((q != 255) == (q[:, :, ::-1] != 255)).mean() > 0.999                   # 값 있는 자리 대칭
+        d = np.abs(q - q[:, :, ::-1])[both] / 254
+        res[k] = (float(np.percentile(d, 99)), float(d.max()))
+    # 변위는 전체가 대칭, 응력은 99 % 절점이 대칭 (나머지는 오른쪽 카메라 Ø6 · 왼쪽 LED Ø2 처럼 실제로 좌우가 다른 앞면 장식 둘레)
+    assert res["clamp_disp"][1] < 0.02 and res["clamp_stress"][0] < 0.08, res
+    return (f"변위 좌우 차 최대 {res['clamp_disp'][1] * 100:.1f} %, 응력 좌우 차 99 % 절점 ≤ {res['clamp_stress'][0] * 100:.1f} % "
+            f"(색 척도 대비, 카메라 · LED 둘레 제외)")
 
 
 def test_routing_and_heat_payload():
@@ -181,3 +213,27 @@ if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
             print(name, fn())
+
+
+def test_template_db_speed():
+    """템플릿 결과 DB: 두 번째부터는 계산 없이 불러옴 — 시나리오마다 4 s 이내 (여기서는 1.5 s 이내로 확인)."""
+    import time
+    from formproof_input import integral
+    photo = pipeline.decode_image(open(os.path.join(HERE, "examples", "glasses", "젠틀몬스터_구글_삼성_AI글래스.jpg"), "rb").read())
+    sk = pipeline.decode_image(open(os.path.join(HERE, "examples", "hand", "hand_TV01.png"), "rb").read())
+    cases = [("P01", lambda d: pipeline.design(integral.PRESENTATION_TEXT, out=d, with_mesh=True)),
+             ("TV", lambda d: pipeline.design("", sk, None, out=d, with_mesh=True, product="tv")),
+             ("AI 글래스", lambda d: pipeline.design("", None, photo, out=d, with_mesh=True, product="glasses")),
+             ("T01", lambda d: pipeline.design("", template="T01", out=d, with_mesh=True, product="bike"))]
+    out = []
+    for name, fn in cases:
+        with tempfile.TemporaryDirectory() as d:
+            fn(d)                                            # 처음 (DB 가 비었으면 계산 · 저장)
+        with tempfile.TemporaryDirectory() as d:
+            t = time.time()
+            rep = fn(d)
+            s = time.time() - t
+            assert os.path.exists(os.path.join(d, "design_1st.step")) and rep.get("mesh"), name
+        assert s < 1.5, (name, s)
+        out.append(f"{name} {s:.2f} s")
+    return ", ".join(out)

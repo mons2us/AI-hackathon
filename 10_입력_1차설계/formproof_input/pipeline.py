@@ -11,7 +11,7 @@ import zipfile
 
 import numpy as np
 
-from . import progress, requirements, text_rules
+from . import memo, progress, requirements, text_rules
 from .cad import export_step
 from .compile import Problem
 from .drawing import make_drawing
@@ -154,8 +154,8 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
     if TV_WORDS.search(text or ""):
         return "tv"
     if image is not None:
-        from .products.glasses import is_glasses_image
-        if is_glasses_image(image):
+        from .products.glasses import is_glasses_image, matches_reference
+        if matches_reference(image) or is_glasses_image(image):
             return "glasses"
     return "bike"
 
@@ -211,9 +211,29 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
     P = Problem(spec)
     dens = P.initial_density()
-    progress.step("1차 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소")
-    check = evaluate(P, dens, fields=with_mesh)
-    fields = check.pop("fields", None)
+    # 같은 명세(템플릿 + 문장 파라미터)면 성능 계산 · CAD · 도면이 같다 -> 템플릿 결과 DB
+    spec_core = dict(spec, template=dict(spec["template"], chosen_by=None))
+    mkey = memo.key("bike", spec_core, bool(with_mesh))
+    before = os.listdir(out)
+    H = memo.get(mkey, out)
+    if H is None:
+        progress.step("1차 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소 — 이 명세는 처음 (다음부터 DB)")
+        check = evaluate(P, dens, fields=with_mesh)
+        fields = check.pop("fields", None)
+        progress.step("CAD · STEP · STL · 도면")
+        stl = write_stl(P, dens, os.path.join(out, "design_1st.stl"))
+        side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 1차 설계 / 설계 영역")
+        body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
+        drawing = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
+                               os.path.join(out, "design_1st_drawing.pdf"), title="자전거 폰 거치대 — 1차 설계",
+                               check=check, mass_g=cad_info["mass_g"])
+        H = memo.put(mkey, out, memo.new_files(out, before),
+                     dict(check=check, stl=stl, cad_info=cad_info, drawing=drawing,
+                          mesh=mesh_payload(body) if with_mesh else None,
+                          heat=bike_heat(P, spec, fields) if (with_mesh and fields) else None))
+    else:
+        progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", f"{tid}")
+    check = H["check"]
     rep["first_design_check"] = check
     rep["handoff_requirements"] = requirements.handoff_summary(spec, P)
     rep["problem"] = P.summary()
@@ -249,15 +269,11 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
         json.dump(spec, f, ensure_ascii=False, indent=1)
     P.to_npz(os.path.join(out, "problem.npz"))
     np.save(os.path.join(out, "initial_design.npy"), dens.astype(np.uint8))
-    progress.step("CAD · STEP · STL · 도면")
-    rep["stl"] = write_stl(P, dens, os.path.join(out, "design_1st.stl"))
-    side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 1차 설계 / 설계 영역")
-    body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
+    rep["stl"] = H["stl"]
+    cad_info = H["cad_info"]
     rep["cad"] = dict(step="design_1st.step", **cad_info)
     rep["payload"] = payload_summary(spec, cad_info)
-    rep["drawing"] = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
-                                  os.path.join(out, "design_1st_drawing.pdf"), title="자전거 폰 거치대 — 1차 설계",
-                                  check=check, mass_g=cad_info["mass_g"])
+    rep["drawing"] = H["drawing"]
     rep["seconds"] = round(time.time() - t0, 2)
     with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
         json.dump(rep, f, ensure_ascii=False, indent=1)
@@ -265,9 +281,9 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
         for name in HANDOFF_FILES:
             z.write(os.path.join(out, name), name)
     if with_mesh:
-        rep["mesh"] = mesh_payload(body)
-        if fields:
-            rep["heat"] = bike_heat(P, spec, fields)
+        rep["mesh"] = H["mesh"]
+        if H.get("heat"):
+            rep["heat"] = H["heat"]
         rep["phone"] = dict(g["phone"], **({"pose": dict(center=g["look"]["phone_center"], tilt_deg=g["look"]["tilt_deg"])}
                                             if g.get("look") else {}))
         rep["geometry"] = dict(y_sym=g["y_sym"], pad=g["pad"], bar_d=g["bar_d"], ring_ro=g["ring_ro"])

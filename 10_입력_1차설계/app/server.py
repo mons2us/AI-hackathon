@@ -173,6 +173,33 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": msg})
 
 
+def fill_template_db():
+    """템플릿 결과 DB 의 빈 항목을 뒤에서 채움 (한 항목씩 LOCK — 사용자가 누른 요청이 먼저 끼어들 수 있게).
+    이미 있는 항목은 0.3 s 안에 넘어감. setup.bat 이 미리 채워 두면 여기서는 할 일이 없다."""
+    import tempfile
+    from formproof_input import memo
+    done_mark = os.path.join(memo.DB, f"_complete_{memo.VERSION}")
+    if os.path.exists(done_mark):                                    # 이미 다 채움 -> 요청을 기다리게 하지 않음
+        return
+    t, n = time.time(), 0
+    for name, fn in memo.jobs():
+        try:
+            with LOCK:
+                t1 = time.time()
+                with tempfile.TemporaryDirectory() as d:
+                    fn(d)
+                if time.time() - t1 > 1.0:
+                    n += 1
+        except Exception as e:                                      # 한 항목이 실패해도 서버는 계속
+            sys.stderr.write(f"[템플릿 DB] {name}: {e}\n")
+    try:
+        open(done_mark, "w").close()
+    except OSError:
+        pass
+    if n:
+        print(f"[템플릿 DB] 새로 계산한 템플릿 {n}개 ({time.time() - t:.0f}s) — 이제 모두 4 s 안에 나옵니다", flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8765)
@@ -185,6 +212,7 @@ def main():
     import cadquery  # noqa: F401  (first import is slow; do it before the first request)
     print(f"준비 완료 ({time.time() - t:.1f}s) → http://localhost:{a.port}", flush=True)
     srv = ThreadingHTTPServer((a.host, a.port), Handler)
+    threading.Thread(target=fill_template_db, daemon=True).start()
     if not a.no_browser:
         threading.Timer(0.5, lambda: webbrowser.open(f"http://localhost:{a.port}")).start()
     try:

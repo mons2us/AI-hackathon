@@ -55,11 +55,27 @@ BY_ID = {t["id"]: t for t in TEMPLATES}
 
 
 # ------------------------------------------------------------------ geometry
+FIRST = dict(base_d=300.0, caster_frac=0.40, pole_d=28.0)   # 1차 설계 = 스케치 비율 그대로 (작은 받침 · 가는 기둥) -> 최적화 대상
+LEVELS = ("low", "mid", "high")                            # 템플릿 높이 3단 (스탠바이미 조절 범위 최소 · 가운데 · 최대)
+LEVEL_WORD = {"low": "낮게", "mid": "", "high": "높게"}
+LEVEL_NAME = {"low": "낮게", "mid": "가운데", "high": "높게"}
+
+
 def stand_dims(tv):
     k = max(tv["size_in"] / 27.0, 1.0) ** 0.6           # 큰 화면은 받침 · 기둥을 키움 (가정)
-    return dict(base_d=REF27["base_d"] * k, plate_t=8.0, plate_z=22.0, hub_d=150.0 * k, hub_h=40.0,
-                caster_r=0.46 * REF27["base_d"] * k, wheel_d=36.0, wheel_w=16.0,
-                pole_d=48.0 * k, pole_t=4.0, sleeve_d=60.0 * k, sleeve_h=130.0, arm=(60.0, 40.0, 40.0), plate=(120.0, 8.0, 120.0))
+    return dict(base_d=FIRST["base_d"] * k, plate_t=8.0, plate_z=22.0, hub_d=130.0 * k, hub_h=40.0,
+                caster_r=FIRST["caster_frac"] * FIRST["base_d"] * k, wheel_d=36.0, wheel_w=16.0,
+                pole_d=FIRST["pole_d"] * k, pole_t=4.0, sleeve_d=50.0 * k, sleeve_h=130.0, arm=(60.0, 40.0, 40.0), plate=(120.0, 8.0, 120.0))
+
+
+def level_zc(tv, orient, level):
+    lo, hi = center_range(tv, orient)
+    return {"low": lo, "mid": (lo + hi) / 2, "high": hi}[level]
+
+
+def snap_level(tv, orient, zc):
+    """임의 높이 -> 가장 가까운 템플릿 높이 단."""
+    return min(LEVELS, key=lambda lv: abs(level_zc(tv, orient, lv) - zc))
 
 
 def screen_box(tv, orient):
@@ -314,7 +330,7 @@ def fem_checks(body, info, tv, total_kg, h=VOXEL):
     from .voxfem import pick_h
     h = max(h, pick_h(mesh, target=35000, lo=VOXEL, hi=8.0))         # 큰 화면(큰 스탠드)도 메모리 ≤ 약 2.5 GB
     progress.step("복셀 격자 만들기", f"{h:.1f} mm")
-    occ, o = voxelize(mesh, h)
+    occ, o = voxelize(mesh, h, sym_x=True)
     V = VoxModel(occ, o, h, MAT["E"], MAT["nu"])
     xyz = V.node_xyz
     fixed = np.where(xyz[:, 2] <= mesh.bounds[0][2] + h * 0.6)[0]
@@ -368,13 +384,14 @@ def parse_height(text):
 
 
 def design(text="", sketch=None, out="out", with_mesh=False, template=None):
-    import cadquery as cq
-    from .common import base_report, finish
+    """템플릿(가로/세로 × 높이 3단) 결과 DB 에서 바로 (처음 한 번만 계산). 스케치 · 문장은 템플릿과 높이 단을 고르는 데 쓴다."""
+    import json
+    from .. import memo
     t0 = time.time()
-    os.makedirs(out, exist_ok=True)
     tv = tv_spec(parse_size(text))
     match = None
-    zc_req, zc_how = parse_height(text), "문장" if parse_height(text) is not None else None
+    zc_req = parse_height(text)
+    zc_how = "문장" if zc_req is not None else None
     if template:
         tid, how = template, "지정"
     elif sketch is not None:
@@ -387,12 +404,43 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
         top = match["candidates"][0] if match else {}
         zc_req = height_from_sketch(sketch, tid, tv, top.get("with_screen", True))
         zc_how = "스케치 비율" if zc_req is not None else None
+    orient = BY_ID[tid]["orient"]
+    level = snap_level(tv, orient, zc_req) if zc_req is not None else "mid"
+    k = memo.key("tv", tid, tv["size_in"], level, FIRST)
+    rep = memo.get(k, out) if with_mesh else None
+    if rep is None:
+        os.makedirs(out, exist_ok=True)
+        before = os.listdir(out)
+        rep = _design(tv, tid, level_zc(tv, orient, level), out, with_mesh)
+        if with_mesh:
+            rep = memo.put(k, out, memo.new_files(out, before), rep)
+    else:
+        progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", f"{tid} · 높이 {LEVEL_NAME[level]}")
+    zc_t = rep["extra"]["zc"]
+    read = (f"{zc_how} {zc_req:.0f} mm → 템플릿 높이 '{LEVEL_NAME[level]}' {zc_t:.0f} mm" if zc_how and zc_req is not None
+            else f"템플릿 높이 '{LEVEL_NAME[level]}' {zc_t:.0f} mm (기본)")
+    rep["template"].update(chosen_by=how, match=match, level=level)
+    rep["design_vars"] = [[a, read] if a == "화면 중심 높이" else [a, b] for a, b in rep["design_vars"]]
+    rep["extra"]["height_read"] = read
+    rep["seconds"] = round(time.time() - t0, 2)
+    with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
+        json.dump({k_: v for k_, v in rep.items() if k_ not in ("mesh", "heat", "aux")}, f, ensure_ascii=False, indent=1)
+    return rep
+
+
+def _design(tv, tid, zc_req, out, with_mesh):
+    """실제 계산 (템플릿 DB 가 비었을 때만)."""
+    import cadquery as cq
+    from .common import base_report, finish
+    t0 = time.time()
+    os.makedirs(out, exist_ok=True)
+    how, match, zc_how = "템플릿", None, None
     T = BY_ID[tid]
     progress.step("CAD (받침 · 바퀴 · 기둥 · 헤드) · 화면 겹침 검사")
     body, info = build(tid, tv, zc_req)
     L = info["layout"]
     lo, hi = L["z_range"]
-    clipped = zc_req is not None and abs(L["zc"] - zc_req) > 1
+    clipped = False
     cq.exporters.export(body, os.path.join(out, "design_1st.step"), exportType="STEP")
     cq.exporters.export(body, os.path.join(out, "design_1st.stl"), tolerance=0.3)
     sol = body.val()
@@ -420,21 +468,21 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     sketch_png(tid, tv, os.path.join(out, "side_view.png"), L["zc"])
     g = L["g"]
     W_, D_, H_ = L["tv_size"]
-    zc_note = (f"화면 중심 높이 {L['zc']:.0f} mm ({zc_how}" + (f", 조절 범위 {lo:.0f}–{hi:.0f} 로 제한" if clipped else "") + ")") if zc_how \
-        else f"화면 중심 높이 {L['zc']:.0f} mm (조절 범위 {lo:.0f}–{hi:.0f} 가운데, 기본)"
+    zc_note = f"{L['zc']:.0f} mm (조절 범위 {lo:.0f}–{hi:.0f})"
     rep = base_report(
         product="TV 스탠드", tid=tid, tname=T["name"], tdesc=T["desc"], chosen_by=how, match=match, rows=rows,
         conditions=conditions(tv, tid, total),
         summary=[["제품", "이동식 TV 스탠드 (스탠바이미형)"], ["화면", f"{tv['size_in']}형 · {tv['mass_kg']} kg · {'가로' if T['orient'] == 'landscape' else '세로'}"],
                  ["이동", "바퀴 5개 · 높이 조절 · 회전"], ["재료", MAT["name"]], ["안정성 기준", "IEC 62368-1 8.6"], ["안전율", SF]],
         design_vars=[["형식", f"{tid} {T['name']}"], ["화면 (폭 × 높이)", f"{W_:.0f} × {H_:.0f} mm"], ["화면 중심 높이", zc_note],
-                     ["받침", f"Ø{g['base_d']:.0f} mm 판 {g['plate_t']:.0f} mm + 허브 Ø{g['hub_d']:.0f}"],
+                     ["받침", f"Ø{g['base_d']:.0f} mm 판 {g['plate_t']:.0f} mm + 허브 Ø{g['hub_d']:.0f} (스탠바이미 Ø397)"],
                      ["바퀴", f"5개 · Ø{g['wheel_d']:.0f} · 원주 반지름 {g['caster_r']:.0f} mm (앞쪽 1개)"],
                      ["기둥", f"강관 Ø{g['pole_d']:.0f} × {g['pole_t']:.0f} mm, 화면 뒤 {abs(L['back']):.0f} mm"],
                      ["캐리지 · 팔 · 헤드", f"슬리브 Ø{g['sleeve_d']:.0f} × {g['sleeve_h']:.0f}, 팔 {g['arm'][1]:.0f} mm, 장착판 {g['plate'][0]:.0f} × {g['plate'][2]:.0f}"],
                      ["스탠드 무게 (CAD)", f"{mass_stand:.1f} kg (참고: 스탠바이미 12.7 kg)"], ["전체 무게중심 높이", f"{tip['cg'][2]:.0f} mm"],
                      ["화면과 겹침", f"{info['clash_mm3']:.0f} mm³ (기둥 · 헤드는 화면 뒤)"], ["해석 격자", f"{fem['h']} mm · {fem['elements']:,} 요소"]],
-        assumptions=[tv["source"], "스탠드 전체 강 (받침판 · 강관 · 캐리지), 배터리 · 스피커 등 내장품은 넣지 않음 (넣으면 더 안정)",
+        assumptions=[tv["source"], f"1차 설계 = 스케치 비율 그대로: 받침 Ø{g['base_d']:.0f} · 바퀴 원 반지름 {g['caster_r']:.0f} · 기둥 Ø{g['pole_d']:.0f} — 미충족 항목은 다음 단계(물리 최적화)에서 맞춤",
+                     "스탠드 전체 강 (받침판 · 강관 · 캐리지), 배터리 · 스피커 등 내장품은 넣지 않음 (넣으면 더 안정)",
                      "바퀴 바닥 고정 (잠금 상태), 화면은 강체로 보고 장착판에 하중 분배",
                      "최대 응력 = 절점 응력 상위 0.5 % 제외값 (복셀 계단 모서리의 가짜 응력 집중 제외)",
                      f"화면 윗단 흔들림 ≤ {TOP_DEFLECTION_MM} mm, 바퀴 정격 {CASTER_LIMIT_N:.0f} N 은 가정",

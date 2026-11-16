@@ -19,7 +19,10 @@ TEAM = os.path.join(ROOT, "..", "03_자전거거치대")
 def team_full_model():
     """opt3d_am.py header (RIGID=1, MSYS 0.350) up to the optimisation loop; solver modules stubbed."""
     for m in ("mmapy", "pypardiso"):
-        sys.modules.setdefault(m, types.ModuleType(m))
+        try:                                             # 설치돼 있으면 진짜 모듈 (빈 껍데기가 뒤 시험의 pypardiso 를 가리지 않게)
+            __import__(m)
+        except ImportError:
+            sys.modules.setdefault(m, types.ModuleType(m))
     sys.path.insert(0, os.path.join(TEAM, "code_3D"))
     src = open(os.path.join(TEAM, "opt3d_am.py"), encoding="utf-8").read()
     head = src.split("def interp(r):")[0]

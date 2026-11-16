@@ -516,9 +516,9 @@ async function run(template){
       $('#stage').innerHTML=`<b>${q.stage}</b>${q.detail?' — '+q.detail:''} · ${q.stage_s.toFixed(1)} s<br><small>전체 ${q.elapsed.toFixed(1)} s</small>`;
       $('#stageHist').innerHTML=q.history.slice(-6).map(h=>`✓ ${h.name} · ${h.s.toFixed(1)} s`).join('<br>');
       if(q.error)throw new Error(q.error);
-      if(q.done){rep=q.result;break;}
+      if(q.done){rep=q.result;S.tDone=performance.now();break;}
     }
-    S.rep=rep; render(rep, req);
+    S.rep=rep; render(rep, req); S.tRender=performance.now()-S.tDone; console.log('client render ms', Math.round(S.tRender));
     if(rep.timings&&rep.timings.length){
       const tot=rep.timings.reduce((a,h)=>a+h.s,0), top=[...rep.timings].sort((a,b)=>b.s-a.s)[0];
       $('#metrics').insertAdjacentHTML('beforeend',`<details class="note"><summary>단계별 걸린 시간 (전체 ${tot.toFixed(1)} s, 가장 긴 단계: ${top.name})</summary>`+
@@ -613,7 +613,7 @@ function renderProduct(rep, req){
   const ex=rep.extra||{}, fem=ex.fem||{};
   const fl=[`입력: ${t.chosen_by}`];
   if(rep.product==='TV 스탠드')fl.push(m?`정면 스케치 → 템플릿 ${m.candidates.length}개 비교`:'문장에서 형식 선택',`TV ${ex.tv.size_in}형 ${ex.tv.mass_kg} kg`,`넘어짐 정역학`,`복셀 FEM ${fem.elements.toLocaleString()} 요소`);
-  else fl.push(ex.photo?`렌즈 윤곽 · 테 치수 추출 (${ex.photo.mode==='holes'?'렌즈 구멍':'실루엣'})`:'기본 형상',`무게 · 발열 계산`,`복셀 FEM ${fem.elements.toLocaleString()} 요소 × 2 하중`);
+  else fl.push(ex.photo?(ex.photo.mode==='reference'?'공식 제품 사진 → 템플릿':`렌즈 윤곽 · 테 치수 추출 (${ex.photo.mode==='holes'?'렌즈 구멍':'실루엣'})`):'기본 형상',`무게 · 발열 계산`,`복셀 FEM ${fem.elements.toLocaleString()} 요소 × 2 하중`);
   fl.push(`STEP · 도면`);
   $('#flow').innerHTML=fl.map(x=>`<span class="ok">✓ ${x}</span>`).join('');
   if(rep.product==='TV 스탠드'&&m){
@@ -626,7 +626,7 @@ function renderProduct(rep, req){
     $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
   }else{
     const f=rep.analysis.features;
-    $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">${ex.photo?'사진에서 렌즈 윤곽(빨강)과 테 범위(파랑)를 찾아 mm로 옮겼습니다':'사진이 없거나 안경으로 인식되지 않아 기본 형상을 썼습니다'} — <b>${f.style_name}</b> · 세로/가로 ${f.aspect} · 윗선 직선 ${f.top_flat} · 바깥 올림 ${f.outer_lift}</div>
+    $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">${ex.photo?(ex.photo.mode==='reference'?'등록된 공식 제품 사진 → 같은 디자인의 템플릿 (사진은 3/4 각도라 치수는 템플릿 값)':'사진에서 렌즈 윤곽(빨강)과 테 범위(파랑)를 찾아 가장 가까운 템플릿을 골랐습니다'):'사진이 없거나 안경으로 인식되지 않아 기본 템플릿을 썼습니다'} — <b>${f.style_name}</b> · 세로/가로 ${f.aspect} · 윗선 직선 ${f.top_flat} · 바깥 올림 ${f.outer_lift}</div>
       <img src="${rep.files['analysis.png']}" style="grid-column:1/-1;width:100%;border-radius:8px;border:1px solid var(--line)">`;
   }
   showProduct(rep);
@@ -634,10 +634,11 @@ function renderProduct(rep, req){
   $('#kMass').textContent=rep.cad.mass_g>=1000?`${fmt(rep.cad.mass_g/1000,2)} kg`:`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
   $('#metrics').innerHTML=j.rows.map(r=>{const ge=r.op==='>=',ratio=ge?r.value/r.limit:r.limit/Math.max(r.value,1e-6);
     return `<div class="metric"><div class="row"><span>${r.name}</span><b class="num" style="color:${r.ok?'var(--green)':'var(--red)'}">${r.value} ${r.unit}</b></div>
-    <div class="bar"><i class="${r.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>기준 ${ge?'≥':'≤'} ${r.limit} ${r.unit} · ${r.source}</span><span>${r.ok?'충족':'미충족'}</span></div></div>`;}).join('')+
-    `<div class="note">${rep.product==='TV 스탠드'?`넘어짐 = 지지면 · 무게중심 정역학, 응력 · 흔들림 = 복셀 FEM (${fem.h} mm 격자, ${fem.solve_s} s). 3D 위 버튼으로 응력 · 변위 분포를 봅니다.`
-      :`클램프 힘 · 응력 = 복셀 FEM (${fem.h} mm 격자, 다리 강성 ${fem.k_N_per_mm} N/mm), 온도 = 집중 열저항. 3D 위 버튼으로 착용 · 브리지 하중의 분포를 봅니다.`} 데모용 1차 설계 — 최적화 단계로 넘기지 않습니다.</div>`;
-  $('#perfTag').className='tag '+(j.pass_?'green':'amber');$('#perfTag').textContent=j.pass_?'기준 충족':'일부 미충족';
+    <div class="bar"><i class="${r.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>기준 ${ge?'≥':'≤'} ${r.limit} ${r.unit} · ${r.source}</span><span>${r.ref?(r.ok?'참고 · 충족':'참고 · 미충족'):r.ok?'충족':'최적화 대상'}</span></div></div>`;}).join('')+
+    `<div class="note">${rep.product==='TV 스탠드'?`넘어짐 = 바퀴 다각형 · 무게중심 정역학, 응력 · 흔들림 = 복셀 FEM (${fem.h} mm 격자). 3D 위 버튼으로 응력 · 변위 분포를 봅니다.`
+      :`클램프 힘 · 응력 = 복셀 FEM (${fem.h} mm 격자, 다리 강성 ${fem.k_N_per_mm} N/mm), 온도 = 핀 이론 열저항. 3D 위 버튼으로 착용 · 브리지 하중의 분포를 봅니다.`}
+      템플릿 결과 DB 에서 불러온 1차 설계 판정입니다. ${j.pass_?'':`미충족 ${j.fails.length}개(${j.fails.map(x=>x.split(' (')[0]).join(' · ')})는 다음 단계(물리 최적화)에서 맞출 항목입니다.`}</div>`;
+  $('#perfTag').className='tag '+(j.pass_?'green':'amber');$('#perfTag').textContent=j.pass_?'기준 충족':`미충족 ${j.fails.length}개 → 최적화 대상`;
   $('#vars').innerHTML=rep.design_vars.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   $('#loadsSub').textContent=rep.product==='TV 스탠드'?'IEC 62368-1 안정성 · TV 무게 · 재료 강도':'무게 · 착용 클램프 힘 · 브리지 · 피부 온도';
   $('#cons').innerHTML=rep.conditions.map(c=>`<div class="con"><b>${c.name}: ${c.value}</b><small>${c.source}</small></div>`).join('')+

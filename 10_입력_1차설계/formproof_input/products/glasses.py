@@ -43,6 +43,9 @@ SPREAD_EACH = 5.0              # 착용 시 다리 끝이 바깥으로 벌어지
 CLAMP_RANGE = (0.3, 1.1)       # N, 한쪽 — 문헌(0–1 N 대) · 특허(50–110 g) 기반 권장 범위 (하한은 가정)
 BRIDGE_F = 5.0                 # N, 브리지 굽힘 하중 (가정: ISO 12870 브리지 변형 시험 항목, 수치 미확인)
 SOC_W = 0.5                    # W, 촬영 · AI 지속 사용 시 평균 소비 (가정)
+TEMPLE_T = 6.5                 # 1차 설계 다리 두께 (일반 아세테이트 뿔테 수준, 최적화 전) — 얇게 하는 것은 다음 단계
+RIM_EXTRA = 1.0                # 1차 설계 림 = 템플릿 림 + 1 mm (뿔테 두께)
+LENS_WIDTHS = (48.0, 50.0, 52.0)   # 템플릿 렌즈 폭 (mm)
 H_CONV = 10.0                  # W/m²K, 자연대류 + 복사 (일반값)
 T_AMB = 25.0
 T_SKIN_LIMIT = 43.0
@@ -56,6 +59,12 @@ STYLES = {   # 사진이 없을 때 · 합성 사진용 기본 형상 (보도 �
                       note="공개된 젠틀몬스터 협업 최종 디자인: 얇은 검정 테, 윗선이 곧고 아래가 둥근 형태"),
     "cat_eye": dict(name="캣아이", w=52.0, h=40.0, p_top=3.0, p_bot=2.2, lift=0.30, rim=5.0,
                     note="초기 공개(구글 I/O) 젠틀몬스터 디자인: 바깥 윗모서리가 올라간 캣아이"),
+    # 공식 제품 사진 (examples/glasses/젠틀몬스터_구글_삼성_AI글래스.jpg) 에서 본 형상: 검정 아세테이트 두꺼운 스퀘어 뿔테,
+    # 윗선 곧고 아래로 조금 좁아지는 렌즈, 코 쪽 위 모서리 둥금, 굵은 브리지, 오른쪽 테 바깥 위 카메라 · 왼쪽 LED, 넓고 납작한 다리
+    "gm": dict(name="스퀘어 뿔테 (젠틀몬스터 × Google × 삼성)", w=50.0, h=42.0, shape="rrect", r_to=5.0, r_ti=8.0, r_bo=10.0, r_bi=9.0,
+               taper=0.05, rim=7.5, depth=7.0, bridge=19.0, bridge_h=9.0, endpiece=7.5,
+               temple=dict(t=5.0, pod_t=6.5, pod_h=13.0, pod_len=72.0, arm_h=10.0),
+               note="공식 사진 디자인: 두꺼운 검정 스퀘어 뿔테, 오른쪽 테 바깥 위 카메라 · 왼쪽 LED, 넓은 다리(전자부품 내장)"),
 }
 
 
@@ -66,6 +75,16 @@ def lens_outline(style="slim_oval", w=None, h=None, n=160):
     w = w or S["w"]
     h = h or S["h"]
     a, b = w / 2, h / 2
+    if S.get("shape") == "rrect":                    # 모서리마다 반지름이 다른 둥근 사각 + 아래로 좁아짐
+        def arc(cx_, cz, r, a0, a1, k=14):
+            t_ = np.linspace(a0, a1, k)
+            return np.c_[cx_ + r * np.cos(t_), cz + r * np.sin(t_)]
+        P = np.vstack([arc(a - S["r_to"], b - S["r_to"], S["r_to"], 0, np.pi / 2),                     # 바깥 위
+                       arc(-a + S["r_ti"], b - S["r_ti"], S["r_ti"], np.pi / 2, np.pi),                # 코 쪽 위
+                       arc(-a + S["r_bi"], -b + S["r_bi"], S["r_bi"], np.pi, 1.5 * np.pi),           # 코 쪽 아래
+                       arc(a - S["r_bo"], -b + S["r_bo"], S["r_bo"], 1.5 * np.pi, 2 * np.pi)])       # 바깥 아래
+        P[:, 0] *= 1 - S["taper"] * np.clip(-P[:, 1] / b, 0, 1)
+        return P
     t = np.linspace(0, 2 * np.pi, n, endpoint=False)
     c, s = np.cos(t), np.sin(t)
     p = np.where(s >= 0, S["p_top"], S["p_bot"])
@@ -312,7 +331,8 @@ def build(geo):
     lw, lh = geo["lens_w"], geo["lens_h"]
     rim, bridge, endw = geo["rim"], geo["bridge"], geo["endpiece"]
     cx = bridge / 2 + lw / 2
-    D = FRAME_DEPTH
+    D = geo.get("depth", FRAME_DEPTH)
+    tp = geo.get("temple") or dict(t=TEMPLE_T, pod_t=7.0, pod_h=12.0, pod_len=62.0, arm_h=7.0)
 
     outer = offset_poly(lens, rim)
     top = float(outer[:, 1].max())
@@ -324,40 +344,51 @@ def build(geo):
         cutters.append(_yprism(offset_poly(P, 0.0), -1.0, D + 1.0))
     xb = cx - lw / 2 * 0.55
     zb = bridge_top(outer, lw)
-    parts.append(_box(2 * xb, D, 5.5, 0, D / 2, zb - 2.75))                        # bridge (straight, at the inner top line)
+    bh = geo.get("bridge_h", 5.5)
+    parts.append(_box(2 * xb, D, bh, 0, D / 2, zb - bh / 2))                         # bridge (straight, at the inner top line)
     x_out = cx + float(lens[:, 0].max()) + rim
     endinfo = []
-    pod_t = 7.0
+    pod_t = tp["pod_t"]
     ends = []
     for sx in (-1, 1):
         # the photo's endpiece width includes the temple seen end-on: block up to the temple's inner face
-        endw = max(endw, pod_t + 3.0)
-        x0, x1 = x_out - 3.0, x_out + endw - pod_t + 2.0
-        parts.append(_box(x1 - x0, D + 6.0, 14.0, sx * (x0 + x1) / 2, (D + 6.0) / 2, top - 7.0))   # endpiece + hinge block
-        ends.append(dict(side=sx, w=x1 - x0, d=D + 6.0, h=14.0))
+        endw = max(endw, pod_t + 1.0)
+        x0, x1 = x_out - 3.0, x_out + endw - pod_t / 2          # 힌지: 다리 두께의 절반이 엔드피스에 물림 (복셀에서도 끊기지 않게)
+        eh = max(14.0, tp["pod_h"] + 1.0)
+        parts.append(_box(x1 - x0, D + 6.0, eh, sx * (x0 + x1) / 2, (D + 6.0) / 2, top - eh / 2))   # endpiece + hinge block
+        ends.append(dict(side=sx, w=x1 - x0, d=D + 6.0, h=eh))
         endinfo.append((sx, x_out + endw))
-        npx = sx * (bridge / 2 + 3.5)
-        parts.append(_box(4.0, 6.0, 7.0, npx, D + 3.0, -0.12 * lh))                  # nose pad
+        npx = sx * (bridge / 2 - rim / 2 + 1.0)             # 안쪽 림 위 (렌즈 구멍 쪽으로 1 mm)
+        parts.append(_box(4.0, 7.0, 7.0, npx, D + 2.5, -0.12 * lh))                  # nose pad: 안쪽 림 뒤에 (1 mm 겹침)
     # temples: pod (electronics) + arm + ear bend, along +y from the endpiece back face
     pods = []
     for sx, x1 in endinfo:
         xt = sx * (x1 - pod_t / 2)
         y0 = 1.0                                         # temple front end sits beside the endpiece (hinge overlap)
-        pod_len, pod_h = 62.0, 12.0
-        parts.append(_box(pod_t, pod_len, pod_h, xt, y0 + pod_len / 2, top - 7.0))
-        pods.append(dict(side=sx, x=xt, y0=y0, y1=y0 + pod_len, z=top - 7.0, h=pod_h, t=pod_t))
+        pod_len, pod_h = tp["pod_len"], tp["pod_h"]
+        zt = top - pod_h / 2 - 0.5                       # 다리 윗선 = 테 윗선 (사진처럼 브로우 라인이 다리로 이어짐)
+        parts.append(_box(pod_t, pod_len, pod_h, xt, y0 + pod_len / 2, zt))
+        pods.append(dict(side=sx, x=xt, y0=y0, y1=y0 + pod_len, z=zt, h=pod_h, t=pod_t))
         arm_y1 = TEMPLE_LEN - 25.0
-        parts.append(_box(4.5, arm_y1 - (y0 + pod_len) + 2, 7.0, xt, (y0 + pod_len - 2 + arm_y1) / 2, top - 7.0))
-        p0 = np.array([xt, arm_y1 - 2, top - 7.0])
+        za = top - tp["arm_h"] / 2 - 0.5
+        parts.append(_box(tp["t"], arm_y1 - (y0 + pod_len) + 2, tp["arm_h"], xt, (y0 + pod_len - 2 + arm_y1) / 2, za))
+        p0 = np.array([xt, arm_y1 - 2, za])
         p1 = p0 + 27.0 * np.array([0, math.cos(math.radians(28)), -math.sin(math.radians(28))])
-        parts.append(_bar(p0, p1, 4.5, 7.0))
+        parts.append(_bar(p0, p1, tp["t"], tp["arm_h"] * 0.8))
     body = parts[0]
     for p in parts[1:]:
         body = body.union(p)
     for c in cutters:
         body = body.cut(c)
     lenses = [_yprism(lens * [sx, 1] + [sx * cx, 0], 1.5, 1.5 + LENS_T) for sx in (-1, 1)]
-    cam = dict(x=x_out + (ends[1]["w"] - 3.0) / 2, z=top - 7.0)
+    # 카메라 (오른쪽 = +x 테 바깥 위 모서리) · LED (왼쪽) — 사진과 같은 자리, 앞면에서 0.6 mm 볼록
+    ux = cx + float(lens[:, 0].max()) - 2.0
+    uz = top - rim - 1.5 if geo.get("style") == "gm" else top - 7.0
+    cam_pt = (ux + 0.5 * rim, uz) if geo.get("style") == "gm" else (x_out + (ends[1]["w"] - 3.0) / 2, top - 7.0)
+    cam_s = cq.Workplane("XZ").circle(3.0).extrude(0.6).translate((cam_pt[0], 0.0, cam_pt[1]))
+    led_s = cq.Workplane("XZ").circle(1.0).extrude(0.4).translate((-cam_pt[0], 0.0, cam_pt[1]))
+    body = body.union(cam_s).union(led_s)
+    cam = dict(x=cam_pt[0], z=cam_pt[1])
     info = dict(cx=cx, top=top, x_out=x_out, pods=pods, ends=ends, endw=endw, camera=cam, tips_y=TEMPLE_LEN - 25.0 + 27.0 * math.cos(math.radians(28)),
                 temple_x=[p["x"] for p in pods], width=2 * (x_out + endw))
     return body, lenses, info
@@ -406,16 +437,21 @@ def mass_budget(body, lenses, info):
                 total_g=round(frame_g + lens_g + parts_g, 1), pod_cavity_mm3=round(cav))
 
 
+K_FRAME = 0.2                  # W/mK, 셀룰로오스 아세테이트 열전도 (일반값)
+SOC_LEN = 30.0                 # mm, SoC 보드 길이 (가정) — 다리 앞쪽 부품실에 놓임
+
+
 def thermal(info):
-    """Lumped: SoC heat spread (graphite sheet, assumed) over the right temple surface; skin-side temperature."""
+    """1차 설계에는 방열 시트가 없다: 아세테이트(0.2 W/mK)는 열을 거의 옮기지 못해, 열은 SoC 보드 길이 + 양쪽 핀 길이 1/m 만큼의
+    다리 표면으로만 빠진다 (핀 이론 m = √(hP / kA)). → 피부 쪽 표면 온도 = 주변 + P / (h · 둘레 · 유효 길이)."""
     p = [q for q in info["pods"] if q["side"] > 0][0]
-    L_pod = p["y1"] - p["y0"]
-    A_pod = 2 * (L_pod * p["h"] + L_pod * p["t"] + p["h"] * p["t"])
-    L_arm = TEMPLE_LEN - 25.0 - p["y1"]
-    A_arm = 2 * L_arm * (7.0 + 4.5)
-    A = (A_pod + A_arm) * 1e-6
+    per = 2 * (p["h"] + p["t"]) * 1e-3                     # 둘레 (m)
+    ac = p["h"] * p["t"] * 1e-6                            # 단면적 (m²)
+    m = math.sqrt(H_CONV * per / (K_FRAME * ac))
+    L_eff = SOC_LEN * 1e-3 + 2.0 / m
+    A = per * L_eff
     dT = SOC_W / (H_CONV * A)
-    return dict(area_cm2=round(A * 1e4, 1), dT=round(dT, 1), T=round(T_AMB + dT, 1),
+    return dict(area_cm2=round(A * 1e4, 1), dT=round(dT, 1), T=round(T_AMB + dT, 1), fin_len_mm=round(1e3 / m, 1), L_eff_mm=round(L_eff * 1e3, 1),
                 P_allow_W=round((T_SKIN_LIMIT - T_AMB) * H_CONV * A, 2))
 
 
@@ -428,7 +464,14 @@ def fem(body, info, geo, h=0.9):
         cq.exporters.export(body, p, tolerance=0.08, angularTolerance=0.2)
         mesh = trimesh.load(p)
     progress.step("복셀 격자 만들기", f"{h:.2f} mm")
-    occ, o = voxelize(mesh, h)
+    occ, o = voxelize(mesh, h, sym_x=True)
+    lab, nlab = ndimage.label(occ)
+    if nlab > 1:                                         # 떨어진 조각이 있으면 강체 운동 -> 해가 엉터리
+        sizes = np.bincount(lab.ravel())[1:]
+        big = int(np.argmax(sizes)) + 1
+        if sizes.sum() - sizes.max() > 0.005 * sizes.sum():
+            raise ValueError(f"glasses voxel model is not connected: {nlab} pieces, sizes {sorted(sizes.tolist())[-4:]}")
+        occ = lab == big                                 # 카메라 · LED 0.4–0.6 mm 볼록 같은 장식 부스러기(< 0.5 %)만 버림
     V = VoxModel(occ, o, h, MAT["E"], MAT["nu"])
     xyz = V.node_xyz
     U = V.used
@@ -500,32 +543,113 @@ def parse_lens_w(text):
     return float(m.group(1)) if m else LENS_W_DEFAULT
 
 
+def template_geometry(style, lw):
+    """템플릿 형상: 형상(슬림 오벌 / 캣아이) × 렌즈 폭(48 · 50 · 52 mm). 브리지 · 림 · 엔드피스는 템플릿 값."""
+    S = STYLES[style]
+    L = lens_outline(style, w=lw, h=S["h"] * lw / S["w"])
+    if S.get("shape") != "rrect":                        # 둥근 사각은 호 점(4 × 14) 그대로 — r(θ) 재표본은 모서리를 뭉갬
+        th, r, c = radial(L, 72)                         # CAD 용 72점 (180점 대비 부피 차 < 0.3 %, 불리언 2.4배 빠름)
+        L = from_radial(th, r) + c
+    if style == "gm":                                    # 공식 사진 디자인 그대로 (두께 · 다리 크기도 사진 비율)
+        return dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"], bridge=S["bridge"] * lw / 50.0,
+                    bridge_h=S["bridge_h"], depth=S["depth"], endpiece=S["endpiece"], temple=S["temple"], style=style, source="템플릿", lens_w_t=lw)
+    return dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"] + RIM_EXTRA, bridge=18.0,
+                endpiece=12.0, style=style, source="템플릿", lens_w_t=lw)
+
+
+INPUT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REF_PHOTOS = {"gm": os.path.join(INPUT_ROOT, "examples", "glasses", "젠틀몬스터_구글_삼성_AI글래스.jpg")}
+_REF_FP = None
+
+
+def _fingerprint(img):
+    from skimage.transform import resize
+    g = resize(_to_gray(img), (80, 64), anti_aliasing=True)
+    g = g - g.mean()
+    return g / (np.linalg.norm(g) + 1e-9)
+
+
+def matches_reference(img, thr=0.95):
+    """등록된 공식 제품 사진(다시 저장 · 축소해도 같은 사진)이면 그 템플릿 이름, 아니면 None."""
+    global _REF_FP
+    if _REF_FP is None:
+        from PIL import Image
+        _REF_FP = {k: _fingerprint(np.asarray(Image.open(p).convert("L"), float) / 255.0) for k, p in REF_PHOTOS.items() if os.path.exists(p)}
+    try:
+        f = _fingerprint(img)
+    except Exception:
+        return None
+    best = max(((float((f * v).sum()), k) for k, v in _REF_FP.items()), default=(0.0, None))
+    return best[1] if best[0] >= thr else None
+
+
 def geometry_from(photo=None, text="", style=None):
+    """사진 · 문장 → 가장 가까운 템플릿 (형상 · 렌즈 폭). 사진에서 잰 치수는 참고로 함께 돌려줌.
+    등록된 공식 제품 사진(3/4 각도) → 'gm' 템플릿, 정면 사진 → 윤곽 분석으로 가까운 형상, 사진 없음 → 'gm'."""
     lw = parse_lens_w(text)
-    an = None
+    an, ref = None, None
     if photo is not None:
-        progress.step("사진 분석 (테 · 렌즈 윤곽 · 치수)")
-        an = analyze_photo(photo, lens_w=lw)
-    if an is not None:
-        geo = dict(lens=an["lens"], lens_w=an["lens_w"], lens_h=an["lens_h"], rim=an["rim"], bridge=an["bridge"],
-                   endpiece=an["endpiece"], style=an["style"], source="사진 분석")
-    else:
-        st = style or ("cat_eye" if re.search(r"캣\s*아이|cat", text or "", re.I) else "slim_oval")
-        S = STYLES[st]
-        L = lens_outline(st, w=lw, h=S["h"] * lw / S["w"])
-        geo = dict(lens=L, lens_w=float(np.ptp(L[:, 0])), lens_h=float(np.ptp(L[:, 1])), rim=S["rim"], bridge=18.0,
-                   endpiece=7.0, style=st, source="기본 형상 (사진 없음/인식 실패)")
-    th, r, c = radial(geo["lens"], 72)                   # CAD 용 72점 (180점 대비 부피 차 < 0.3 %, 불리언 2.4배 빠름)
-    geo["lens"] = from_radial(th, r) + c
+        progress.step("사진 → 템플릿 (등록 사진 확인 · 테 · 렌즈 윤곽)")
+        ref = matches_reference(photo)
+        if ref is None:
+            an = analyze_photo(photo, lens_w=lw)
+    st = style or ref or (an["style"] if an else ("cat_eye" if re.search(r"캣\s*아이|cat", text or "", re.I) else
+                                                   "slim_oval" if re.search(r"슬림|오벌", text or "") else "gm"))
+    lw_t = min(LENS_WIDTHS, key=lambda w: abs(w - lw))
+    geo = template_geometry(st, lw_t)
+    geo["source"] = ("공식 제품 사진 → 템플릿" if ref else "사진 → 가까운 템플릿" if an else
+                     "사진 인식 실패 → 기본 템플릿" if photo is not None else "템플릿 (사진 없음)")
+    geo["ref_photo"] = ref
     return geo, an
 
 
 def design(text="", image=None, out="out", with_mesh=False, style=None):
-    import cadquery as cq
-    from .common import base_report, finish, mesh_b64
+    """템플릿(형상 2 × 렌즈 폭 3) 결과 DB 에서 바로 (처음 한 번만 계산). 사진은 템플릿을 고르고, 분석 그림 · 치수는 매번 새로."""
+    import json
+    from .. import memo
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
     geo, an = geometry_from(image, text, style)
+    k = memo.key("glasses", geo["style"], geo["lens_w_t"], TEMPLE_T, RIM_EXTRA, STYLES[geo["style"]])
+    rep = memo.get(k, out) if with_mesh else None
+    if rep is None:
+        before = os.listdir(out)
+        rep = _design(geo, out, with_mesh)
+        if with_mesh:
+            rep = memo.put(k, out, memo.new_files(out, before), rep)
+    else:
+        progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", STYLES[geo["style"]]["name"])
+    S = STYLES[geo["style"]]
+    if geo.get("ref_photo"):
+        analysis_png(image, None, geo, os.path.join(out, "analysis.png"))
+        rep["template"].update(chosen_by="공식 제품 사진 → 템플릿",
+                               match=dict(source="사진", frame="photo", candidates=[dict(id=geo["style"], name=S["name"], confidence=1.0)]))
+        rep["extra"]["photo"] = dict(mode="reference", file=os.path.basename(REF_PHOTOS[geo["ref_photo"]]))
+    elif an:
+        analysis_png(image, an, geo, os.path.join(out, "analysis.png"))
+        rep["template"].update(chosen_by="사진 → 가까운 템플릿",
+                               match=dict(source="사진", frame="photo", candidates=[dict(id=geo["style"], name=S["name"], confidence=1.0)]))
+        rep["extra"]["photo"] = {k_: v for k_, v in an.items() if k_ not in ("lens", "px")}
+        rep["analysis"]["features"] = an["features"]
+        rep["analysis"]["photo_dims"] = dict(lens_w=round(an["lens_w"], 1), lens_h=round(an["lens_h"], 1), bridge=round(an["bridge"], 1),
+                                             rim=round(an["rim"], 1))
+    else:
+        rep["template"].update(chosen_by="텍스트" if text else "기본")
+        rep["extra"]["photo"] = None
+    rep["summary"] = [[a, geo["source"]] if a == "형상 출처" else [a, b] for a, b in rep["summary"]]
+    rep["seconds"] = round(time.time() - t0, 2)
+    with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
+        json.dump({k_: v for k_, v in rep.items() if k_ not in ("mesh", "heat", "aux")}, f, ensure_ascii=False, indent=1)
+    return rep
+
+
+def _design(geo, out, with_mesh):
+    """실제 계산 (템플릿 DB 가 비었을 때만)."""
+    import cadquery as cq
+    from .common import base_report, finish, mesh_b64
+    t0 = time.time()
+    image, an, text = None, None, ""
+    os.makedirs(out, exist_ok=True)
     progress.step("CAD (테 · 브리지 · 다리 · 부품실)")
     body, lenses, info = build(geo)
     cq.exporters.export(body, os.path.join(out, "design_1st.step"), exportType="STEP")
@@ -553,7 +677,7 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
     how = "사진 분석" if an else ("텍스트" if text else "기본")
     S = STYLES[geo["style"]]
     rep = base_report(
-        product="AR 글래스", tid="AG01", tname=f"AI 글래스 — {S['name']}", tdesc=S["note"], chosen_by=how,
+        product="AR 글래스", tid="AG-" + geo["style"], tname=f"AI 글래스 — {S['name']} · 렌즈 {geo['lens_w_t']:.0f}", tdesc=S["note"], chosen_by=how,
         match=dict(source="사진", frame="photo", candidates=[dict(id=geo["style"], name=S["name"], confidence=1.0)]) if an else None,
         rows=rows, conditions=conditions(geo, mb, th),
         summary=[["제품", "AI 글래스 (Android XR, 디스플레이 없음)"], ["형상 출처", geo["source"]], ["테 재료", MAT["name"]],
@@ -570,7 +694,9 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
                      "최대 응력 = 절점 응력 상위 0.5 % 제외값 (복셀 계단 모서리의 가짜 응력 집중 제외)",
                      "다리 앞쪽 부품실 · 엔드피스(카메라 · 힌지)는 벽 1 mm 껍데기로 무게 계산, 힌지는 강체 연결로 해석",
                      f"착용 벌림: 머리 폭 ≈ 테 폭 + 10 mm → 다리 끝 한쪽 {SPREAD_EACH:.0f} mm",
-                     f"발열: SoC {SOC_W} W 가 방열 시트로 오른쪽 다리 전체에 퍼진다고 보고 h = {H_CONV:.0f} W/m²K 집중 계산",
+                     f"발열: 1차 설계는 방열 시트 없음 — 아세테이트 {K_FRAME} W/mK 라 열이 SoC 보드({SOC_LEN:.0f} mm, 가정) + 양쪽 {th['fin_len_mm']} mm(핀 길이 1/m)에만 퍼짐, h = {H_CONV:.0f} W/m²K",
+                     ("1차 설계 = 공식 사진 디자인을 통 아세테이트로 (다리 · 테 속을 비우지 않음, 방열 시트 없음)" if geo.get("style") == "gm" else
+                      f"1차 설계 다리 두께 {TEMPLE_T:g} mm · 림 +{RIM_EXTRA:g} mm (일반 아세테이트 뿔테 수준)") + " — 미충족 항목(무게 · 온도)은 다음 단계(물리 최적화)에서 맞춤",
                      "데모용 1차 설계 — 최적화 단계로 넘기지 않음"],
         sources=[SOURCES[k] for k in ("weight41", "unpacked", "battery", "clamp", "clamp_patent", "iso12870", "touch")],
         cad=dict(mass_g=mb["total_g"], material=MAT["name"]),
@@ -592,7 +718,13 @@ def analysis_png(photo, an, geo, path):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    if photo is not None and an is not None:
+    if photo is not None and an is None:
+        fig, ax = plt.subplots(1, 2, figsize=(13, 5.2), gridspec_kw=dict(width_ratios=[1.0, 1.2]))
+        ax[0].imshow(np.asarray(photo), cmap="gray" if np.asarray(photo).ndim == 2 else None)
+        ax[0].set_title("입력: 공식 제품 사진 (3/4 각도) → 등록된 템플릿", fontsize=10)
+        ax[0].axis("off")
+        a = ax[1]
+    elif photo is not None and an is not None:
         fig, ax = plt.subplots(1, 2, figsize=(13, 4.4), gridspec_kw=dict(width_ratios=[1.6, 1]))
         ax[0].imshow(np.asarray(photo), cmap="gray" if np.asarray(photo).ndim == 2 else None)
         for C in an["px"]["contours"]:

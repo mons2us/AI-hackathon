@@ -2,3 +2,4 @@ out*/
 
 *.npz
 .venv/
+formproof_input/templates/db/precomputed/
