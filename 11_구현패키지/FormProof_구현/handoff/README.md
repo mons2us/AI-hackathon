@@ -64,6 +64,32 @@ GPU 2장: 형상 AI 한 장 + (CNN → FNO) 한 장      GPU 1장 이하: 차례
 | s3 ~ s6 | GPU 학습 (08 경험상 각 수십 분). GPU 3장 이상이면 동시에 | 차례로 1 ~ 2시간 → 동시에 가장 긴 하나만큼 (미측정) |
 | s7 · s8 | 후보 6개 × FEM | 수 분 |
 
+## 2b. (선택) step2 와 같이 돌리는 추가 작업 — `step2b_extra.sh` (11-16 추가)
+**step2 가 돌고 있어도 그대로 두고** 새 창에서 실행. 실행 중인 `step2_server_all.sh` · `scripts/gen_data_frame.sh` 파일은 덮어쓰지 말 것 (bash 는 실행 중에 파일을 이어서 읽음).
+```bash
+cd fp11          # step2 를 돌리는 그 폴더
+# GitHub 에서 받은 handoff/step2b_extra.sh, scripts/eval_curve.py 두 파일만 이 폴더의 같은 위치에 복사 (새 파일이라 안전)
+nohup bash handoff/step2b_extra.sh > step2b.out 2>&1 &
+tail -f step2b.out
+```
+```
+step2 :  s2 데이터(CPU) ──▶ s3·s5·s6 학습(GPU 3장) ──▶ s7·s8 ──▶ s9
+step2b:     (기다림)    ──▶ ① 추가 데이터 5000(놀게 된 CPU)  ──────────▶ ③ FNO 약 1만(GPU 4번째) ─▶ ④ 채점 ─▶ ⑤
+                            ② FNO 1000 · 2000 (GPU 4번째) ──┘
+```
+- 결과 `runs/curve/curve.md`: 데이터 1000 / 2000 / 5245 / 약 1만 개로 학습한 FNO 를 **같은 시험 셋**(추가 데이터 앞 4묶음 ≈ 600개, 어느 모델도 학습에 안 씀)으로 채점한 오차 표.
+- 읽는 법: 5245 → 1만 에서 오차가 **아직 크게 줄면** 데이터가 모자란 것 → 1만 모델로 최적화를 다시 돌림 (아래). **거의 그대로면** 데이터 수는 충분.
+- 1만 모델로 최적화 · FEM 검증 다시 하기 (step2 가 끝난 뒤):
+```bash
+python3 -m ai.latent_search --meta data/grid_meta.npz --sdf runs/sdf.pt --phys runs/curve/fno_big.pt --data 'data/shards_frame/*.npz' \
+        --spec spec/bike_mount_targets.json --out runs/latent_big
+mkdir -p runs/gate_big && cd runs/gate_big && for f in ../latent_big/cand_*.npy; do t=$(basename $f .npy); \
+  GRIP=2 NX=88 MSYS=0.311 MODE=eval RHO=$(realpath $f) TAG=$t python3 ../../engine/opt_int.py | tail -1 & done; wait; cd ../..
+```
+- 시간(추정): ① 약 1시간 (CPU 몫 84 → JX=36), ② · ③ 은 GPU 1장에서 FNO 학습 3번 (1000 · 2000 은 동시에). step2 보다 1시간 안팎 늦게 끝날 것으로 봄 (미측정).
+- 메모리: ① 36 × 4.1 GB ≈ 150 GB + step2 학습. 720 GB 몫 안.
+- 11-16 시험 (이 작업 환경, TINY=1): ①~⑤ 통과, 끊긴 뒤 이어하기 확인.
+
 ## 3. 회사 PC: 결과 보기
 서버의 `fp11/results_fp11.zip` 을 회사 PC 의 `FormProof_구현` 폴더에 복사한 뒤 `handoff\step3_pc_view.bat` 를 더블클릭 → `runs\report.html` 이 열림.
 - 결과 묶음에는 학습 데이터(수 GB)를 넣지 않음. 대신 서버에서 데이터 통계까지 넣어 만든 `runs/report.html` 이 들어 있고, step3 는 그것을 그대로 엶.
