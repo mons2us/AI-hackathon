@@ -30,6 +30,7 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
+APP_VERSION = "2026-11-16c"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("model/step", ".step")
@@ -82,6 +83,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._file(_safe_join(EXAMPLES, p[len("/examples/"):]))
         if p.startswith("/runs/"):
             return self._file(_safe_join(RUNS, p[len("/runs/"):]), download="dl=1" in (u.query or ""))
+        if p == "/api/version":
+            return self._send(200, {"version": APP_VERSION, "pid": os.getpid()})
         if p == "/api/job":                           # 진행 상태 (GUI 가 0.3 s 마다 물음)
             from urllib.parse import parse_qs
             jid = parse_qs(u.query).get("id", [""])[0]
@@ -173,6 +176,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": msg})
 
 
+class Server(ThreadingHTTPServer):
+    """윈도우에서 SO_REUSEADDR 는 같은 포트에 서버 두 개가 동시에 붙게 해, 요청이 예전 서버와 새 서버로 나뉘어 간다
+    (예: 진행 상태 조회가 다른 프로세스로 가서 'Cannot read properties of undefined'). 포트를 혼자 쓰게 막는다."""
+    allow_reuse_address = sys.platform != "win32"
+
+    def server_bind(self):
+        import socket
+        if sys.platform == "win32" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def fill_template_db():
     """템플릿 결과 DB 의 빈 항목을 뒤에서 채움 (한 항목씩 LOCK — 사용자가 누른 요청이 먼저 끼어들 수 있게).
     이미 있는 항목은 0.3 s 안에 넘어감. setup.bat 이 미리 채워 두면 여기서는 할 일이 없다."""
@@ -211,7 +226,12 @@ def main():
     pipeline.matcher()                                     # warm up: template references for sketch matching
     import cadquery  # noqa: F401  (first import is slow; do it before the first request)
     print(f"준비 완료 ({time.time() - t:.1f}s) → http://localhost:{a.port}", flush=True)
-    srv = ThreadingHTTPServer((a.host, a.port), Handler)
+    try:
+        srv = Server((a.host, a.port), Handler)
+    except OSError:
+        print(f"\n포트 {a.port} 를 이미 다른 서버가 쓰고 있습니다. 예전 서버 창(검은 창)을 닫고 다시 실행하세요."
+              f"\n(다른 포트: start.bat --port 8766)\n", flush=True)
+        sys.exit(1)
     threading.Thread(target=fill_template_db, daemon=True).start()
     if not a.no_browser:
         threading.Timer(0.5, lambda: webbrowser.open(f"http://localhost:{a.port}")).start()
