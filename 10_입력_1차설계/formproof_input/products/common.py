@@ -11,10 +11,10 @@ HANDOFF = ["spec.json", "report.json", "design_1st.step", "design_1st.stl", "des
 
 def base_report(product, tid, tname, tdesc, chosen_by, match, rows, conditions, summary, design_vars, assumptions,
                 sources, cad, extra=None, seconds=0.0, analysis=None):
-    ok = all(r["ok"] for r in rows)
+    ok = all(r["ok"] for r in rows if not r.get("ref"))          # ref = 참고 행 (판정에 넣지 않음)
     return dict(kind="product", product=product,
                 template=dict(id=tid, name=tname, desc=tdesc, chosen_by=chosen_by, match=match),
-                judge=dict(rows=rows, pass_=ok, fails=[r["name"] for r in rows if not r["ok"]]),
+                judge=dict(rows=rows, pass_=ok, fails=[r["name"] for r in rows if not r["ok"] and not r.get("ref")]),
                 conditions=conditions, summary=summary, design_vars=design_vars, assumptions=assumptions,
                 sources=sources, cad=cad, analysis=analysis, extra=extra or {}, seconds=round(seconds, 2),
                 text=dict(fired=[c for c in conditions if c.get("source", "").startswith(("근거", "IEC", "ISO", "텍스트", "스케치", "사진"))],

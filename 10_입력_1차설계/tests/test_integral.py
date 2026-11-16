@@ -194,3 +194,25 @@ if __name__ == "__main__":
                test_comparison_shapes_same_as_team, test_numbers_same_as_presentation, test_routing, test_pipeline_outputs,
                test_heat_maps, test_engine_reruns_same):
         print(fn.__name__, fn())
+
+
+def test_fixing_parts():
+    """폰 4면 고정: 슬라이드 집게 × 2 · 위쪽 걸이 = 팀 cad/parts.py (발표 22쪽 3.6 g × 2 · 8.3 g), 집게 안쪽 면 = 폰 옆면 (폭 76),
+    위 걸이 = 폰 위 끝 (길이 160), 몸체와 겹치지 않음, 3D 보기 · 조립 STEP 에 들어감."""
+    import tempfile
+    parts = I.parts_world(I.fixing_parts())
+    m = {p["key"]: p["wp"].val().Volume() * 1.27e-3 for p in parts}
+    assert abs(m["jaw"] - 7.2) < 0.2 and abs(m["tophook"] - 8.3) < 0.1, m
+    bb = parts[0]["wp"].val().BoundingBox()
+    assert abs(bb.ymax - (76 / 2 + 5)) < 0.01 and abs(bb.ymin + (76 / 2 + 5)) < 0.01        # 집게 바깥 = yj + 5
+    tb = parts[1]["wp"].val().BoundingBox()
+    assert abs(tb.xmin - (I.XR + 160 - 30)) < 0.01                                            # 위 걸이 슬라이더 시작 = h − 30
+    _, body = I.build_cad()
+    for p in parts[:2]:
+        v = body.intersect(p["wp"])
+        clash = sum(s.Volume() for s in v.vals()) if v.vals() else 0.0
+        assert clash < 1.0, (p["key"], clash)
+    with tempfile.TemporaryDirectory() as d:
+        rep = I.design("", out=d, with_mesh=True)
+        assert len(rep["aux"]) == 4 and os.path.exists(os.path.join(d, "design_1st_assembly.step"))
+    return f"집게 {m['jaw']:.1f} g · 위 걸이 {m['tophook']:.1f} g · 출력 합계 {rep['cad']['print_total_g']} g"

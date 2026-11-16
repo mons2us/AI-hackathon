@@ -1,219 +1,179 @@
-"""TV 스탠드 — 스케치 → 템플릿 → 1차 설계(CAD · 도면) + 물리 조건 + 간이 판정 (데모 시나리오).
+"""TV 스탠드 (LG 스탠바이미형 이동식) — 스케치 → 템플릿 → 1차 설계(CAD · 도면) + 물리 조건 + 간이 판정 (데모 시나리오).
 
-좌표 (mm): x = TV 폭 방향(좌우), y = 앞뒤(앞 = −y, 시청자 쪽), z = 위, 바닥 z = 0.
-템플릿 4종 (TV 스탠드로 흔히 쓰는 구조):
-  TV01 센터 받침형 — 판형 받침 + 짧은 기둥 + VESA 브래킷 (TV 아래 중앙)
-  TV02 양발형      — TV 아래 양끝 두 발 (판 다리), 화면 하단 프레임에 체결
-  TV03 이젤형      — 앞다리 2 + 뒷다리 1 삼각대, 앞다리에 VESA 판
-  TV04 바닥 스탠드  — 무거운 판 받침 + 높은 기둥 + VESA 브래킷 (시청 높이)
-물리 조건: IEC 62368-1 안정성(10° 기울임 / 무게 13 % 수평력 ≤ 250 N, 1.5 m 이하에 가함 · 50 % 하향력 ≤ 100 N),
-자중 · 수평력에서 응력 ≤ 항복/1.5, TV 윗단 흔들림 ≤ 1 mm(가정). 판정: 넘어짐 = 정역학 계산, 응력 · 처짐 = 복셀 FEM.
+구조 (LG StanbyME 27ART10 과 같은 방식): 바퀴 5개가 숨은 둥근 받침 + 가운데 수직 기둥 + 기둥을 타는 높이 조절 캐리지
++ 짧은 팔 + 회전 헤드(화면 뒤 장착판). 기둥은 화면 **뒤**에 있고 화면 위로 나오지 않는다 (CAD 에서 화면과 겹침 0 을 검사).
+
+좌표 (mm): x = 화면 폭 방향, y = 앞뒤 (앞 = −y, 시청자 쪽), z = 위, 바닥 z = 0, 기둥 축 = (0, 0).
+템플릿: TV01 가로 · TV02 세로(화면 회전). 화면 높이는 스케치 비율에서 읽어 스탠바이미 조절 범위로 제한.
+물리 조건: IEC 62368-1 8.6 안정성 (10° 기울임, 무게 13 % 수평력 ≤ 250 N, 50 % 하향력 ≤ 100 N, 1.5 m 이하),
+자중 + 수평력 응력 ≤ 항복/1.5, 화면 윗단 흔들림 ≤ 1 mm(가정), 바퀴 하나 하중 ≤ 200 N(가정).
 """
-import base64
 import math
 import os
+import re
 import tempfile
 import time
 
 import numpy as np
 
-from ..sketch import Matcher, draw_image, ink_points, perturb  # noqa: F401
+from ..sketch import Matcher, ink_points
 
 SOURCES = {
+    "stanbyme": dict(title="LG StanbyME 27ART10AKPL 사양: 화면 621 × 361 × 29.9 mm · 4.8 kg, 스탠드 포함 621 × 1077 × 397 mm · 17.5 kg, 받침 397 × 397",
+                     url="https://www.lg.com/sg/tvs/lg-27art10akpl"),
+    "stanbyme_us": dict(title="LG US 사양: 스탠드 포함 높이 49.8\"(최대) / 41.9\"(최소), 받침 폭 15.6\"",
+                        url="https://www.lg.com/us/lifestyle-products/lg-27art10akpl-lifestyle-screen"),
+    "wheels": dict(title="B&H: 받침에 숨은 바퀴 5개 + 기둥에 조절 팔로 화면 장착, 배터리 내장",
+                   url="https://www.bhphotovideo.com/c/product/1770964-REG"),
     "iec62368": dict(title="IEC 62368-1 ed.3 8.6 안정성 시험 (10° 기울임, 13 % 수평력 ≤ 250 N, 50 % 하향력 ≤ 100 N, 1.5 m 이하)",
                      url="https://www.mail-archive.com/emc-pstc@listserv.ieee.org/msg76504.html"),
-    "samsung55": dict(title="Samsung 55\" UHD (CU7000) 사양: 1230.5 × 707.2 × 59.9 mm, 13.9 kg(스탠드 제외), VESA 200×200",
-                      url="https://shop.prog-it.net/samsung-55cu7000-55in-uhd-3840x2160/cat-p/c/p1004365763/l_en"),
-    "samsung55_qn90b": dict(title="Samsung QE55QN90B: 스탠드 제외 17.7 kg, VESA 200×200",
-                            url="https://productsupport.johnlewis.com/customer/device/Samsung/QE55QN90BATXXU"),
 }
-MATERIALS = {
-    "steel": dict(name="강판 · 강관 (SS275)", E=205000.0, nu=0.3, rho=7.85e-3, yield_mpa=275.0),
-    "al": dict(name="알루미늄 6061-T6", E=69000.0, nu=0.33, rho=2.70e-3, yield_mpa=240.0),
-    "wood": dict(name="너도밤나무 집성목 (각재)", E=12000.0, nu=0.3, rho=0.72e-3, yield_mpa=40.0),
-}
-VOXEL = {"TV01": 5.0, "TV02": 3.0, "TV03": 7.0, "TV04": 5.0}      # 부재 두께가 격자 2칸 이상 되게
+MAT = dict(name="강 (받침판 · 기둥 강관 SS275)", E=205000.0, nu=0.3, rho=7.85e-3, yield_mpa=275.0)
+MATERIALS = {"steel": MAT}
 SF = 1.5
 TOP_DEFLECTION_MM = 1.0          # 가정 (팀 TV 스탠드 사례와 같은 값)
+CASTER_LIMIT_N = 200.0           # 가정: 소형 캐스터 정격 약 20 kg
+REF27 = dict(W=621.0, H=361.0, D=29.9, mass=4.8, stand_mass=17.5 - 4.8, base_d=397.0,
+             top_min=1064.0, top_max=1265.0)     # 41.9" / 49.8" (LG US) -> 가로 화면 윗단 높이 범위
+VOXEL = 4.0
 
 
-def tv_spec(size_in=55):
-    """TV 크기 → 패널 치수 · 무게 · VESA. 55형 = 근거(삼성 사양, 무거운 쪽 17.7 kg), 다른 크기는 대각 비례 가정."""
-    s = size_in / 55.0
-    W, H, D = 1230.5 * s, 707.2 * s, 60.0
-    m = 17.7 * s ** 2
-    vesa = (200, 200) if size_in <= 55 else (300, 300) if size_in <= 65 else (400, 300)
-    src = "근거: 삼성 55형 사양" if size_in == 55 else f"가정: 55형 사양에서 대각 비례(무게 ∝ 크기²) — {size_in}형 실제 사양 확인 필요"
-    return dict(size_in=size_in, W=round(W, 1), H=round(H, 1), D=D, mass_kg=round(m, 1), vesa=vesa, source=src)
+def tv_spec(size_in=27):
+    """화면 크기 → 치수 · 무게. 27형 = 스탠바이미 실측(LG), 다른 크기는 대각 비례 가정(무게 ∝ 크기²)."""
+    s = size_in / 27.0
+    src = "근거: LG StanbyME 27형 사양" if size_in == 27 else f"가정: 27형 스탠바이미에서 대각 비례 — {size_in}형 실제 사양 확인 필요"
+    return dict(size_in=size_in, W=round(REF27["W"] * s, 1), H=round(REF27["H"] * s, 1), D=REF27["D"],
+                mass_kg=round(REF27["mass"] * s ** 2, 1), source=src)
 
 
 TEMPLATES = [
-    dict(id="TV01", name="센터 받침형", desc="판형 받침 + 짧은 기둥 + VESA 브래킷 (거실장 위)", material="steel", place="거실장 위"),
-    dict(id="TV02", name="양발형", desc="TV 아래 양끝 두 발(판 다리), 화면 하단에 체결 (기본 제공 다리)", material="al", place="거실장 위"),
-    dict(id="TV03", name="이젤형", desc="앞다리 2 + 뒷다리 1 삼각대(원목 각재), 앞다리에 VESA 판 (바닥)", material="wood", place="바닥"),
-    dict(id="TV04", name="바닥 스탠드", desc="H자 받침 + 높은 각관 기둥 + VESA 브래킷 (바닥, 시청 높이)", material="steel", place="바닥"),
+    dict(id="TV01", name="이동식 스탠드 · 가로", desc="둥근 받침(바퀴 5) + 수직 기둥 + 높이 조절 캐리지 · 회전 헤드, 화면 가로", orient="landscape"),
+    dict(id="TV02", name="이동식 스탠드 · 세로", desc="같은 스탠드, 화면을 90° 돌려 세로로 (헤드 회전)", orient="portrait"),
 ]
 BY_ID = {t["id"]: t for t in TEMPLATES}
 
 
 # ------------------------------------------------------------------ geometry
-def layout(tid, tv):
-    """Template + TV -> dimensions of the stand, TV placement, floor contact polygon, load points."""
-    W, H, D = tv["W"], tv["H"], tv["D"]
-    vx, vz = tv["vesa"]
-    if tid == "TV01":
-        g = dict(base=(min(0.37 * W, 450.0), 280.0, 8.0), neck=(80.0, 40.0, 4.0), gap=60.0, bracket=(vx + 60, vz + 40, 5.0))
-        tv_bottom = g["base"][2] + g["gap"]
-        tv_y = 30.0
-    elif tid == "TV02":
-        g = dict(foot_x=0.5 * W - 0.12 * W, foot_len=260.0, foot_t=12.0, foot_h=90.0, slot=18.0)
-        tv_bottom = g["foot_h"] - 25.0
-        tv_y = 0.0
-    elif tid == "TV03":
-        g = dict(leg=(50.0, 35.0), spread=0.55 * W, rear=700.0, vesa_plate=(vx + 80, vz + 60, 18.0))
-        tv_bottom = 650.0
-        tv_y = -40.0
-    else:
-        g = dict(base=(560.0, 600.0, 12.0), foot_w=70.0, pole=(60.0, 60.0, 4.0), bracket=(vx + 60, vz + 40, 5.0))
-        tv_bottom = 1050.0 - H / 2
-        tv_y = 30.0
-    tv_c = np.array([0.0, tv_y - D / 2 - 5.0, tv_bottom + H / 2])
-    return dict(g=g, tv_center=tv_c, tv_bottom=tv_bottom)
+def stand_dims(tv):
+    k = max(tv["size_in"] / 27.0, 1.0) ** 0.6           # 큰 화면은 받침 · 기둥을 키움 (가정)
+    return dict(base_d=REF27["base_d"] * k, plate_t=8.0, plate_z=22.0, hub_d=150.0 * k, hub_h=40.0,
+                caster_r=0.46 * REF27["base_d"] * k, wheel_d=36.0, wheel_w=16.0,
+                pole_d=48.0 * k, pole_t=4.0, sleeve_d=60.0 * k, sleeve_h=130.0, arm=(60.0, 40.0, 40.0), plate=(120.0, 8.0, 120.0))
 
 
-def _tube(w, d, wall, height, base):
-    """Vertical rectangular tube, bottom centre at `base`."""
+def screen_box(tv, orient):
+    W, H = (tv["W"], tv["H"]) if orient == "landscape" else (tv["H"], tv["W"])
+    return W, H, tv["D"]
+
+
+def center_range(tv, orient):
+    """화면 중심 높이 조절 범위: 스탠바이미 가로 화면 윗단 1064–1265 mm → 캐리지(=화면 중심) 범위, 세로도 같은 캐리지 범위."""
+    s = tv["size_in"] / 27.0
+    lo = REF27["top_min"] - REF27["H"] / 2
+    hi = REF27["top_max"] - REF27["H"] / 2
+    if s > 1:                                             # 큰 화면: 받침 위 여유를 유지하도록 위로
+        lo, hi = lo + (tv["H"] - REF27["H"]) / 2, hi + (tv["H"] - REF27["H"]) / 2
+    W, H, _ = screen_box(tv, orient)
+    lo = max(lo, H / 2 + 200.0)
+    return lo, max(hi, lo)
+
+
+def layout(tid, tv, zc=None):
+    orient = BY_ID[tid]["orient"]
+    g = stand_dims(tv)
+    lo, hi = center_range(tv, orient)
+    zc = float(np.clip(zc if zc is not None else (lo + hi) / 2, lo, hi))
+    W, H, D = screen_box(tv, orient)
+    back = -(g["sleeve_d"] / 2 + g["arm"][1] + g["plate"][1])          # 화면 뒷면 y
+    tv_c = np.array([0.0, back - D / 2, zc])
+    return dict(g=g, orient=orient, zc=zc, z_range=(lo, hi), back=back, tv_center=tv_c, tv_size=(W, D, H))
+
+
+def build(tid, tv, zc=None):
+    """CadQuery stand (one solid) + screen box (context) + caster contact polygon + mount node selector."""
     import cadquery as cq
-    x, y, z = base
-    return (cq.Workplane("XY").rect(w, d).rect(w - 2 * wall, d - 2 * wall).extrude(height).translate((x, y, z)))
-
-
-def _bar(p0, p1, w, t):
-    """Rectangular bar between two points (CadQuery)."""
-    import cadquery as cq
-    p0, p1 = np.asarray(p0, float), np.asarray(p1, float)
-    d = p1 - p0
-    L = float(np.linalg.norm(d))
-    n = d / L
-    x = np.cross(n, [0.0, 0.0, 1.0])
-    if np.linalg.norm(x) < 1e-6:
-        x = np.array([1.0, 0.0, 0.0])
-    x = x / np.linalg.norm(x)
-    pl = cq.Plane(origin=cq.Vector(*p0), xDir=cq.Vector(*x), normal=cq.Vector(*n))
-    return cq.Workplane(pl).rect(w, t).extrude(L)
-
-
-def build(tid, tv):
-    """CadQuery parts (stand only) + TV panel box (context) + contact polygon + load node selectors."""
-    import cadquery as cq
-    L = layout(tid, tv)
-    g, c = L["g"], L["tv_center"]
-    W, H, D = tv["W"], tv["H"], tv["D"]
+    L = layout(tid, tv, zc)
+    g, zc, back = L["g"], L["zc"], L["back"]
+    W, D, H = L["tv_size"]
+    cyl = lambda d, h, x, y, z: cq.Workplane("XY").circle(d / 2).extrude(h).translate((x, y, z))
     box = lambda dx, dy, dz, x, y, z: cq.Workplane().box(dx, dy, dz).translate((x, y, z))
-    back = c[1] + D / 2                                 # TV back face y
-    vz0 = c[2]                                          # VESA centre height (TV centre)
     parts = []
-    if tid == "TV01":
-        bx, by, bt = g["base"]
-        parts.append(box(bx, by, bt, 0, 40, bt / 2).edges("|Z").fillet(20))
-        top = vz0 + 0.15 * H
-        nx_, ny_, nw = g["neck"]
-        parts.append(_tube(nx_, ny_, nw, top - bt, (0, back + ny_ / 2 + 8, bt)))
-        bw, bh, btk = g["bracket"]
-        parts.append(box(bw, btk, bh, 0, back + btk / 2, vz0))
-        parts.append(box(nx_, 10, 60, 0, back + btk + 4, top - 30))          # bracket -> neck tab
-        foot = [(-bx / 2, 40 - by / 2), (bx / 2, 40 - by / 2), (bx / 2, 40 + by / 2), (-bx / 2, 40 + by / 2)]
-        mount = dict(kind="vesa", y=back, z=vz0, w=bw, h=bh)
-    elif tid == "TV02":
-        fx, fl, ft, fh, sl = g["foot_x"], g["foot_len"], g["foot_t"], g["foot_h"], g["slot"]
-        for s in (-1, 1):
-            prof = (cq.Workplane("YZ").polyline([(-fl / 2, 0), (fl / 2, 0), (fl / 2 - 30, 14), (sl / 2 + 4, fh - 10), (sl / 2 + 4, fh),
-                                                 (-sl / 2 - 4, fh), (-sl / 2 - 4, fh - 10), (-fl / 2 + 30, 14)]).close()
-                    .extrude(ft / 2, both=True).translate((s * fx, c[1], 0)))
-            prof = prof.cut(box(ft + 2, D + 1, 40, s * fx, c[1], L["tv_bottom"] + 20))
-            parts.append(prof)
-        foot = [(-fx - ft / 2, c[1] - fl / 2), (fx + ft / 2, c[1] - fl / 2), (fx + ft / 2, c[1] + fl / 2), (-fx - ft / 2, c[1] + fl / 2)]
-        mount = dict(kind="slots", z=L["tv_bottom"], xs=(-fx, fx), w=ft, y=c[1])
-    elif tid == "TV03":
-        lw, lt = g["leg"]
-        sp, rear = g["spread"], g["rear"]
-        apex = np.array([0.0, back + 40, vz0 + 0.5 * H + 150])
-        feet_f = [np.array([-sp / 2, back - 300, 0.0]), np.array([sp / 2, back - 300, 0.0])]
-        foot_r = np.array([0.0, back + rear, 0.0])
-        for f in feet_f + [foot_r]:
-            parts.append(_bar(f, apex, lw, lt))
-        pw, ph, pt = g["vesa_plate"]
-        parts.append(box(pw, pt, ph, 0, back + pt / 2, vz0))
-        f_at = lambda f, z: f + (apex - f) * (z / apex[2])
-        for zc in (vz0 - ph / 2 + 20, vz0 + ph / 2 - 20):       # cross bars at the bottom and top of the VESA plate
-            a, b = f_at(feet_f[0], zc), f_at(feet_f[1], zc)
-            parts.append(_bar(a - [20, 0, 0], b + [20, 0, 0], 30, 30))         # cross bar through both front legs
-            y0, y1 = min(a[1], back) - 15, back + pt                             # plate -> cross bar web
-            parts.append(box(pw * 0.6, y1 - y0, 40, 0, (y0 + y1) / 2, zc))
-        r0 = f_at(foot_r, 300)                                   # spreader: front legs -> rear leg
-        m0 = (f_at(feet_f[0], 300) + f_at(feet_f[1], 300)) / 2
-        parts.append(_bar(m0, r0, 30, 20))
-        parts.append(_bar(f_at(feet_f[0], 300), f_at(feet_f[1], 300), 30, 20))
-        foot = [(f[0], f[1]) for f in feet_f] + [(foot_r[0], foot_r[1])]
-        mount = dict(kind="vesa", y=back, z=vz0, w=pw, h=ph)
-    else:
-        bx, by, bt = g["base"]
-        fw = g["foot_w"]
-        px, py, pw_ = g["pole"]
-        yc = back + 60                                           # pole centre line (behind the TV)
-        for sx in (-1, 1):                                       # H base: two front-back feet + cross bar
-            parts.append(box(fw, by, bt, sx * (bx / 2 - fw / 2), yc - 40, bt / 2))
-        parts.append(box(bx, fw, bt, 0, yc, bt / 2))
-        top = vz0 + 0.3 * H
-        parts.append(_tube(px, py, pw_, top - bt, (0, yc, bt)))
-        bw, bh, btk = g["bracket"]
-        parts.append(box(bw, btk, bh, 0, back + btk / 2, vz0))
-        parts.append(box(px + 20, yc - back - py / 2 - btk + 2, 80, 0, back + btk + (yc - back - py / 2 - btk) / 2, vz0))   # bracket -> pole
-        foot = [(-bx / 2, yc - 40 - by / 2), (bx / 2, yc - 40 - by / 2), (bx / 2, yc - 40 + by / 2), (-bx / 2, yc - 40 + by / 2)]
-        mount = dict(kind="vesa", y=back, z=vz0, w=bw, h=bh)
+    # 받침: 둥근 판 + 가운데 허브 (기둥 소켓)
+    parts.append(cyl(g["base_d"], g["plate_t"], 0, 0, g["plate_z"]).edges(">Z").fillet(3))
+    zt = g["plate_z"] + g["plate_t"]
+    parts.append(cq.Workplane("XY").circle(g["hub_d"] / 2).circle(g["hub_d"] / 2 - 4).extrude(g["hub_h"]).translate((0, 0, zt)))   # 허브 덮개 (벽 4)
+    parts.append(cq.Workplane("XY").circle(g["hub_d"] / 2).circle(g["pole_d"] / 2 - 1).extrude(4).translate((0, 0, zt + g["hub_h"] - 4)))
+    parts.append(cq.Workplane("XY").circle(g["pole_d"] / 2 + 6).circle(g["pole_d"] / 2 - 1).extrude(g["hub_h"]).translate((0, 0, zt)))  # 기둥 소켓
+    # 바퀴 5개 (앞쪽에 하나: 앞으로 넘어짐에 유리), 바퀴 축 = 접선 방향
+    feet = []
+    for k in range(5):
+        a = -math.pi / 2 + 2 * math.pi * k / 5
+        cx, cy = g["caster_r"] * math.cos(a), g["caster_r"] * math.sin(a)
+        feet.append((cx, cy))
+        tdir = (-math.sin(a), math.cos(a))
+        wheel = (cq.Workplane("YZ").circle(g["wheel_d"] / 2).extrude(g["wheel_w"] / 2, both=True)
+                 .rotate((0, 0, 0), (0, 0, 1), math.degrees(math.atan2(tdir[1], tdir[0])))
+                 .translate((cx, cy, g["wheel_d"] / 2)))
+        fork = box(26, 26, g["plate_z"] - g["wheel_d"] / 2 + 2, cx, cy, (g["plate_z"] + g["wheel_d"] / 2) / 2 + 1)
+        parts += [wheel, fork]
+    # 기둥 (강관): 받침 위 → 캐리지 위끝 (화면 윗단보다 낮게, 화면 뒤)
+    z_top = zc + g["sleeve_h"] / 2 + 15.0
+    parts.append(cq.Workplane("XY").circle(g["pole_d"] / 2).circle(g["pole_d"] / 2 - g["pole_t"]).extrude(z_top - zt + 5).translate((0, 0, zt - 5)))
+    parts.append(cyl(g["pole_d"], 6, 0, 0, z_top - 6))                                   # 기둥 마개
+    # 캐리지 (기둥을 감싸는 슬리브) + 팔 + 회전 헤드 장착판
+    parts.append(cq.Workplane("XY").circle(g["sleeve_d"] / 2).circle(g["pole_d"] / 2).extrude(g["sleeve_h"]).translate((0, 0, zc - g["sleeve_h"] / 2)))
+    aw, al, ah = g["arm"]
+    parts.append(box(aw, al + 6, ah, 0, -g["sleeve_d"] / 2 - al / 2 + 3, zc))
+    pw, pt, ph = g["plate"]
+    parts.append(box(pw, pt, ph, 0, back + pt / 2, zc))
     body = parts[0]
     for p in parts[1:]:
         body = body.union(p)
-    floating = [i for i, so in enumerate(body.val().Solids()) if so.BoundingBox().zmin > 0.5]
-    if floating:                                         # every separate part must stand on the floor, or the FEM is singular
+    tv_solid = box(W, D, H, 0, L["tv_center"][1], zc)
+    inter = body.intersect(tv_solid)
+    clash = sum(s.Volume() for s in inter.vals()) if inter.vals() else 0.0
+    if clash > 1.0:                                  # 스탠드가 화면을 뚫으면 설계 오류
+        raise ValueError(f"{tid}: stand intersects the screen ({clash:.0f} mm³)")
+    floating = [so for so in body.val().Solids() if so.BoundingBox().zmin > 0.5]
+    if floating:
         raise ValueError(f"{tid}: {len(floating)} part(s) do not reach the floor")
-    tv_box = dict(center=c.tolist(), size=[W, D, H])
-    return body, dict(layout=L, foot=foot, mount=mount, tv_box=tv_box)
+    info = dict(layout=L, foot=feet, clash_mm3=round(clash, 2),
+                mount=dict(y=back, z=zc, w=pw, h=ph),
+                tv_box=dict(center=L["tv_center"].tolist(), size=[W, D, H]))
+    return body, info
 
 
-def front_strokes(tid, tv=None, with_tv=True):
-    """대략 정면 스케치 (x, z mm): TV 화면 + 스탠드 윤곽 — 템플릿 매칭 참조."""
-    tv = tv or tv_spec(55)
-    L = layout(tid, tv)
-    W, H = tv["W"], tv["H"]
-    c, g = L["tv_center"], L["g"]
+def front_strokes(tid, tv=None, with_tv=True, zc=None):
+    """정면 스케치 (x, z mm): 화면 + 화면 아래로 보이는 기둥 + 둥근 받침(정면에선 납작한 띠) + 바퀴."""
+    tv = tv or tv_spec(27)
+    L = layout(tid, tv, zc)
+    g = L["g"]
+    W, D, H = L["tv_size"]
+    zc = L["zc"]
     rect = lambda x0, x1, z0, z1: np.array([[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], float)
-    S = [rect(-W / 2, W / 2, c[2] - H / 2, c[2] + H / 2)] if with_tv else []
-    if tid == "TV01":
-        bx = g["base"][0]
-        S += [rect(-bx / 2, bx / 2, 0, g["base"][2] + 4), rect(-g["neck"][0] / 2, g["neck"][0] / 2, g["base"][2], c[2] - H / 2)]
-    elif tid == "TV02":
-        for s in (-1, 1):
-            x = s * g["foot_x"]
-            S.append(np.array([[x - 50, 0], [x + 50, 0], [x + 8, g["foot_h"]], [x - 8, g["foot_h"]], [x - 50, 0]]))
-    elif tid == "TV03":
-        top = c[2] + H / 2 + 150
-        sp = g["spread"]
-        S += [np.array([[-sp / 2, 0], [0, top]]), np.array([[sp / 2, 0], [0, top]]), np.array([[-sp / 4, 260], [sp / 4, 260]])]
-    else:
-        bx = g["base"][0]
-        S += [rect(-bx / 2, bx / 2, 0, g["base"][2] + 6), rect(-g["pole"][0] / 2, g["pole"][0] / 2, g["base"][2], c[2] + 0.3 * H),
-              rect(-bx / 2, -bx / 2 + g["foot_w"], 0, 40), rect(bx / 2 - g["foot_w"], bx / 2, 0, 40)]
+    zt = g["plate_z"] + g["plate_t"]
+    S = []
+    if with_tv:
+        S.append(rect(-W / 2, W / 2, zc - H / 2, zc + H / 2))
+    pole_top = zc - H / 2 if with_tv else zc + g["sleeve_h"] / 2
+    S.append(rect(-g["pole_d"] / 2, g["pole_d"] / 2, zt + g["hub_h"], pole_top))
+    if not with_tv:
+        S.append(rect(-g["sleeve_d"] / 2, g["sleeve_d"] / 2, zc - g["sleeve_h"] / 2, zc + g["sleeve_h"] / 2))
+    r = g["base_d"] / 2
+    S.append(rect(-r, r, g["plate_z"], zt))
+    S.append(rect(-g["hub_d"] / 2, g["hub_d"] / 2, zt, zt + g["hub_h"]))
+    a = np.linspace(0, 2 * np.pi, 25)
+    for x in (-0.95 * g["caster_r"], -0.59 * g["caster_r"], 0.0, 0.59 * g["caster_r"], 0.95 * g["caster_r"]):
+        S.append(np.c_[x + g["wheel_d"] / 2 * np.cos(a), g["wheel_d"] / 2 + g["wheel_d"] / 2 * np.sin(a)])
     return S
 
 
-# ------------------------------------------------------------------ sketch matching (정면 스케치, 윤곽 상자 기준)
+# ------------------------------------------------------------------ sketch matching (정면, 윤곽 상자 기준) + 높이 읽기
 _MATCHER = None
 
 
 class _FrontMatcher(Matcher):
-    """Front-view TV stand sketches: no handlebar ring, so only the bounding-box frame; references with and
-    without the TV outline (people often draw only the stand)."""
+    """Front-view stand sketches: no handlebar ring -> bounding-box frame only; references with and without the screen."""
     RING_MIN_SCORE = 9.0
     ROTATIONS = (0,)
 
@@ -223,135 +183,185 @@ class _FrontMatcher(Matcher):
         refs = {"ring": [], "bbox": []}
         for i, t in enumerate(templates):
             for with_tv in (True, False):
-                st = front_strokes(t["params"]["tv"], with_tv=with_tv)
-                pts = strokes_to_points(st, 8.0)
-                refs["bbox"].append(dict(t=i, phone=with_tv, style="outline", **_feat(bbox_map(pts))))
+                for zc in (None, 900.0, 1070.0):
+                    pts = strokes_to_points(front_strokes(t["params"]["tv"], with_tv=with_tv, zc=zc), 6.0)
+                    refs["bbox"].append(dict(t=i, phone=with_tv, style="outline", zc=zc, **_feat(bbox_map(pts))))
         return refs
+
+    def match_points(self, pts, k=3):
+        from ..sketch import _chamfer
+        _, _, queries = self.query_maps(pts)
+        best = {}
+        for (mir, _), q in queries:
+            for r in self.refs["bbox"]:
+                s = 0.5 * (_chamfer(q["img"], r["dt"]) + _chamfer(r["img"], q["dt"])) + self.w_hist * float(np.linalg.norm(q["hist"] - r["hist"]))
+                if r["t"] not in best or s < best[r["t"]][0]:
+                    best[r["t"]] = (s, r["phone"])
+        ranked = sorted((s, i, w) for i, (s, w) in best.items())
+        s0 = ranked[0][0]
+        res = [dict(id=self.templates[i]["id"], name=self.templates[i]["name"], score=round(s, 3), with_screen=bool(w),
+                    confidence=round(math.exp(-(s - s0) / 0.5), 3)) for s, i, w in ranked[:k]]
+        return dict(frame="bbox", ring_score=0.0, candidates=res)
 
 
 def matcher():
     global _MATCHER
     if _MATCHER is None:
-        tpls = [dict(id=t["id"], name=t["name"], params=dict(tv=t["id"])) for t in TEMPLATES]
-        _MATCHER = _FrontMatcher(tpls)
+        _MATCHER = _FrontMatcher([dict(id=t["id"], name=t["name"], params=dict(tv=t["id"])) for t in TEMPLATES])
     return _MATCHER
 
 
-def tv_strokes(params, phone=True):
-    return front_strokes(params["tv"])
-
-
 def match(gray):
-    """정면 스케치 → 템플릿 후보 (TV 화면 + 스탠드 모양, 윤곽 상자 기준 chamfer)."""
-    M = matcher()
     pts = ink_points(gray)
     if len(pts) < 20:
         return None
-    m = M.match_points(pts, k=len(TEMPLATES))
+    m = matcher().match_points(pts, k=len(TEMPLATES))
     m["source"] = "스케치"
     return m
 
 
+def height_from_sketch(gray, tid, tv, with_screen=True):
+    """스케치 윤곽 상자 비율 → 화면 중심 높이 (mm). 가로: 상자 폭 = 화면 폭, 세로: 상자 폭 = max(화면 폭, 받침 지름)."""
+    if not with_screen:
+        return None
+    pts = ink_points(gray)
+    w, h = np.ptp(pts[:, 0]), np.ptp(pts[:, 1])
+    orient = BY_ID[tid]["orient"]
+    W, H, _ = screen_box(tv, orient)
+    ref_w = max(W, stand_dims(tv)["base_d"])
+    top = h * ref_w / max(w, 1e-9)
+    return float(top - H / 2)
+
+
 # ------------------------------------------------------------------ physics
-def conditions(tv, tid, mat, place):
-    m = tv["mass_kg"]
-    Wn = m * 9.81
+def conditions(tv, tid, total_kg):
+    Wn = total_kg * 9.81
     Fh = min(0.13 * Wn, 250.0)
     Fd = min(0.5 * Wn, 100.0)
     return [
-        dict(key="mass", name="TV 무게 (정하중)", value=f"{m} kg = {Wn:.0f} N", source=tv["source"]),
-        dict(key="tilt", name="기울임 안정성", value="10° 기울여도 넘어지지 않음", source="IEC 62368-1 8.6 (근거)"),
-        dict(key="push", name="수평력", value=f"무게의 13 % = {Fh:.0f} N (≤ 250 N), 1.5 m 이하 가장 불리한 위치(TV 윗단)", source="IEC 62368-1 8.6 (근거)"),
-        dict(key="down", name="하향력", value=f"무게의 50 % = {Fd:.0f} N (≤ 100 N)", source="IEC 62368-1 8.6 (근거)"),
-        dict(key="stress", name="응력", value=f"자중 + 수평력에서 ≤ 항복 {MATERIALS[mat]['yield_mpa']:.0f} ÷ {SF} = {MATERIALS[mat]['yield_mpa'] / SF:.0f} MPa",
-             source=f"{MATERIALS[mat]['name']} 일반값 · 안전율 1.5 (가정)"),
-        dict(key="defl", name="TV 윗단 흔들림", value=f"수평력에서 ≤ {TOP_DEFLECTION_MM} mm", source="가정 (팀 TV 스탠드 사례와 같은 값)"),
-        dict(key="place", name="설치", value=place, source="템플릿"),
+        dict(key="mass", name="화면 무게", value=f"{tv['mass_kg']} kg ({tv['size_in']}형)", source=tv["source"]),
+        dict(key="total", name="제품 전체 무게 (화면 + 스탠드)", value=f"{total_kg:.1f} kg = {Wn:.0f} N",
+             source="스탠드 = CAD (강) · 참고: 스탠바이미 스탠드 12.7 kg (17.5 − 4.8)"),
+        dict(key="tilt", name="안정성 ① 기울임 시험", value="모든 방향 10° 기울여도 넘어지지 않음 (바퀴 5개 접지점 기준)", source="IEC 62368-1 8.6 (근거) — 세 대안 시험 중 하나"),
+        dict(key="push", name="안정성 ③ 힘 시험 (대안)", value=f"수평 13 % = {Fh:.0f} N (≤ 250 N) · 하향 50 % = {Fd:.0f} N (≤ 100 N), 1.5 m 이하", source="IEC 62368-1 8.6 (근거) — EU 판매 시 모든 대안 권장"),
+        dict(key="stress", name="응력", value=f"자중 + 수평력에서 ≤ 항복 {MAT['yield_mpa']:.0f} ÷ {SF} = {MAT['yield_mpa'] / SF:.0f} MPa", source=f"{MAT['name']} 일반값 · 안전율 1.5 (가정)"),
+        dict(key="defl", name="화면 윗단 흔들림", value=f"수평력에서 ≤ {TOP_DEFLECTION_MM} mm", source="가정 (팀 TV 스탠드 사례와 같은 값)"),
+        dict(key="caster", name="바퀴 하나 하중", value=f"자중 + 수평력에서 ≤ {CASTER_LIMIT_N:.0f} N", source="가정 (소형 캐스터 정격 약 20 kg)"),
+        dict(key="move", name="이동", value="바퀴 5개로 굴려 이동 · 화면 회전(가로/세로) · 높이 조절", source="근거: LG 스탠바이미 사양"),
     ]
 
 
-def tip_checks(tv, info, mass_stand_kg):
-    """정역학: 지지 다각형 · 무게중심 → 넘어짐 각, 수평력 넘어짐 여유."""
-    from matplotlib.path import Path
-    foot = np.asarray(info["foot"], float)
-    hull = foot if len(foot) == 3 else foot
+def _edges(foot):
+    P = np.asarray(foot, float)
+    c = P.mean(0)
+    o = np.argsort(np.arctan2(P[:, 1] - c[1], P[:, 0] - c[0]))
+    P = P[o]
+    out = []
+    for a, b in zip(P, np.roll(P, -1, 0)):
+        e = b - a
+        n = np.array([e[1], -e[0]]) / np.linalg.norm(e)        # outward for counter-clockwise order
+        out.append((a, n))
+    return out
+
+
+def tip_checks(tv, info, mass_stand_kg, stand_cg=None):
+    """정역학: 접지 다각형(바퀴) · 전체 무게중심 → 넘어짐 각, 수평력 · 하향력 넘어짐 여유, 바퀴 하중 (강체 받침, 같은 강성 바퀴)."""
     m_tv = tv["mass_kg"]
-    c_tv = np.asarray(info["tv_box"]["center"])
-    c_st = np.array([0.0, float(np.mean(foot[:, 1])), 0.15 * c_tv[2]])      # stand CG (low; approximation)
+    c_tv = np.asarray(info["tv_box"]["center"], float)
+    W_, D_, H_ = info["tv_box"]["size"]
+    c_st = np.asarray(stand_cg if stand_cg is not None else [0.0, 0.0, 0.0], float)
     m = m_tv + mass_stand_kg
     cg = (m_tv * c_tv + mass_stand_kg * c_st) / m
-    # distance from CG projection to each edge of the support polygon (front / back / sides)
-    P = np.vstack([hull, hull[:1]])
-    d_edges = []
-    for a, b in zip(P[:-1], P[1:]):
-        e = b - a
-        nrm = np.array([e[1], -e[0]]) / np.linalg.norm(e)
-        d_edges.append(abs(np.dot(cg[:2] - a, nrm)))
-    inside = Path(hull).contains_point(cg[:2])
-    dmin = min(d_edges) if inside else 0.0
-    tip_deg = math.degrees(math.atan2(dmin, cg[2]))
     Wn = m * 9.81
-    Fh = min(0.13 * m_tv * 9.81, 250.0)
-    h = min(c_tv[2] + info["tv_box"]["size"][2] / 2, 1500.0)
-    margin = (Wn * dmin) / (Fh * h) if Fh > 0 else 99
-    return dict(cg=cg.round(1).tolist(), d_min_mm=round(float(dmin), 1), tip_deg=round(float(tip_deg), 1), push_margin=round(float(margin), 2),
-                push_N=round(Fh, 1), push_h_mm=round(h, 1), total_kg=round(m, 2))
+    edges = _edges(info["foot"])
+    d = [-(np.dot(cg[:2] - a, n)) for a, n in edges]                 # >0 = inside
+    dmin = max(min(d), 0.0)
+    tip_deg = math.degrees(math.atan2(dmin, cg[2]))
+    Fh = min(0.13 * Wn, 250.0)
+    h = min(c_tv[2] + H_ / 2, 1500.0)
+    push = min((Wn * di) / (Fh * h) for di in d) if Fh > 0 else 99.0
+    Fd = min(0.5 * Wn, 100.0)
+    p_front = np.array([c_tv[0], c_tv[1] - D_ / 2])                  # 화면 앞 윗모서리 (가운데)
+    down = 99.0
+    for (a, n), di in zip(edges, d):
+        dp = -(np.dot(p_front - a, n))
+        if dp < 0:
+            down = min(down, (Wn * di) / (Fd * -dp))
+    # 바퀴 하중: 자중 + 수평력(화면 윗단, 앞→뒤 · 뒤→앞 · 옆) — 강체 받침 위 같은 스프링 (최소 노름)
+    P = np.asarray(info["foot"], float)
+    A = np.vstack([np.ones(len(P)), P[:, 0], P[:, 1]])
+    worst = 0.0
+    for fx, fy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        Mx = Wn * cg[1] - Fh * fy * h                          # Σ R y = W y_cg − F_y h
+        My = Wn * cg[0] - Fh * fx * h
+        R = A.T @ np.linalg.solve(A @ A.T, np.array([Wn, My, Mx]))
+        worst = max(worst, float(R.max()))
+    return dict(cg=cg.round(1).tolist(), d_min_mm=round(float(dmin), 1), tip_deg=round(float(tip_deg), 1),
+                push_margin=round(float(push), 2), push_N=round(float(Fh), 1), push_h_mm=round(float(h), 1),
+                down_N=round(float(Fd), 1), down_margin=round(float(down), 2), caster_max_N=round(worst, 1), total_kg=round(m, 2))
 
 
-def fem_checks(body, info, tv, mat, h=None):
-    """Voxel FEM: floor contact fixed, TV weight + 13 % horizontal force (front-back) applied as a rigid TV."""
+def fem_checks(body, info, tv, total_kg, h=VOXEL):
+    """복셀 FEM: 바퀴 바닥 고정, 화면 무게 + 수평력 13 % (앞뒤, 화면 윗단) — 화면은 강체로 장착판에 분배."""
     import trimesh
     import cadquery as cq
-    from .voxfem import VoxModel, pick_h, voxelize
+    from .voxfem import VoxModel, voxelize
     with tempfile.TemporaryDirectory() as td:
         p = os.path.join(td, "s.stl")
         cq.exporters.export(body, p, tolerance=0.3)
         mesh = trimesh.load(p)
-    h = h or pick_h(mesh, target=30000, lo=3.0, hi=12.0)
+    from .voxfem import pick_h
+    h = max(h, pick_h(mesh, target=35000, lo=VOXEL, hi=8.0))         # 큰 화면(큰 스탠드)도 메모리 ≤ 약 2.5 GB
     occ, o = voxelize(mesh, h)
-    M = MATERIALS[mat]
-    V = VoxModel(occ, o, h, M["E"], M["nu"])
+    V = VoxModel(occ, o, h, MAT["E"], MAT["nu"])
     xyz = V.node_xyz
-    fixed = np.where(V.used & (xyz[:, 2] <= o[2] + h * 1.01 + 0.5))[0]
-    fixed = fixed[xyz[fixed, 2] <= mesh.bounds[0][2] + h * 0.6]
+    fixed = np.where(xyz[:, 2] <= mesh.bounds[0][2] + h * 0.6)[0]
     mt = info["mount"]
-    if mt["kind"] == "vesa":
-        sel = V.used & (np.abs(xyz[:, 1] - mt["y"]) <= h * 0.6) & (np.abs(xyz[:, 0]) <= mt["w"] / 2) & (np.abs(xyz[:, 2] - mt["z"]) <= mt["h"] / 2)
-        if sel.sum() < 4:
-            sel = V.used & (xyz[:, 1] <= mt["y"] + 2 * h) & (np.abs(xyz[:, 2] - mt["z"]) <= mt["h"] / 2)
-    else:
-        sel = V.used & (xyz[:, 2] >= mt["z"] - h) & np.any([np.abs(xyz[:, 0] - x) <= mt["w"] for x in mt["xs"]], axis=0)
+    sel = (np.abs(xyz[:, 1] - mt["y"]) <= h * 0.6) & (np.abs(xyz[:, 0]) <= mt["w"] / 2) & (np.abs(xyz[:, 2] - mt["z"]) <= mt["h"] / 2)
     load_nodes = np.where(sel)[0]
     c = np.asarray(info["tv_box"]["center"])
-    Wn = tv["mass_kg"] * 9.81
-    Fh = min(0.13 * Wn, 250.0)
+    Wtv = tv["mass_kg"] * 9.81
+    Fh = min(0.13 * total_kg * 9.81, 250.0)
     top = np.array([0.0, c[1], min(c[2] + info["tv_box"]["size"][2] / 2, 1500.0)])
-    F = V.rigid_load(load_nodes, c, (0.0, 0.0, -Wn))
+    F = V.rigid_load(load_nodes, c, (0.0, 0.0, -Wtv))
     F += V.rigid_load(load_nodes, c, (0.0, Fh, 0.0), np.cross(top - c, [0.0, Fh, 0.0]))
     t0 = time.time()
     u = V.solve(fixed, F)
     vm = V.von_mises(u)
     tr, rot = V.rigid_fit(u, load_nodes, top)
-    top_defl = float(np.linalg.norm(tr))
     nv, _ = V.nodal(vm)
     vm_max = float(np.percentile(nv, 99.5))          # 격자 계단 모서리 특이점 제외 (상위 0.5 % 절점)
     nv = np.minimum(nv, vm_max)
     un = np.linalg.norm(u.reshape(-1, 3), axis=1)
-    lim = M["yield_mpa"] / SF
+    lim = MAT["yield_mpa"] / SF
     heat = V.heat({
-        "stress": (nv, 0.0, max(vm_max, 1e-3), "응력 (TV 무게 + 수평력 13 %, von Mises)", "MPa",
-                   f"빨강 = 이 설계 최대 근처 (허용 {lim:.0f} MPa)"),
-        "disp": (un, 0.0, max(float(np.percentile(un[V.used], 99.5)), 1e-3), "변위 (TV 무게 + 수평력)", "mm", "자동 척도"),
+        "stress": (nv, 0.0, max(vm_max, 1e-3), "응력 (화면 무게 + 수평력 13 %, von Mises)", "MPa", f"빨강 = 이 설계 최대 근처 (허용 {lim:.0f} MPa)"),
+        "disp": (un, 0.0, max(float(np.percentile(un, 99.5)), 1e-3), "변위 (화면 무게 + 수평력)", "mm", "자동 척도"),
     })
-    return dict(h=round(h, 2), elements=int(V.ne), vm_max=round(vm_max, 2), top_defl=round(top_defl, 3),
+    return dict(h=round(h, 2), elements=int(V.ne), vm_max=round(vm_max, 2), top_defl=round(float(np.linalg.norm(tr)), 3),
                 solve_s=round(time.time() - t0, 1), heat=heat, stress_limit=round(lim, 1))
 
 
 # ------------------------------------------------------------------ pipeline
 def parse_size(text):
-    import re
     m = re.search(r"(\d{2})\s*(인치|형|inch|\")", text or "")
-    return int(m.group(1)) if m else 55
+    return int(m.group(1)) if m else 27
+
+
+def keyword_template(text):
+    return "TV02" if re.search(r"세로|회전|portrait", text or "", re.I) else "TV01"
+
+
+def parse_height(text):
+    t = text or ""
+    m = re.search(r"(?:화면\s*)?(?:중심\s*)?높이\s*(\d{3,4})", t)
+    if m:
+        return float(m.group(1))
+    if re.search(r"낮게|소파|좌식", t):
+        return 0.0                       # -> 범위 최소
+    if re.search(r"높게|서서|주방|식탁", t):
+        return 1e4                       # -> 범위 최대
+    return None
 
 
 def design(text="", sketch=None, out="out", with_mesh=False, template=None):
@@ -361,71 +371,79 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     os.makedirs(out, exist_ok=True)
     tv = tv_spec(parse_size(text))
     match = None
+    zc_req, zc_how = parse_height(text), "문장" if parse_height(text) is not None else None
     if template:
         tid, how = template, "지정"
     elif sketch is not None:
         match = match_sketch(sketch)
-        tid, how = (match["candidates"][0]["id"], "스케치 매칭") if match else ("TV01", "기본")
+        tid, how = (match["candidates"][0]["id"], "스케치 매칭") if match else (keyword_template(text), "텍스트")
     else:
         tid, how = keyword_template(text), "텍스트"
+    if zc_req is None and sketch is not None:
+        top = match["candidates"][0] if match else {}
+        zc_req = height_from_sketch(sketch, tid, tv, top.get("with_screen", True))
+        zc_how = "스케치 비율" if zc_req is not None else None
     T = BY_ID[tid]
-    body, info = build(tid, tv)
-    mat = T["material"]
+    body, info = build(tid, tv, zc_req)
+    L = info["layout"]
+    lo, hi = L["z_range"]
+    clipped = zc_req is not None and abs(L["zc"] - zc_req) > 1
     cq.exporters.export(body, os.path.join(out, "design_1st.step"), exportType="STEP")
     cq.exporters.export(body, os.path.join(out, "design_1st.stl"), tolerance=0.3)
-    vol = body.val().Volume()
-    mass_stand = vol * MATERIALS[mat]["rho"] * 1e-3
-    tip = tip_checks(tv, info, mass_stand)
-    fem = fem_checks(body, info, tv, mat, VOXEL[tid])
-    lim = MATERIALS[mat]["yield_mpa"] / SF
+    sol = body.val()
+    mass_stand = sol.Volume() * MAT["rho"] * 1e-3
+    cgv = sol.Center()
+    tip = tip_checks(tv, info, mass_stand, [cgv.x, cgv.y, cgv.z])
+    total = tip["total_kg"]
+    fem = fem_checks(body, info, tv, total)
+    lim = MAT["yield_mpa"] / SF
     rows = [
-        dict(key="tilt", name="넘어짐 각 (무게중심 ↔ 지지면 가장자리)", value=tip["tip_deg"], unit="°", op=">=", limit=10.0, source="IEC 62368-1 8.6 10° 기울임"),
-        dict(key="push", name=f"수평력 {tip['push_N']:.0f} N 넘어짐 여유 (복원/전도 모멘트)", value=tip["push_margin"], unit="배", op=">=", limit=1.0,
-             source="IEC 62368-1 8.6 13 % 수평력"),
-        dict(key="stress", name="최대 응력 (자중 + 수평력, FEM)", value=fem["vm_max"], unit="MPa", op="<=", limit=round(lim, 1),
-             source=f"{MATERIALS[mat]['name']} 항복 ÷ 1.5"),
-        dict(key="defl", name="TV 윗단 흔들림 (수평력, FEM)", value=fem["top_defl"], unit="mm", op="<=", limit=TOP_DEFLECTION_MM,
-             source="가정 (팀 TV 스탠드 사례)"),
+        dict(key="tilt", name="넘어짐 각 (무게중심 ↔ 바퀴 다각형 가장자리)", value=tip["tip_deg"], unit="°", op=">=", limit=10.0, source="IEC 62368-1 8.6 10° 기울임"),
+        dict(key="push", name=f"힘 시험: 수평력 {tip['push_N']:.0f} N 넘어짐 여유 (참고)", value=tip["push_margin"], unit="배", op=">=", limit=1.0,
+             source="IEC 62368-1 8.6 대안 시험 (기울임과 동등) — EU 판매 시 모두 권장", ref=True),
+        dict(key="down", name=f"힘 시험: 하향력 {tip['down_N']:.0f} N 넘어짐 여유 (참고)", value=min(tip["down_margin"], 99.0), unit="배", op=">=", limit=1.0,
+             source="IEC 62368-1 8.6 대안 시험 — 화면 앞 윗모서리", ref=True),
+        dict(key="stress", name="최대 응력 (화면 무게 + 수평력, FEM)", value=fem["vm_max"], unit="MPa", op="<=", limit=round(lim, 1), source=f"{MAT['name']} 항복 ÷ 1.5"),
+        dict(key="defl", name="화면 윗단 흔들림 (수평력, FEM)", value=fem["top_defl"], unit="mm", op="<=", limit=TOP_DEFLECTION_MM, source="가정 (팀 TV 스탠드 사례)"),
+        dict(key="caster", name="바퀴 하나 최대 하중 (정역학)", value=tip["caster_max_N"], unit="N", op="<=", limit=CASTER_LIMIT_N, source="가정 (캐스터 정격)"),
     ]
     for r in rows:
         r["ok"] = bool(r["value"] >= r["limit"] if r["op"] == ">=" else r["value"] <= r["limit"])
     drawing(body, info, tv, T, os.path.join(out, "design_1st_drawing.png"), os.path.join(out, "design_1st_drawing.pdf"), mass_stand)
-    sketch_png(tid, tv, os.path.join(out, "side_view.png"))
+    sketch_png(tid, tv, os.path.join(out, "side_view.png"), L["zc"])
+    g = L["g"]
+    W_, D_, H_ = L["tv_size"]
+    zc_note = (f"화면 중심 높이 {L['zc']:.0f} mm ({zc_how}" + (f", 조절 범위 {lo:.0f}–{hi:.0f} 로 제한" if clipped else "") + ")") if zc_how \
+        else f"화면 중심 높이 {L['zc']:.0f} mm (조절 범위 {lo:.0f}–{hi:.0f} 가운데, 기본)"
     rep = base_report(
         product="TV 스탠드", tid=tid, tname=T["name"], tdesc=T["desc"], chosen_by=how, match=match, rows=rows,
-        conditions=conditions(tv, tid, mat, T["place"]),
-        summary=[["제품", "TV 스탠드"], ["TV", f"{tv['size_in']}형 · {tv['mass_kg']} kg · VESA {tv['vesa'][0]}×{tv['vesa'][1]}"],
-                 ["설치", T["place"]], ["재료", MATERIALS[mat]["name"]], ["안정성 기준", "IEC 62368-1 8.6"], ["안전율", SF]],
-        design_vars=[["형식", f"{tid} {T['name']}"], ["TV 크기", f"{tv['W']:.0f} × {tv['H']:.0f} mm"],
-                     ["TV 아래 높이", f"{info['layout']['tv_bottom']:.0f} mm"], ["지지면 (발 사이)", f"{np.ptp(np.asarray(info['foot'])[:, 0]):.0f} × {np.ptp(np.asarray(info['foot'])[:, 1]):.0f} mm"],
-                     ["무게중심 높이", f"{tip['cg'][2]:.0f} mm"], ["스탠드 무게", f"{mass_stand:.2f} kg"], ["해석 격자", f"{fem['h']} mm · {fem['elements']:,} 요소"]],
-        assumptions=[tv["source"], "스탠드 무게중심은 지지면 위 낮은 곳으로 근사 (넘어짐 계산은 TV가 지배)",
-                     "바닥 접촉면 완전 고정, TV는 강체로 보고 VESA 판 · 받침 슬롯에 하중 분배",
+        conditions=conditions(tv, tid, total),
+        summary=[["제품", "이동식 TV 스탠드 (스탠바이미형)"], ["화면", f"{tv['size_in']}형 · {tv['mass_kg']} kg · {'가로' if T['orient'] == 'landscape' else '세로'}"],
+                 ["이동", "바퀴 5개 · 높이 조절 · 회전"], ["재료", MAT["name"]], ["안정성 기준", "IEC 62368-1 8.6"], ["안전율", SF]],
+        design_vars=[["형식", f"{tid} {T['name']}"], ["화면 (폭 × 높이)", f"{W_:.0f} × {H_:.0f} mm"], ["화면 중심 높이", zc_note],
+                     ["받침", f"Ø{g['base_d']:.0f} mm 판 {g['plate_t']:.0f} mm + 허브 Ø{g['hub_d']:.0f}"],
+                     ["바퀴", f"5개 · Ø{g['wheel_d']:.0f} · 원주 반지름 {g['caster_r']:.0f} mm (앞쪽 1개)"],
+                     ["기둥", f"강관 Ø{g['pole_d']:.0f} × {g['pole_t']:.0f} mm, 화면 뒤 {abs(L['back']):.0f} mm"],
+                     ["캐리지 · 팔 · 헤드", f"슬리브 Ø{g['sleeve_d']:.0f} × {g['sleeve_h']:.0f}, 팔 {g['arm'][1]:.0f} mm, 장착판 {g['plate'][0]:.0f} × {g['plate'][2]:.0f}"],
+                     ["스탠드 무게 (CAD)", f"{mass_stand:.1f} kg (참고: 스탠바이미 12.7 kg)"], ["전체 무게중심 높이", f"{tip['cg'][2]:.0f} mm"],
+                     ["화면과 겹침", f"{info['clash_mm3']:.0f} mm³ (기둥 · 헤드는 화면 뒤)"], ["해석 격자", f"{fem['h']} mm · {fem['elements']:,} 요소"]],
+        assumptions=[tv["source"], "스탠드 전체 강 (받침판 · 강관 · 캐리지), 배터리 · 스피커 등 내장품은 넣지 않음 (넣으면 더 안정)",
+                     "바퀴 바닥 고정 (잠금 상태), 화면은 강체로 보고 장착판에 하중 분배",
                      "최대 응력 = 절점 응력 상위 0.5 % 제외값 (복셀 계단 모서리의 가짜 응력 집중 제외)",
-                     f"TV 윗단 흔들림 ≤ {TOP_DEFLECTION_MM} mm 는 가정 (팀 TV 스탠드 사례)", "데모용 1차 설계 — 최적화 단계로 넘기지 않음"],
-        sources=[SOURCES["iec62368"], SOURCES["samsung55"], SOURCES["samsung55_qn90b"]],
-        cad=dict(mass_g=round(mass_stand * 1e3, 1), material=MATERIALS[mat]["name"]), extra=dict(tip=tip, fem={k: v for k, v in fem.items() if k != "heat"}, tv=tv),
+                     f"화면 윗단 흔들림 ≤ {TOP_DEFLECTION_MM} mm, 바퀴 정격 {CASTER_LIMIT_N:.0f} N 은 가정",
+                     "높이 조절 범위 = 스탠바이미 전체 높이 41.9–49.8\" 에서 계산", "데모용 1차 설계 — 최적화 단계로 넘기지 않음"],
+        sources=[SOURCES["stanbyme"], SOURCES["stanbyme_us"], SOURCES["wheels"], SOURCES["iec62368"]],
+        cad=dict(mass_g=round(mass_stand * 1e3, 1), material=MAT["name"]),
+        extra=dict(tip=tip, fem={k: v for k, v in fem.items() if k != "heat"}, tv=tv, zc=L["zc"], z_range=[lo, hi]),
         seconds=time.time() - t0)
     finish(rep, out)
     if with_mesh:
         from .common import mesh_b64
         rep["mesh"] = mesh_b64(body)
         rep["heat"] = fem["heat"]
-        rep["aux"] = [dict(kind="box", center=info["tv_box"]["center"], size=info["tv_box"]["size"], color="#1b1f24", opacity=1.0, label="TV")]
-        rep["scene"] = dict(floor_z=0.0, up="z", color={"steel": "#8b959e", "al": "#b9c2c9", "wood": "#c49a63"}[mat])
+        rep["aux"] = [dict(kind="box", center=info["tv_box"]["center"], size=info["tv_box"]["size"], color="#1b1f24", opacity=1.0, label="화면")]
+        rep["scene"] = dict(floor_z=0.0, up="z", color="#c9ccd0")
     return rep
-
-
-def keyword_template(text):
-    import re
-    t = text or ""
-    if re.search(r"이젤|삼각", t):
-        return "TV03"
-    if re.search(r"바닥|높게|이동|스탠드형", t):
-        return "TV04"
-    if re.search(r"양발|다리 두|두 다리|양쪽 다리", t):
-        return "TV02"
-    return "TV01"
 
 
 def match_sketch(gray):
@@ -433,12 +451,12 @@ def match_sketch(gray):
 
 
 # ------------------------------------------------------------------ images
-def sketch_png(tid, tv, path):
+def sketch_png(tid, tv, path, zc=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(6, 4.2))
-    for s in front_strokes(tid, tv):
+    fig, ax = plt.subplots(figsize=(4.6, 6))
+    for s in front_strokes(tid, tv, zc=zc):
         ax.plot(s[:, 0], s[:, 1], c="#222", lw=1.6)
     ax.axhline(0, c="#888", lw=1)
     ax.set_aspect("equal")
@@ -457,19 +475,28 @@ def drawing(body, info, tv, T, png, pdf, mass_kg):
     verts, tris = body.val().tessellate(0.5, 0.5)
     V = np.array([[p.x, p.y, p.z] for p in verts])
     F = np.array(tris)
-    c, (W, D, H) = np.asarray(info["tv_box"]["center"]), info["tv_box"]["size"]
-    fig, ax = plt.subplots(1, 2, figsize=(14, 6))
-    for a, (i, j, ttl) in zip(ax, ((0, 2, "정면"), (1, 2, "옆 (앞 = 왼쪽)"))):
-        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#c9d6df", ec="none"))
-        lo, hi = c[[i, j]] - np.array([[W, D][i] / 2 if i == 0 else D / 2, H / 2]), c[[i, j]] + np.array([[W, D][i] / 2 if i == 0 else D / 2, H / 2])
-        a.add_patch(plt.Rectangle(lo, *(hi - lo), fill=False, ls="--", ec="#555"))
-        a.axhline(0, c="#888", lw=1)
+    c = np.asarray(info["tv_box"]["center"])
+    W, D, H = info["tv_box"]["size"]
+    fig, ax = plt.subplots(1, 3, figsize=(16, 7), gridspec_kw=dict(width_ratios=[1.1, 1.0, 0.9]))
+    views = ((0, 2, "정면", (W, H)), (1, 2, "옆 (앞 = 왼쪽)", (D, H)), (0, 1, "위 (앞 = 아래)", (W, D)))
+    for a, (i, j, ttl, (sw, sh)) in zip(ax, views):
+        a.add_collection(PolyCollection(V[F][:, :, [i, j]], fc="#b9c2c9", ec="none"))
+        a.add_patch(plt.Rectangle((c[i] - sw / 2, c[j] - sh / 2), sw, sh, fill=False, ls="--", ec="#555"))
+        if j == 2:
+            a.axhline(0, c="#888", lw=1)
         a.set_aspect("equal")
         a.autoscale()
         a.grid(alpha=.25)
         a.set_title(ttl, fontsize=10)
-    ax[0].text(c[0], c[2], f"TV {tv['size_in']}형\n{tv['mass_kg']} kg", ha="center", va="center", color="#555")
-    fig.suptitle(f"TV 스탠드 — 1차 설계 {T['id']} {T['name']} · {MATERIALS[T['material']]['name']} · 스탠드 {mass_kg:.2f} kg · 단위 mm", fontsize=12)
-    fig.savefig(png, dpi=120, bbox_inches="tight")
+    for fx, fy in info["foot"]:
+        ax[2].plot(fx, fy, "o", c="#e4572e", ms=5)
+    P = np.asarray(info["foot"])
+    o = np.argsort(np.arctan2(P[:, 1], P[:, 0]))
+    Q = np.vstack([P[o], P[o][:1]])
+    ax[2].plot(Q[:, 0], Q[:, 1], c="#e4572e", lw=.8, ls=":")
+    ax[2].text(0, P[:, 1].min() - 40, "빨강 = 바퀴 접지 (넘어짐 다각형)", ha="center", fontsize=8, color="#e4572e")
+    ax[0].text(c[0], c[2], f"화면 {tv['size_in']}형\n{tv['mass_kg']} kg", ha="center", va="center", color="#555")
+    fig.suptitle(f"TV 스탠드 (이동식) — 1차 설계 {T['id']} {T['name']} · {MAT['name']} · 스탠드 {mass_kg:.1f} kg · 단위 mm", fontsize=12)
+    fig.savefig(png, dpi=110, bbox_inches="tight")
     fig.savefig(pdf, bbox_inches="tight")
     plt.close(fig)

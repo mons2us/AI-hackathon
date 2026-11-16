@@ -438,6 +438,14 @@ function clearProductScene(){
 }
 function b64mesh(pos){const b=atob(pos),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();return g;}
+function addAux(list){            // 화면 상자 · 렌즈 · 폰 고정 부품(집게 · 걸이) 같은 보조 메쉬
+  for(const a of list||[]){
+    let g;
+    if(a.kind==='box'){g=new THREE.BoxGeometry(...a.size);}else g=b64mesh(a.pos);
+    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(a.color),roughness:0.45,metalness:0.05,transparent:a.opacity<1,opacity:a.opacity,depthWrite:a.opacity>=1});
+    const o=new THREE.Mesh(g,mat);if(a.kind==='box')o.position.set(...a.center);o.castShadow=a.opacity>=1;o.receiveShadow=true;V3.scene.add(o);V3.aux.push(o);
+  }
+}
 function showProduct(rep){
   const {scene,M}=V3;
   clearProductScene();
@@ -447,12 +455,7 @@ function showProduct(rep){
   V3.bike.visible=false;V3.handlebar.visible=false;$('#vBike').hidden=$('#vPhone').hidden=true;
   if(sc.color)V3.baseMat.color.set(sc.color);$('#perfSub').textContent='데모용 1차 설계 판정 (제품 · 형상에 맞는 물리 조건)';
   if(sc.floor_z!==null&&sc.floor_z!==undefined){V3.ground.position.z=sc.floor_z;V3.ground.visible=true;}else V3.ground.visible=false;
-  for(const a of rep.aux||[]){
-    let g;
-    if(a.kind==='box'){g=new THREE.BoxGeometry(...a.size);}else g=b64mesh(a.pos);
-    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(a.color),roughness:0.35,metalness:0.1,transparent:a.opacity<1,opacity:a.opacity,depthWrite:a.opacity>=1});
-    const o=new THREE.Mesh(g,mat);if(a.kind==='box')o.position.set(...a.center);o.castShadow=a.opacity>=1;scene.add(o);V3.aux.push(o);
-  }
+  addAux(rep.aux);
   const box=new THREE.Box3().setFromObject(V3.mount);V3.aux.forEach(o=>box.expandByObject(o));
   const c=box.getCenter(new THREE.Vector3()),r=box.getSize(new THREE.Vector3()).length();
   const mb=new THREE.Box3().setFromObject(V3.mount),mc=mb.getCenter(new THREE.Vector3()),mr=mb.getSize(new THREE.Vector3()).length();
@@ -465,6 +468,7 @@ function showProduct(rep){
 function showMount(rep){
   const {scene,M,V}=V3;
   clearProductScene();
+  addAux(rep.aux);
   setMountMesh(rep.mesh);
   $('#ovl3d').textContent=rep.kind==='integral'?'1차 설계 (출력 몸체) · 드래그로 회전':'자전거 핸들 위 1차 설계 · 드래그로 회전';
   if(V3.holder){scene.remove(V3.holder);}
@@ -556,7 +560,7 @@ function renderIntegral(rep, req){
   $('#questions').innerHTML=rep.text.questions.map(q=>`<div class="q">${q}</div>`).join('');
   $('#tplTag').className='tag blue';$('#tplTag').textContent=`${t.id} ${t.name} · ${t.chosen_by}`;
   $('#flow').innerHTML=[`입력: ${t.chosen_by}`,`설계 명세 (출처 표시)`,`격자 ${rep.problem.grid.join('×')} · 설계 ${rep.problem.elements.design.toLocaleString()} 요소`,
-    `팀 엔진 판정`,`출력 몸체 STL ${rep.cad.mass_g} g`].map(x=>`<span class="ok">✓ ${x}</span>`).join('');
+    `팀 엔진 판정`,`출력 몸체 STL ${rep.cad.mass_g} g`,...(rep.cad.parts?[`폰 고정 부품: 슬라이드 집게 ×2 · 위쪽 걸이 (팀 parts.py)`]:[])].map(x=>`<span class="ok">✓ ${x}</span>`).join('');
   const cmp=rep.compare||[];
   $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">발표 10쪽과 같은 조건 · 같은 엔진으로 판정한 비교 형상 (처음 설계 = 이 1차 설계). 행을 누르면 3D에 그 형상과 응력 · 흔들림 · 온도 분포가 나옵니다. <button class="chip" id="backFirst">1차 설계 (출력 몸체)로</button></div>
     <table class="vars cmp" style="grid-column:1/-1"><tr><td><b>형상</b></td><td>무게 g</td><td>1차 Hz</td><td>최대 흔들림</td><td>폰 온도 °C</td><td>판정</td></tr>`+
@@ -566,7 +570,7 @@ function renderIntegral(rep, req){
   $('#backFirst').onclick=()=>showP01Shape('first');
   showMount(rep);
   $('#imgSide').src=rep.files['side_view.png'];$('#imgDraw').src=rep.files['design_1st_drawing.png'];
-  $('#kMass').textContent=`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
+  $('#kMass').textContent=rep.cad.print_total_g?`${fmt(rep.cad.print_total_g)} g`:`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
   const rows=j.rows.map(r=>{const ge=r.op==='>=',ratio=ge?r.value/r.limit:r.limit/Math.max(r.value,1e-6);
     return `<div class="metric"><div class="row"><span>${r.name}</span><b class="num" style="color:${r.ok?'var(--green)':'var(--red)'}">${r.value} ${r.unit}</b></div>
     <div class="bar"><i class="${r.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>기준 ${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit} · ${r.source}</span><span>${r.ok?'충족':'최적화 대상'}</span></div></div>`;}).join('');
@@ -575,7 +579,9 @@ function renderIntegral(rep, req){
   $('#perfTag').className='tag '+(j.pass_?'green':'amber');$('#perfTag').textContent=j.pass_?'기준 충족':'처음 설계 · 미충족 → 최적화';
   const dv=rep.design_vars;
   $('#vars').innerHTML=[['핸들바 직경',`Ø${dv.bar_d} mm`],['클램프 폭',`${dv.width} mm`],['거치 각도',`${dv.tilt_deg}°`],['기둥 (보)',dv.beam],['받침판',dv.plate],
-    ['폰 고정 부품','양옆 슬라이드 집게 · 아래 걸이 · 위 슬라이드 걸이'],['탑재 하중',`${dv.payload_g} g (강체 165×80×15)`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    ['폰 고정 부품','양옆 슬라이드 집게 · 아래 걸이 · 위 슬라이드 걸이'],
+    ...(rep.cad.parts?[['출력 무게',`몸체 ${rep.cad.mass_g} g + `+rep.cad.parts.filter(p=>p.mass_g).map(p=>`${p.name} ${p.mass_g} g`).join(' + ')+` = ${rep.cad.print_total_g} g`],
+      ['구매 부품',rep.cad.parts.filter(p=>!p.mass_g).map(p=>p.name.replace(' (구매)','')).join(' · ')+' · M4 볼트']]:[]),['탑재 하중',`${dv.payload_g} g (강체 165×80×15)`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
   $('#loadsSub').textContent=`하중: 노면 ${ph.road_vibration.freq_hz.join('–')} Hz 진동 (판정 ${ph.road_vibration.judge_hz.join('–')} Hz) · 충격 ${ph.shock.accel_g} g 위아래·앞뒤 · 터치 ${ph.touch.force_n} N · 발열 ${ph.thermal.heat_w} W`;
   $('#cons').innerHTML=j.rows.map(r=>`<div class="con"><b>${r.name} ${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit}</b><small>${r.source}</small></div>`).join('')+
     `<div class="con"><b>최적화 설정 (팀 엔진)</b><small>GRIP=2 NX=88 MSYS=0.311 TILT=35 FT=95 TLIM=21 DLIM=0.3 · 출력 방향 −z' · 필터 8 mm</small></div>`;
@@ -601,7 +607,7 @@ function renderProduct(rep, req){
     $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
   }else if(rep.product==='TV 스탠드'){
     $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">${t.chosen_by==='지정'?'선택한 형식':'문장에서 형식을 골랐습니다'}: <b>${t.id} ${t.name}</b> — ${t.desc}</div>`+
-      ['TV01','TV02','TV03','TV04'].map(id=>`<button class="cand ${id===t.id?'on':''}" data-id="${id}"><img src="${(S.tpls[id]||{}).thumb||''}"><div class="t">${id} ${(S.tpls[id]||{}).name||''}</div></button>`).join('');
+      Object.keys(S.tpls).filter(id=>/^TV/.test(id)).map(id=>`<button class="cand ${id===t.id?'on':''}" data-id="${id}"><img src="${(S.tpls[id]||{}).thumb||''}"><div class="t">${id} ${(S.tpls[id]||{}).name||''}</div></button>`).join('');
     $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
   }else{
     const f=rep.analysis.features;

@@ -39,56 +39,79 @@ def test_voxfem_cantilever():
 
 
 def test_tv_tip_hand_calc():
-    """넘어짐 각 = atan(무게중심 → 지지면 가장자리 거리 / 무게중심 높이) 손계산과 같음."""
-    tv = TV.tv_spec(55)
-    info = dict(foot=[(-200, -150), (200, -150), (200, 150), (-200, 150)], tv_box=dict(center=[0, 0, 900], size=[tv["W"], 60, tv["H"]]))
+    """넘어짐 각 = atan(무게중심 → 접지 다각형 가장자리 거리 / 무게중심 높이), 수평력 여유 = W·d / (F·h) 손계산."""
+    tv = TV.tv_spec(27)
+    info = dict(foot=[(-200, -150), (200, -150), (200, 150), (-200, 150)], tv_box=dict(center=[0, 0, 900], size=[tv["W"], 30, tv["H"]]))
     r = TV.tip_checks(tv, info, mass_stand_kg=0.0)
     assert abs(r["tip_deg"] - math.degrees(math.atan2(150, 900))) < 0.05, r
-    Fh = 0.13 * tv["mass_kg"] * 9.81
+    W = tv["mass_kg"] * 9.81
     h = 900 + tv["H"] / 2
-    assert abs(r["push_margin"] - (tv["mass_kg"] * 9.81 * 150) / (Fh * h)) < 0.01, r
-    return f"넘어짐 각 {r['tip_deg']}° = atan(150/900), 수평력 여유 {r['push_margin']}"
+    assert abs(r["push_margin"] - (W * 150) / (0.13 * W * h)) < 0.01, r
+    assert abs(r["caster_max_N"] - (W / 4 + 0.13 * W * h / (2 * 2 * 150))) < 0.5, r      # 4 바퀴, 앞뒤 수평력
+    return f"넘어짐 각 {r['tip_deg']}° = atan(150/900), 수평력 여유 {r['push_margin']}, 바퀴 {r['caster_max_N']} N"
 
 
 def test_tv_conditions_iec():
-    """IEC 62368-1 수치: 13 % (≤ 250 N) 수평력, 50 % (≤ 100 N) 하향력, 10° 기울임."""
-    for size in (55, 85):
-        tv = TV.tv_spec(size)
-        c = {x["key"]: x for x in TV.conditions(tv, "TV01", "steel", "거실장 위")}
-        W = tv["mass_kg"] * 9.81
-        assert f"{min(0.13 * W, 250):.0f} N" in c["push"]["value"] and f"{min(0.5 * W, 100):.0f} N" in c["down"]["value"]
+    """IEC 62368-1 수치: 전체 무게의 13 % (≤ 250 N) 수평력, 50 % (≤ 100 N) 하향력, 10° 기울임 · 스탠바이미 27형 실측값."""
+    tv = TV.tv_spec(27)
+    assert (tv["W"], tv["H"], tv["mass_kg"]) == (621.0, 361.0, 4.8)
+    for total in (17.5, 250.0):
+        c = {x["key"]: x for x in TV.conditions(tv, "TV01", total)}
+        W = total * 9.81
+        assert f"{min(0.13 * W, 250):.0f} N" in c["push"]["value"] and f"{min(0.5 * W, 100):.0f} N" in c["push"]["value"]
         assert "10°" in c["tilt"]["value"]
-    assert TV.tv_spec(55)["mass_kg"] == 17.7
-    return "55형 23 N · 87 N, 85형 수평력 · 하향력 상한 적용"
+    return "17.5 kg: 22 N · 86 N, 250 kg: 상한 250 N · 100 N"
+
+
+def test_tv_no_clash():
+    """스탠드(기둥 · 캐리지 · 헤드)는 화면 뒤 — 화면과 겹침 0 (가로 · 세로 × 높이 최소/최대 × 27 · 43형)."""
+    out = []
+    for size in (27, 43):
+        tv = TV.tv_spec(size)
+        for t in TV.TEMPLATES:
+            lo, hi = TV.center_range(tv, t["orient"])
+            for zc in (lo, hi):
+                _, info = TV.build(t["id"], tv, zc)
+                assert info["clash_mm3"] <= 1.0, (size, t["id"], zc, info["clash_mm3"])
+                assert info["layout"]["back"] < 0
+        out.append(f"{size}형")
+    return "겹침 0 mm³ — " + ", ".join(out)
 
 
 def test_tv_sketch_match():
-    """정면 스케치: 정형 4/4 + 합성 손그림 (TV 있음/없음, ±8° 기울임) 40장 중 ≥ 95 %, 예시 손그림 4/4.
-    알려진 혼동: TV가 그림 대부분을 차지하고 받침이 아주 작으면 TV01 ↔ TV02."""
+    """정면 스케치 (화면 있음): 정형 + 합성 손그림(±8° 기울임 · 축척) 가로/세로 32/32, 높이 읽기 정형 ±15 mm, 예시 손그림."""
     ok = n = 0
     rng = np.random.default_rng(7)
+    tv = TV.tv_spec(27)
+    worst_clean = 0.0
     for t in TV.TEMPLATES:
-        for k in range(11):
-            st = TV.front_strokes(t["id"], with_tv=(k % 2 == 0))
+        for k in range(16):
+            zc = (884, 950, 1020, 1084)[k % 4]
+            st = TV.front_strokes(t["id"], zc=zc)
             if k:
                 st = perturb(st, rng, 1.0, drop=())
-            m = TV.match(draw_image(st, px=480))
+            img = draw_image(st, px=480)
+            m = TV.match(img)
             ok += m["candidates"][0]["id"] == t["id"]
             n += 1
-    assert ok >= 0.95 * n, (ok, n)
+            if k == 0:
+                worst_clean = max(worst_clean, abs(TV.height_from_sketch(img, t["id"], tv) - zc))
+    assert ok == n, (ok, n)
+    assert worst_clean < 15, worst_clean
     for f in sorted(glob.glob(os.path.join(HERE, "examples", "hand", "hand_TV*.png"))):
         g = pipeline.decode_image(open(f, "rb").read())
         assert TV.match(g)["candidates"][0]["id"] == os.path.basename(f)[5:9], f
-    return f"{ok}/{n} + 예시 손그림 4장"
+    return f"{ok}/{n}, 높이 오차(정형) ≤ {worst_clean:.0f} mm + 예시 손그림"
 
 
 def test_tv_designs():
-    """4개 템플릿: 한 몸(바닥 접지) · 판정 전부 충족 · 결과 파일."""
+    """가로 · 세로 1차 설계: 판정(기울임 · 응력 · 흔들림 · 바퀴) 충족, 힘 시험은 참고 행, 결과 파일."""
     out = []
     for t in TV.TEMPLATES:
         with tempfile.TemporaryDirectory() as d:
-            rep = TV.design("55인치", template=t["id"], out=d)
+            rep = TV.design("", template=t["id"], out=d)
             assert rep["judge"]["pass_"], (t["id"], rep["judge"])
+            assert all(r.get("ref") for r in rep["judge"]["rows"] if r["key"] in ("push", "down"))
             for f in ("design_1st.step", "design_1st.stl", "design_1st_drawing.pdf", "spec.json", "report.json", "handoff.zip"):
                 assert os.path.exists(os.path.join(d, f)), f
         out.append(f"{t['id']} {rep['extra']['tip']['tip_deg']}°")
@@ -142,11 +165,11 @@ def test_glasses_design():
 def test_routing_and_heat_payload():
     """제품 선택: 지정 · 템플릿 번호 · 문장 단어 · 안경 사진. 큰 격자 분포는 zlib 압축 → 풀면 절점 수와 같음."""
     R = pipeline.route_product
-    assert R("55인치 TV 스탠드") == "tv" and R("젠틀몬스터 안경") == "glasses" and R("자갈길에서 안 흔들리게") == "bike"
+    assert R("27인치 TV 스탠드") == "tv" and R("젠틀몬스터 안경") == "glasses" and R("자갈길에서 안 흔들리게") == "bike"
     assert R(template="TV03") == "tv" and R(template="T01") == "bike" and R(product="glasses") == "glasses"
     assert R(image=G.render_photo("cat_eye") / 255.0) == "glasses"
     with tempfile.TemporaryDirectory() as d:
-        rep = pipeline.design("55인치", template="TV02", out=d, with_mesh=True)
+        rep = pipeline.design("", template="TV02", out=d, with_mesh=True)
     nx, ny, nz = rep["heat"]["grid"]["nodes"]
     f = rep["heat"]["fields"]["stress"]
     raw = zlib.decompress(base64.b64decode(f["qz"])) if "qz" in f else base64.b64decode(f["q"])

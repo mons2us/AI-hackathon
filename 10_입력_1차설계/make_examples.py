@@ -61,7 +61,7 @@ def products():
     for t in TV.TEMPLATES:
         img = S.draw_image(TV.front_strokes(t["id"]), px=420, line=3)
         io.imsave(os.path.join(out_t, f"{t['id']}.png"), (img * 255).astype(np.uint8), check_contrast=False)
-        st = S.perturb(TV.front_strokes(t["id"], with_tv=t["id"] in ("TV01", "TV03")), rng, 1.0, drop=())
+        st = S.perturb(TV.front_strokes(t["id"], zc={"TV01": 950.0, "TV02": 1050.0}[t["id"]]), rng, 1.0, drop=())
         img = S.draw_image(st, px=int(rng.integers(420, 600)), line=int(rng.integers(3, 6)))
         io.imsave(os.path.join(out_h, f"hand_{t['id']}.png"), (img * 255).astype(np.uint8), check_contrast=False)
     for name, kw in (("합성_슬림오벌_투명렌즈", dict(style="slim_oval", seed=1)),
