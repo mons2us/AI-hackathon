@@ -1,105 +1,88 @@
 """GUI end-to-end check with headless Chrome (playwright). Start app/server.py first.
-   CHROME=/path/to/chrome python tests/e2e_gui.py   (screenshots -> <tmp>/formproof_e2e)"""
-import json, math, os, sys, tempfile, time
+   CHROME=/path/to/chrome python tests/e2e_gui.py   (screenshots -> <tmp>/formproof_e2e)
+
+확인: 4단 화면이 한 화면에 들어감(페이지 · 카드 스크롤 없음), 제품 4개(P01 · T01 · TV · AI 글래스)마다 형상 + 분포 창,
+메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기, 최적화 실행 버튼(입력 파일 내려받기)."""
+import math, os, sys, tempfile, time
 from playwright.sync_api import sync_playwright
 
 SP = os.path.join(tempfile.gettempdir(), "formproof_e2e"); os.makedirs(SP, exist_ok=True)
-URL = "http://localhost:8765"
+URL = os.environ.get("URL", "http://localhost:8765")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def draw(page, pts_list):
-    box = page.locator("#pad").bounding_box()
-    sx, sy = box["width"] / 800, box["height"] / 600
-    for pts in pts_list:
-        x, y = pts[0]
-        page.mouse.move(box["x"] + x * sx, box["y"] + y * sy)
-        page.mouse.down()
-        for x, y in pts[1:]:
-            page.mouse.move(box["x"] + x * sx, box["y"] + y * sy, steps=2)
-        page.mouse.up()
-
-
-def circle(cx, cy, r, n=40):
-    return [(cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
-
-
 def wait_result(page, timeout=90):
-    page.wait_for_function("() => !document.querySelector('#busy').classList.contains('on') && document.querySelector('#go').disabled===false", timeout=timeout * 1000)
-    time.sleep(1.5)
+    page.wait_for_function("() => !document.querySelector('#busy').classList.contains('on') && !document.querySelector('#go').disabled"
+                           " && document.querySelector('#vS0 .lab').textContent.length>0", timeout=timeout * 1000)
+    time.sleep(2)
+
+
+def no_scroll(page):
+    s = page.evaluate("() => [document.documentElement.scrollHeight > document.documentElement.clientHeight,"
+                      " document.documentElement.scrollWidth > document.documentElement.clientWidth,"
+                      " ...[...document.querySelectorAll('.card.fill')].map(c => c.scrollHeight > c.clientHeight + 1)]")
+    assert not any(s), f"스크롤 생김: {s}"
+
+
+def cams(page):
+    return page.evaluate("() => ({q: V3.cam.quaternion.toArray(), q2: V3.cam2.quaternion.toArray(),"
+                         " d: V3.cam.position.distanceTo(V3.ctl.target), d2: V3.cam2.position.distanceTo(V3.mc)})")
 
 
 with sync_playwright() as p:
-    b = p.chromium.launch(**({"executable_path": os.environ["CHROME"]} if os.environ.get("CHROME") else {"channel": "chrome"}),
-                          args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
-    page = b.new_page(viewport={"width": 1440, "height": 1300})
+    b = p.chromium.launch(**({"executable_path": os.environ["CHROME"]} if os.environ.get("CHROME") else {}),
+                          args=["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+    page = b.new_page(viewport={"width": 1920, "height": 950})
     logs = []
-    page.on("console", lambda m: logs.append(f"{m.type}: {m.text}"))
+    page.on("console", lambda m: logs.append(f"{m.type}: {m.text}") if m.type == "error" else None)
     page.on("pageerror", lambda e: logs.append(f"PAGEERROR: {e}"))
     page.goto(URL)
     page.wait_for_timeout(1500)
-    page.screenshot(path=f"{SP}/gui_0_empty.png", full_page=True)
+    no_scroll(page)
 
-    # 1) hand sketch (side view: clamp circle, ears, straight arm, pad, strut) + text
-    cx, cy, r = 210, 330, 48
-    draw(page, [circle(cx, cy, r), circle(cx, cy, 36),
-                [(196, 370), (196, 420), (224, 420), (224, 370)],
-                [(cx, cy - r), (360, 300), (560, 262)],
-                [(555, 250), (600, 250), (600, 268), (555, 268), (555, 250)],
-                [(cx + r, cy), (420, 278)]])
-    page.fill("#text", "자갈길에서도 폰이 안 흔들리게, 최대한 가볍게. 갤럭시 S25 울트라, 3D 프린터로 뽑을 거야")
-    t = time.time()
-    page.click("#go")
-    wait_result(page)
-    print("sketch run", round(time.time() - t, 1), "s | tag:", page.inner_text("#tplTag"))
-    print("cands:", page.inner_text("#cands").replace("\n", " | "))
-    page.screenshot(path=f"{SP}/gui_1_sketch.png", full_page=True)
-
-    # 2) pick the 2nd candidate
-    btns = page.locator("#cands button.cand")
-    if btns.count() > 1:
-        btns.nth(1).click()
+    runs = [("P01", "bike", "#example", "/examples/presentation/input_sketch.png"), ("T01", "bike", "#example", "/examples/hand/hand_T01.png"),
+            ("TV", "tv", "#example", "/examples/hand/hand_TV01.png"), ("GL", "glasses", "#photoEx", None)]
+    for name, prod, sel, val in runs:
+        page.click(f"#prodSeg button[data-p={prod}]")
+        page.wait_for_timeout(300)
+        if val is None:
+            val = page.evaluate("() => [...document.querySelectorAll('#photoEx option')].map(o => o.value).filter(Boolean)[0]")
+        page.select_option(sel, val)
+        page.wait_for_timeout(1200)
+        t = time.time()
+        page.click("#go")
         wait_result(page)
-        print("candidate switch -> tag:", page.inner_text("#tplTag"))
+        labs = [page.inner_text(f"#vS{i} .lab") for i in range(3)]
+        print(f"{name}: {time.time() - t:.1f} s | {page.inner_text('#tplTag')} | 분포 창: {labs} | 성능: {page.inner_text('#perfTag')}")
+        no_scroll(page)
+        body = page.inner_text("body")
+        assert "발표" not in body and "쪽" not in body, "발표 관련 글자가 남음"
+        page.screenshot(path=f"{SP}/gui_{name}.png")
 
-    # 3) side view + drawing tabs
-    page.click("button[data-pane=pside]")
-    page.wait_for_timeout(500)
-    page.locator("#view").screenshot(path=f"{SP}/gui_2_side.png")
-    page.click("button[data-pane=pdraw]")
-    page.wait_for_timeout(500)
-    page.locator("#view").screenshot(path=f"{SP}/gui_3_draw.png")
-    page.click("button[data-pane=p3d]")
+    # 메인 창 회전 · 확대 → 분포 창 카메라가 같은 방향 · 같은 거리
+    box = page.locator("#vMain").bounding_box()
+    c0 = cams(page)
+    page.mouse.move(box["x"] + box["width"] * .5, box["y"] + box["height"] * .5); page.mouse.down()
+    page.mouse.move(box["x"] + box["width"] * .3, box["y"] + box["height"] * .35, steps=8); page.mouse.up()
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(1500)
+    c1 = cams(page)
+    assert max(abs(a - b) for a, b in zip(c1["q"], c0["q"])) > 0.05, "메인 창이 안 돌아감"
+    assert max(abs(a - b) for a, b in zip(c1["q"], c1["q2"])) < 1e-6 and abs(c1["d"] - c1["d2"]) < 1e-3 * c1["d"], c1
+    print(f"동기화: 회전 후 방향 같음, 거리 {c0['d']:.0f} → {c1['d']:.0f} mm (분포 창 {c1['d2']:.0f})")
+    page.screenshot(path=f"{SP}/gui_sync.png")
 
-    # 4) image attach (example hand-drawn image file)
-    page.click("#mImage")
-    page.set_input_files("#file", f"{ROOT}/examples/hand/hand_T05.png")
-    page.fill("#text", "앞으로 길게, 튼튼하게")
-    page.click("#go")
-    wait_result(page)
-    print("image run -> tag:", page.inner_text("#tplTag"))
-    page.screenshot(path=f"{SP}/gui_4_image.png", full_page=True)
+    # 도면 보기 켜고 끄기
+    page.click("#vDraw"); page.wait_for_timeout(800)
+    page.screenshot(path=f"{SP}/gui_draw.png")
+    page.click("#vDraw"); page.wait_for_timeout(500)
 
-    # 5) text only
-    page.click("#mSketch")
-    page.click("#clear")
-    page.fill("#text", "높게, L자로 꺾어서. 여름 땡볕에서도 변형 없고 화면 각도는 자유롭게")
-    page.click("#go")
-    wait_result(page)
-    print("text run -> tag:", page.inner_text("#tplTag"))
-    print("conditions:", page.inner_text("#cons")[:600].replace("\n", " | "))
-    page.screenshot(path=f"{SP}/gui_5_text.png", full_page=True)
-
-    # 6) hand-off download
+    # 최적화 실행 버튼 = 최적화 입력(handoff.zip) 내려받기
     with page.expect_download() as d:
-        page.click("#handoff")
-    dl = d.value
-    dl.save_as(f"{SP}/handoff_test.zip")
-    print("download:", dl.suggested_filename)
-
-    # 7) mobile width
-    page.set_viewport_size({"width": 400, "height": 900})
-    page.wait_for_timeout(800)
-    page.screenshot(path=f"{SP}/gui_6_mobile.png", full_page=False)
-    print("\n".join(l for l in logs if "error" in l.lower() or "PAGEERROR" in l)[:2000] or "no console errors")
+        page.click("#optimize")
+    d.value.save_as(f"{SP}/handoff_test.zip")
+    print("최적화 버튼:", d.value.suggested_filename)
+    errs = [l for l in logs if "error" in l.lower() or "PAGEERROR" in l]
+    print("\n".join(errs)[:2000] or "콘솔 오류 없음")
     b.close()
+    sys.exit(1 if errs else 0)
