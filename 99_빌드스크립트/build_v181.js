@@ -497,7 +497,7 @@ const LG = 4.92;
   cell(g[0], x, LG, 0.3, 0.16, false); T(s, g[1], { x: x + 0.36, y: LG - 0.01, w: 1.35, h: 0.18, fontSize: 7, color: C.accent3, valign: 'middle' }); });
 T(s, '', { x: 7.6, y: LG - 0.01, w: 1.9, h: 0.18, fontSize: 7, color: C.accent3, align: 'right', valign: 'middle' });
 }
-s.addNotes('요구 정의 = 문제와 요구를 목표 · 제약 수치로 정리. 성능 해석 = 시뮬레이션. 최고 난도 단계: 물리 조건 설정, 해석, 최적 설계(최적화 결과의 CAD 재구성 및 반복). 해석 도구는 계산만 자동이며 전후 단계(모델링, 조건, 최적 설계, 재검증)는 전문가 수행. FormProof는 6단계 전체를 AI로 수행. [화면에서 뺀 주석] 해석 도구: 결과 확보 1주 이상 67% (engineering.com · Dassault 2022 설문). 범용 LLM: 같은 조건 독립 3회, 같은 해석기로 판정 → 3회 모두 불합격(9쪽). 비교는 범주별 일반 기능 기준.');
+s.addNotes('요구 정의 = 문제와 요구를 목표 · 제약 수치로 정리. 성능 해석 = 시뮬레이션. 최고 난도 단계: 물리 조건 설정, 해석, 최적 설계(최적화 결과의 CAD 재구성 및 반복). 해석 도구는 계산만 자동이며 전후 단계(모델링, 조건, 최적 설계, 재검증)는 전문가 수행. FormProof는 6단계 전체를 AI로 수행. [화면에서 뺀 주석] 해석 도구: 결과 확보 1주 이상 67% (engineering.com · Dassault 2022 설문). 범용 LLM: 같은 조건 독립 3회, 같은 해석기로 판정 → 3회 모두 불합격(8쪽). 비교는 범주별 일반 기능 기준.');
 
 // ===== v162: 범용 LLM 단독 vs FormProof (같은 요청 · 같은 검증)
 s = pres.addSlide({ masterName: 'CONTENT', sectionTitle: '4. 기술 차별성' });
