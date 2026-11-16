@@ -10,7 +10,7 @@
 # 단계를 다시 하려면 runs/state/<단계>.done 을 지우고 실행.
 #
 # 설정 (환경 변수, 앞에 붙여 실행. 예: NA=2000 bash handoff/step2_server_all.sh)
-#   J           데이터 생성 병렬 수. 기본 = min(메모리 GB ÷ 4.5, 코어 수 ÷ 2)  (프로세스당 메모리 약 4.1 GB, 11-16 측정)
+#   J           데이터 생성 병렬 수. 기본 = min(여유 메모리 GB ÷ 4.5, 빈 코어 ÷ 2)  (프로세스당 메모리 약 4.1 GB, 11-16 측정)
 #   NA          A 구조 데이터: 프레임 생성기 형상 수 (기본 5000) + 위상 최적화 기록 245개
 #   NB          B 열 데이터: 받침판 패턴 뽑기 수 (기본 20000, 중복 약 1/3 은 건너뜀)
 #   SDF_STEPS   형상 AI 학습 스텝 (기본 30000)     PHYS_STEPS  물리 AI 학습 스텝 (기본 20000)
@@ -21,11 +21,27 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT=$(pwd); ST=runs/state; mkdir -p $ST runs/logs
 M=data/grid_meta.npz; DA='data/shards_frame/*.npz'; SPEC=spec/bike_mount_targets.json
-export OMP_NUM_THREADS=${THREADS:-2} MKL_NUM_THREADS=${THREADS:-2}
 COMMON="GRIP=2 NX=88 MSYS=0.311"
 
-MEM=$(awk '/MemAvailable/{print int($2/1048576)}' /proc/meminfo); CPU=$(nproc)
-JA=$(( MEM * 10 / 45 )); JC=$(( CPU / 2 )); JD=$(( JA < JC ? JA : JC )); [ $JD -lt 1 ] && JD=1
+# 코어 · 메모리 (주의: nproc 는 OMP_NUM_THREADS 를 따르므로 쓰지 않고 python 으로 직접 셈)
+read CPU IDLE MEM <<< $(python3 - <<'EOF'
+import os
+cpu = len(os.sched_getaffinity(0))                                   # 이 작업에 허용된 코어
+try:                                                                 # 컨테이너 CPU 제한 (cgroup v2)
+    q, p = open('/sys/fs/cgroup/cpu.max').read().split()
+    if q != 'max': cpu = min(cpu, max(1, int(int(q) / int(p))))
+except Exception: pass
+idle = max(1, int(cpu - os.getloadavg()[0]))                          # 다른 사용자가 쓰는 만큼 뺌 (1분 평균 부하)
+mem = int([l.split()[1] for l in open('/proc/meminfo') if l.startswith('MemAvailable')][0]) / 2**20
+try:                                                                 # 컨테이너 메모리 제한
+    lim = open('/sys/fs/cgroup/memory.max').read().strip()
+    if lim != 'max': mem = min(mem, (int(lim) - int(open('/sys/fs/cgroup/memory.current').read())) / 2**30)
+except Exception: pass
+print(cpu, idle, int(mem))
+EOF
+)
+export OMP_NUM_THREADS=${THREADS:-2} MKL_NUM_THREADS=${THREADS:-2}
+JA=$(( MEM * 10 / 45 )); JC=$(( IDLE / ${THREADS:-2} )); JD=$(( JA < JC ? JA : JC )); [ $JD -lt 1 ] && JD=1
 J=${J:-$JD}
 if [ "${TINY:-0}" = "1" ]; then
   NA=${NA:-2}; NB=${NB:-40}; SNAP_N=${SNAP_N:-2}; SDF_STEPS=${SDF_STEPS:-60}; PHYS_STEPS=${PHYS_STEPS:-60}; LK=1; LIT=5; J=1
@@ -54,7 +70,9 @@ if [ "$1" = "status" ]; then
   exit 0
 fi
 
-say "설정: 메모리 여유 ${MEM} GB · 코어 ${CPU} → 병렬 J=${J} | A ${NA}개(+기록) · B ${NB}번 | 형상 AI ${SDF_STEPS} · 물리 AI ${PHYS_STEPS} 스텝 | TINY=${TINY:-0}"
+EST=$(( (NA + 245) * 30 / J / 60 ))
+say "설정: 메모리 여유 ${MEM} GB · 코어 ${CPU} (그중 비어 있음 ${IDLE}) → 병렬 J=${J} | A ${NA}개(+기록) · B ${NB}번 | 형상 AI ${SDF_STEPS} · 물리 AI ${PHYS_STEPS} 스텝 | TINY=${TINY:-0}"
+say "데이터 A 예상 약 ${EST}분 (형상 1개 약 30초 기준, 서버에서 다를 수 있음)"; [ $EST -gt 600 ] && say "경고: 10시간 넘음. 코어를 더 받거나 NA 를 줄일 것"
 
 check() {
   python3 - <<'EOF'

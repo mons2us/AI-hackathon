@@ -38,7 +38,7 @@ bash handoff/step2_server_all.sh status                    # 어느 단계까지
 - **이어하기**: 서버가 끊기거나 실패하면 같은 명령을 다시 실행. 끝난 단계(`runs/state/*.done`)와 끝난 데이터 묶음은 건너뜀. 한 단계만 다시 하려면 `runs/state/s5_cnn.done` 같은 파일을 지우고 실행.
 - **실패하면** 화면에 그 단계 기록(`runs/logs/<단계>.log`)의 마지막 30줄이 나옴. 데이터 단계는 `data/shards_frame/*.log` 도 확인. `Killed` 는 메모리 부족이니 `J` 를 줄여서 다시 실행.
 - **설정** (명령 앞에 붙임. 예: `J=8 NA=2000 bash handoff/step2_server_all.sh`)
-  - `J`: 병렬 수. 기본 = min(여유 메모리 GB ÷ 4.5, 코어 ÷ 2). FEM 1개당 메모리 약 4.1 GB (11-16 측정)
+  - `J`: 병렬 수. 기본 = min(여유 메모리 GB ÷ 4.5, 빈 코어 ÷ 2). 빈 코어 = 허용 코어 − 1분 평균 부하. 시작할 때 예상 시간도 출력 FEM 1개당 메모리 약 4.1 GB (11-16 측정)
   - `NA`: A 형상 수 (기본 5000). `NB`: B 뽑기 수 (기본 20000)
   - `SDF_STEPS` (기본 30000), `PHYS_STEPS` (기본 20000)
   - `GPUS=0,2,3`: 학습에 쓸 GPU 직접 지정. 안 주면 `nvidia-smi` 로 여유 메모리 `GPU_MIN_FREE_MB`(기본 6000) 이상인 GPU 를 여유 많은 순으로 자동 선택
