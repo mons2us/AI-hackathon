@@ -29,9 +29,11 @@ import os
 cpu = len(os.sched_getaffinity(0))                                   # 이 작업에 허용된 코어
 try:                                                                 # 컨테이너 CPU 제한 (cgroup v2)
     q, p = open('/sys/fs/cgroup/cpu.max').read().split()
-    if q != 'max': cpu = min(cpu, max(1, int(int(q) / int(p))))
-except Exception: pass
-idle = max(1, int(cpu - os.getloadavg()[0]))                          # 다른 사용자가 쓰는 만큼 뺌 (1분 평균 부하)
+    quota = q != 'max'
+    if quota: cpu = min(cpu, max(1, int(int(q) / int(p))))
+except Exception: quota = False
+# 컨테이너 몫(quota)이 있으면 그 안은 내 것 → 서버 전체 부하를 빼지 않음. 없으면 다른 사용자 몫(1분 평균 부하)을 뺌
+idle = cpu if quota else max(1, int(cpu - os.getloadavg()[0]))
 mem = int([l.split()[1] for l in open('/proc/meminfo') if l.startswith('MemAvailable')][0]) / 2**20
 try:                                                                 # 컨테이너 메모리 제한
     lim = open('/sys/fs/cgroup/memory.max').read().strip()
