@@ -160,13 +160,22 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
     return "bike"
 
 
-def design(*a, **k):
-    """_design + 설계 사양 카드 행(rep['spec_rows'], 제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
-    rep = _design(*a, **k)
+def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
+    """1차 설계 + 표시용 조건 두 가지 (실패해도 1차 설계는 그대로):
+    rep['spec_cards'] — 필요 물리 조건 카드 (말 · 스케치 메모 → 조건, 형상 계산 전에도 같은 규칙 — spec_cards.py, GUI 스케치 아래)
+    rep['spec_rows']  — 설계 사양 행 (제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
+    rep = _design(text, sketch, image, template, out, with_mesh, product)
+    from . import spec_cards
+    try:
+        _, cs = spec_cards.preview(text, sketch, image, template, product)
+        rep["spec_cards"] = cs or spec_cards.from_criteria(rep)
+    except Exception as e:                               # noqa: BLE001
+        rep["spec_cards"] = []
+        rep["spec_cards_error"] = str(e)
     try:
         from .spec_view import spec_rows
         rep["spec_rows"] = spec_rows(rep)
-    except Exception as e:                       # 카드는 보조 표시 — 실패해도 1차 설계는 그대로
+    except Exception as e:                               # noqa: BLE001
         rep["spec_rows"] = []
         rep["spec_rows_error"] = str(e)
     return rep

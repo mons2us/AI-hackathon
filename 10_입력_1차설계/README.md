@@ -60,7 +60,7 @@ python tests/e2e_gui.py                                                   # (선
 - 코드: `formproof_input/spec_view.py` `spec_rows(rep)` → `pipeline.design()` 결과에 `rep["spec_rows"]` (서버 수정 없음)
 - 행 = `{group, said, cond, src}` — group 순서 **제품 → 목표 → 기준 → 질문**, src 태그 = `입력` · `근거 DB` · `가정` · `질문`
 - 제품별 원본: P01 = `design_spec`(+ `criteria` 수치) · 템플릿 T/G = `text.fired` + `criteria` + `text.questions` · TV · 안경 = `conditions`
-- GUI: `index.html` `renderSpec()` (입력 카드의 "1차 설계 만들기" 아래, 결과가 오면 펼침). 제작(3D 출력) 조건은 별도 행 없이 기준의 "층간 응력"으로
+- GUI: `index.html` `renderSpec()` (입력 카드의 "1차 설계 만들기" 아래). **지금은 숨김** — 같은 내용을 스케치 아래 "필요 물리 조건" 카드(`spec_cards`, 형상 계산 전에 표시)로 보여 주고 한 화면을 유지하기 위해. `rep["spec_rows"]` 는 그대로 나감. 제작(3D 출력) 조건은 별도 행 없이 기준의 "층간 응력"으로
 - 시험: `tests/test_spec_view.py` (4개 경로 · 순서 · 태그)
 
 **질문은 누가 만드나**: 지금 GUI는 규칙판 조건 생성기(`text_rules.py` · `integral.py`)가 근거 없는 항목을 질문으로 남깁니다(LLM 호출 없음, 같은 형식). LLM 판은 팀 패키지 `11_구현패키지/FormProof_구현/agent/condition_generator.py`(규칙: 요청 · 스케치 · 근거 DB 어디에도 없으면 `questions_to_user`)이며, 출력 형식(`design_spec` 스키마)이 같아 `spec_rows` 를 그대로 씁니다.
@@ -209,6 +209,22 @@ sosopapa `11_구현패키지/FormProof_구현` 의 역설계(형상 AI × 물리
 - **학습 모델 넣기**: `models/README.md` — 두 파일을 `10_입력_1차설계/models/` 에 이름 그대로 넣고 `app\setup.bat` 한 번(PyTorch CPU 설치 · `python -m formproof_input.inverse check` · 기본 경로 미리 계산). zip 안 `runs/sdf.pt` · `runs/fno.pt` 는 처음 쓸 때 `models/fp11/runs/` 로 풀림.
 - **속도**: 기본 선택(1차 설계 미충족 5개 · 전부)은 템플릿 DB 에 미리 계산 → 누르면 바로 재생(대체 모델 경로 계산 약 2 s). 학습 모델은 CPU 에서 반복마다 DeepSDF 5만 점 디코드 + FNO 라 느림 → `check` 가 반복 1회 시간과 전체 예상 시간을 출력. 미리 계산 안 한 선택은 계산하면서 프레임이 오는 대로 재생. 반복 수 · 간격 · 시작 맞춤 횟수는 환경 변수 `FP11_ITERS`(200) · `FP11_EVERY`(5) · `FP11_FIT_STEPS`(1500).
 - **학습 모델 확인 안 됨**: 이 작업 환경에 PyTorch 가 없어(설치 불가) `real.py` 는 팀 `latent_search.trace_run` · `ShapeAI` · `Surrogate` 와 줄 단위로 맞춰 쓰고 문법만 확인했다. 회사 PC 에서 `check` 로 먼저 확인할 것. 물리 AI 가 ext 없이(출력 7개) 학습됐으면 층간 · 흔들림은 예측이 없어 벌점에서 빠지고(블록은 1차 설계 값 유지) 검증 관문 FEM 값으로만 판정된다. 흔들림 분포는 물리 AI 출력에 없어 학습 모델 재생 중에는 바뀌지 않는다.
+
+## 데모 입력 (말 + 스케치) → 필요 물리 조건 카드 (`formproof_input/demo_inputs.py` · `spec_cards.py`)
+
+제품마다 **지금의 1차 설계 형상을 그대로 내는** 언어 프롬프트 + 스케치(줄 노트 손그림 + 손글씨 메모). GUI 의 예시 목록 맨 위 항목을 고르면 말과 스케치가 함께 채워짐.
+
+| 제품 | 말 (프롬프트) | 스케치 | 1차 설계 |
+|---|---|---|---|
+| 폰 거치대 | 울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야 | `examples/presentation/input_sketch.png` | P01 (그대로) |
+| TV 스탠드 | 27인치 TV를 방마다 굴려서 옮기는 스탠드. 아이가 밀어도 안 넘어지게, 앉아서 보기 좋은 높이의 가로 화면으로 | `examples/demo/tv_sketch.png` | TV01 · 높이 '낮게' 884 mm (그대로) |
+| AI 글래스 | 하루 종일 써도 가볍고 안 흘러내리는 AI 글래스. 관자놀이가 뜨겁지 않게, 렌즈 50 | `examples/demo/glasses_sketch.png` | AG-gm · 렌즈 50 (그대로) |
+
+- 스케치는 `python examples/demo/make_demo_sketches.py` 로 다시 만듦. 스케치 인식(트랙 2) 전까지는 P01 과 같은 방식: 그림 지문(잉크 썸네일 상관 ≥ 0.85)으로 등록 → 정해 둔 템플릿. 메모 글자(`note`)는 조건 생성기가 문장과 함께 읽음.
+- **1차 설계 만들기** → 서버가 형상 계산 **전에** 카드부터 만들어 진행 조회(`/api/job` 의 `cards`)로 보냄 → 스케치 아래에 하나씩 나타난 뒤 형상 · 성능.
+- 카드 = 말 · 메모 한 토막 → 조건 몇 줄 + 근거(근거 DB · 스케치 · 목표 · 가정 · 질문). 말 · 스케치에 없어도 이 제품이면 꼭 보는 조건은 '기본'. 수치는 판정 기준과 같은 상수에서 읽음(예: 95 Hz · 48.5 g · 26 MPa, IEC 62368-1 10°, 50 g · 43 °C).
+- 템플릿 거치대(T · G)는 설계 뒤 판정 기준(criteria)에서 카드를 만듦.
+- 시험: `tests/test_spec_cards.py` — 카드 수치 = 판정 기준, 데모 입력(그림판 800 × 600 을 거친 그림) → 기존 1차 설계와 같은 템플릿 · 같은 판정.
 
 ## 데모 제품 시나리오 — TV 스탠드 (스케치) · AI 글래스 (사진) (`formproof_input/products/`)
 

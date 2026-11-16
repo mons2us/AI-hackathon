@@ -15,11 +15,14 @@ OPT3D = os.path.join(ROOT, "..", "03_자전거거치대", "code_3D")
 
 def opt3d_reference():
     """Run opt3d.py up to (not including) the stiffness assembly, with solver modules stubbed."""
+    stubs = []
     for m in ("mmapy", "pyamg", "pypardiso"):
         try:                                             # 설치돼 있으면 진짜 모듈 (빈 껍데기가 뒤 시험의 pypardiso 를 가리지 않게)
             __import__(m)
         except ImportError:
-            sys.modules.setdefault(m, types.ModuleType(m))
+            if m not in sys.modules:
+                sys.modules[m] = types.ModuleType(m)
+                stubs.append(m)
     sys.path.insert(0, OPT3D)
     src = open(os.path.join(OPT3D, "opt3d.py"), encoding="utf-8").read()
     head = src.split("iK=np.repeat")[0]
@@ -30,6 +33,8 @@ def opt3d_reference():
         exec(compile(head, "opt3d_head", "exec"), ns)
     finally:
         os.chdir(cwd)
+        for m in stubs:                                  # 빈 껍데기는 이 시험 안에서만 (뒤 시험의 'import pyamg' 가 껍데기를 받지 않게)
+            sys.modules.pop(m, None)
     return ns
 
 

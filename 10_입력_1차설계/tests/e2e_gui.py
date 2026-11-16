@@ -4,7 +4,7 @@
 확인: 4단 화면이 한 화면에 들어감(페이지 · 카드 스크롤 없음), 제품 4개(P01 · T01 · TV · AI 글래스)마다 형상 + 분포 창,
 메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기,
 P01 만 성능 항목을 눌러 최적화 대상 고르기(1개 이상이면 실행 버튼 켜짐) → 역설계 재생(형상 · 예측값) → FEM 검증 · optimize_input.zip."""
-import json, math, os, sys, tempfile, time
+import json, math, os, sys, tempfile, time, urllib.request
 from playwright.sync_api import sync_playwright
 
 SP = os.path.join(tempfile.gettempdir(), "formproof_e2e"); os.makedirs(SP, exist_ok=True)
@@ -41,20 +41,37 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     no_scroll(page)
 
-    runs = [("P01", "bike", "#example", "/examples/presentation/input_sketch.png"), ("T01", "bike", "#example", "/examples/hand/hand_T01.png"),
-            ("TV", "tv", "#example", "/examples/hand/hand_TV01.png"), ("GL", "glasses", "#photoEx", None)]
+    # 데모 입력(말 + 스케치) 3개 + 손 스케치 T01 + 글래스 사진: 예시 고르면 말도 채워짐, 카드가 형상보다 먼저
+    demos = {d["product"]: d for d in json.load(urllib.request.urlopen(URL.rstrip("/") + "/api/demos"))}
+    runs = [("P01", "bike", "#example", demos["bike"]["sketch"]), ("T01", "bike", "#example", "/examples/hand/hand_T01.png"),
+            ("TV", "tv", "#example", demos["tv"]["sketch"]), ("GL", "glasses", "#example", demos["glasses"]["sketch"]),
+            ("GLphoto", "glasses", "#photoEx", None)]
+    ORDER = ("() => { window.__ord = []; const add = k => { if (!__ord.includes(k)) __ord.push(k); };"
+             " new MutationObserver(() => { if (document.querySelector('#specs .sc.in')) add('cards'); })"
+             ".observe(document.querySelector('#specs'), {subtree: true, childList: true, attributes: true});"
+             " new MutationObserver(() => add('shape')).observe(document.querySelector('#tplTag'), {childList: true, characterData: true, subtree: true}); }")
     for name, prod, sel, val in runs:
         page.click(f"#prodSeg button[data-p={prod}]")
         page.wait_for_timeout(300)
         if val is None:
+            page.click("#mImage")
             val = page.evaluate("() => [...document.querySelectorAll('#photoEx option')].map(o => o.value).filter(Boolean)[0]")
         page.select_option(sel, val)
         page.wait_for_timeout(1200)
+        if prod in demos and val == demos[prod]["sketch"]:
+            assert page.input_value("#text") == demos[prod]["prompt"], "예시를 골라도 말이 안 채워짐"
+        page.evaluate(ORDER)
         t = time.time()
         page.click("#go")
         wait_result(page)
         labs = [page.inner_text(f"#vS{i} .lab") for i in range(3)]
-        print(f"{name}: {time.time() - t:.1f} s | {page.inner_text('#tplTag')} | 분포 창: {labs} | 성능: {page.inner_text('#perfTag')}")
+        cards = page.locator("#specs .sc").all_inner_texts()
+        order = page.evaluate("() => __ord")
+        print(f"{name}: {time.time() - t:.1f} s | {page.inner_text('#tplTag')} | 분포 창: {labs} | 성능: {page.inner_text('#perfTag')}"
+              f" | 조건 카드 {len(cards)}장 {order}")
+        assert len(cards) >= (6 if name in ("P01", "TV", "GL") else 4) and order[:2] == ["cards", "shape"], (name, len(cards), order)
+        if name in ("TV", "GL"):
+            assert ("TV01" if name == "TV" else "AG-gm") in page.inner_text("#tplTag")
         no_scroll(page)
         body = page.inner_text("body")
         assert "발표" not in body and "쪽" not in body, "발표 관련 글자가 남음"

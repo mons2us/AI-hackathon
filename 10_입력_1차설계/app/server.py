@@ -31,7 +31,7 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
-APP_VERSION = "2026-11-16f"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
+APP_VERSION = "2026-11-16g"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
 OPT_JOBS = {}                                              # 간이 물리 최적화 job id -> 진행 (반복 · 기록 · 최신 표면)
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
@@ -110,6 +110,8 @@ class Handler(BaseHTTPRequestHandler):
                                "지금 템플릿 하나가 끝나면 이 요청을 먼저 계산합니다")
             out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
                        history=J["history"], done=J["done"], error=J["error"])
+            if J.get("cards") is not None:                      # 1차 설계: 필요 물리 조건 카드 (형상보다 먼저)
+                out["cards"] = J["cards"]
             if "frames" in J:                                   # 최적화: 아직 안 보낸 프레임만 (since = 받은 개수)
                 since = int(parse_qs(u.query).get("since", ["0"])[0] or 0)
                 out["frames"] = J["frames"][since:]
@@ -129,6 +131,11 @@ class Handler(BaseHTTPRequestHandler):
             if sid not in [s[0] for s in integral.SHAPES]:
                 return self._send(404, {"error": "unknown shape"})
             return self._send(200, integral.shape_view(sid))
+        if p == "/api/demos":                         # 제품별 데모 입력 (말 + 스케치) — 지금 1차 설계 형상을 그대로 냄
+            from formproof_input import demo_inputs
+            return self._send(200, [dict(product=d["product"], label=d["label"], prompt=d["prompt"],
+                                         sketch="/examples/" + os.path.relpath(d["sketch"], EXAMPLES).replace(os.sep, "/"))
+                                    for d in demo_inputs.DEMOS])
         if p == "/api/examples":
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")
@@ -249,7 +256,13 @@ class Handler(BaseHTTPRequestHandler):
                         with WAIT_LOCK:
                             WAITING[0] -= 1
                         progress.set_listener(note)
-                        note("입력 읽기 · 제품 판단")
+                        note("입력 읽기 · 필요한 물리 조건 정리")
+                        try:                                              # 형상 계산 전에 조건 카드부터 (GUI 가 진행 조회로 먼저 받음)
+                            from formproof_input import spec_cards
+                            J["cards"] = spec_cards.preview(req.get("text", ""), sketch, image, req.get("template") or None,
+                                                            req.get("product") or None)[1]
+                        except Exception:                                 # noqa: BLE001
+                            traceback.print_exc()
                         try:
                             rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
                                                   product=req.get("product") or None)

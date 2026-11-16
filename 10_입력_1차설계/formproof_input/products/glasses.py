@@ -759,7 +759,14 @@ def geometry_from(photo=None, text="", style=None):
     등록된 공식 제품 사진(3/4 각도) → 'gm' 템플릿, 정면 사진 → 윤곽 분석으로 가까운 형상, 사진 없음 → 'gm'."""
     lw = parse_lens_w(text)
     an, ref = None, None
+    demo = None
     if photo is not None:
+        from .. import demo_inputs
+        demo = demo_inputs.match("glasses", photo)
+    if demo:                                             # 등록된 데모 스케치 (말 + 스케치) → 정해 둔 템플릿
+        progress.step("스케치 → 등록된 데모 스케치 (그림 지문)")
+        ref = demo["style"]
+    elif photo is not None:
         progress.step("사진 → 템플릿 (등록 사진 확인 · 테 · 렌즈 윤곽)")
         ref = matches_reference(photo)
         if ref is None:
@@ -768,9 +775,11 @@ def geometry_from(photo=None, text="", style=None):
                                                    "slim_oval" if re.search(r"슬림|오벌", text or "") else "gm"))
     lw_t = min(LENS_WIDTHS, key=lambda w: abs(w - lw))
     geo = template_geometry(st, lw_t)
-    geo["source"] = ("공식 제품 사진 → 템플릿" if ref else "사진 → 가까운 템플릿" if an else
+    geo["source"] = ("데모 스케치 → 템플릿" if demo else "공식 제품 사진 → 템플릿" if ref else "사진 → 가까운 템플릿" if an else
                      "사진 인식 실패 → 기본 템플릿" if photo is not None else "템플릿 (사진 없음)")
-    geo["ref_photo"] = ref
+    geo["ref_photo"] = None if demo else ref
+    geo["demo"] = demo["key"] if demo else None
+    geo["sketch_note"] = demo["note"] if demo else ""
     return geo, an
 
 
@@ -791,7 +800,12 @@ def design(text="", image=None, out="out", with_mesh=False, style=None):
     else:
         progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", STYLES[geo["style"]]["name"])
     S = STYLES[geo["style"]]
-    if geo.get("ref_photo"):
+    rep["extra"]["sketch_note"] = geo.get("sketch_note", "")
+    if geo.get("demo"):
+        rep["template"].update(chosen_by="데모 스케치 (그림 지문)",
+                               match=dict(source="스케치", frame="sketch", candidates=[dict(id=geo["style"], name=S["name"], confidence=1.0)]))
+        rep["extra"]["photo"] = dict(mode="sketch")
+    elif geo.get("ref_photo"):
         analysis_png(image, None, geo, os.path.join(out, "analysis.png"))
         rep["template"].update(chosen_by="공식 제품 사진 → 템플릿",
                                match=dict(source="사진", frame="photo", candidates=[dict(id=geo["style"], name=S["name"], confidence=1.0)]))

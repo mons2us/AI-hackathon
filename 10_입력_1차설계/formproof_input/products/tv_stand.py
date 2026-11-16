@@ -392,7 +392,13 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
     match = None
     zc_req = parse_height(text)
     zc_how = "문장" if zc_req is not None else None
-    if template:
+    from .. import demo_inputs
+    demo = demo_inputs.match("tv", sketch) if (sketch is not None and not template) else None
+    if demo:                                             # 등록된 데모 스케치 (말 + 스케치) → 정해 둔 템플릿 · 높이
+        progress.step("정면 스케치 → 등록된 데모 스케치 (그림 지문)")
+        tid, how = demo["template"], "데모 스케치 (그림 지문)"
+        zc_req, zc_how = None, None
+    elif template:
         tid, how = template, "지정"
     elif sketch is not None:
         progress.step("정면 스케치 → 템플릿 비교 · 높이 읽기")
@@ -400,12 +406,12 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
         tid, how = (match["candidates"][0]["id"], "스케치 매칭") if match else (keyword_template(text), "텍스트")
     else:
         tid, how = keyword_template(text), "텍스트"
-    if zc_req is None and sketch is not None:
+    if zc_req is None and sketch is not None and not demo:
         top = match["candidates"][0] if match else {}
         zc_req = height_from_sketch(sketch, tid, tv, top.get("with_screen", True))
         zc_how = "스케치 비율" if zc_req is not None else None
     orient = BY_ID[tid]["orient"]
-    level = snap_level(tv, orient, zc_req) if zc_req is not None else "mid"
+    level = demo["level"] if demo else snap_level(tv, orient, zc_req) if zc_req is not None else "mid"
     k = memo.key("tv", tid, tv["size_in"], level, FIRST)
     rep = memo.get(k, out) if with_mesh else None
     if rep is None:
@@ -418,10 +424,12 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
         progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", f"{tid} · 높이 {LEVEL_NAME[level]}")
     zc_t = rep["extra"]["zc"]
     read = (f"{zc_how} {zc_req:.0f} mm → 템플릿 높이 '{LEVEL_NAME[level]}' {zc_t:.0f} mm" if zc_how and zc_req is not None
+            else f"데모 스케치 → 템플릿 높이 '{LEVEL_NAME[level]}' {zc_t:.0f} mm" if demo
             else f"템플릿 높이 '{LEVEL_NAME[level]}' {zc_t:.0f} mm (기본)")
     rep["template"].update(chosen_by=how, match=match, level=level)
     rep["design_vars"] = [[a, read] if a == "화면 중심 높이" else [a, b] for a, b in rep["design_vars"]]
     rep["extra"]["height_read"] = read
+    rep["extra"]["sketch_note"] = demo["note"] if demo else ""
     rep["seconds"] = round(time.time() - t0, 2)
     with open(os.path.join(out, "report.json"), "w", encoding="utf-8") as f:
         json.dump({k_: v for k_, v in rep.items() if k_ not in ("mesh", "heat", "aux")}, f, ensure_ascii=False, indent=1)

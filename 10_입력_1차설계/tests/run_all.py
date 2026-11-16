@@ -3,7 +3,7 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
-import test_looks, test_integral, test_products, test_spec_view, test_optimize, test_inverse
+import test_looks, test_integral, test_products, test_spec_view, test_optimize, test_inverse, test_spec_cards
 
 CHECKS = [
     ("설계 사양 카드: 4개 제품 경로 같은 형식 · 출처 태그", test_spec_view.test_spec_rows_all_products),
@@ -55,6 +55,8 @@ CHECKS = [
     ("P01 최적화: 1차 설계 → FEM 검증 통과 형상 (경로 · 무게 · 벌점)", test_inverse.test_path_reaches_verified_design),
     ("P01 최적화: 고른 기준만 벌점", test_inverse.test_only_selected_targets_penalised),
     ("P01 최적화: 학습 모델 자리(models/) · 못 읽으면 대체 모델", test_inverse.test_model_slot_fallback),
+    ("데모 입력(말 + 스케치) → 필요 물리 조건 카드 · 수치 = 판정 기준", test_spec_cards.test_demo_cards),
+    ("데모 입력 → 지금 1차 설계 그대로 (P01 · TV01 낮게 · AG-gm)", test_spec_cards.test_demo_inputs_keep_first_design),
 ]
 
 if __name__ == "__main__":
