@@ -82,3 +82,8 @@ python3 agent/pipeline.py --spec spec/bike_mount_targets.json --run runs/r1     
 - **메모리 프로세스당 약 4.1 GB** (label2 · label3 같음, 11-16 측정. 4절의 '약 2 GB' 보다 큼) → 병렬 수 J ≤ 메모리 ÷ 4.5. 이 환경(7 GB)에서 2개 병렬은 메모리 부족으로 죽었음
 - 실행: `scripts/gen_data_frame.sh 28 5000 20000` (메모리 128 GB · 64코어 기준, A 약 90분 · B 약 3분, 추정). `ONLY=A|B`, `SNAP=0`, `SNAP_N=k`, `THREADS=2`
 - 출력: `data/shards_frame/*.npz`, `data/shards_thermal/*.npz` (git 제외). 시험: `SNAP_N=1 scripts/gen_data_frame.sh 1 1 40` → A 2개 · B 33개, `ai.data.load_shards` 로 읽힘 확인
+
+## 9. 서버 한 번에 돌리기 `handoff/` (11-16 추가, sosopapa)
+`step1_pc_pack.bat` (회사 PC: 묶기) → `step2_server_all.sh` (GPU 서버: 데이터 → 형상 AI → 물리 AI → 최적화 → FEM 검증 → 묶기, 끊겨도 이어하기) → `step3_pc_view.bat` (회사 PC: 요약 보기). 사용법은 [handoff/README.md](handoff/README.md).
+- 기준 구조 파일 `data/reference/rbin_int35f95g2.npy` 는 저장소에 없음 (루트 .gitignore `*.npy`). step2 는 같은 형상인 위상 최적화 기록 `snap_int35f95g2_119` 를 꺼내 씀.
+- `scripts/gen_data_frame.sh` 에 이어하기 추가 (끝난 묶음 파일은 건너뜀). `scripts/report_frame.py` 새로 추가 (결과 요약 md · html).

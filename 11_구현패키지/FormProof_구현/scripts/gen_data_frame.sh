@@ -24,6 +24,7 @@ echo "A: $J × $per = $((J*per)) 형상 (+ 위상 최적화 기록) → $OUTA"
 echo "B: $J × $perb = $((J*perb)) 판 패턴 뽑기 → $OUTB"
 if [ "${ONLY:-A}" != "B" ]; then
   for s in $(seq 1 $J); do
+    [ -f $OUTA/frame_s$((2000+s)).npz ] && continue                 # 이어하기: 끝난 묶음은 건너뜀
     env $COMMON MODE=label3 NS=$per SEED=$((2000+s)) OUT=$OUTA/frame_s$((2000+s)).npz \
       python3 -u opt_int.py > $OUTA/frame_s$((2000+s)).log 2>&1 &
   done
@@ -34,6 +35,7 @@ if [ "${ONLY:-A}" != "B" ]; then
     STEP=$(( (N+J-1)/J ))
     for s in $(seq 0 $((J-1))); do
       [ $((s*STEP)) -ge $N ] && break
+      [ -f $OUTA/snap_$s.npz ] && continue
       env $COMMON MODE=label3 SRC=../data/topopt_snapshots.npz I0=$((s*STEP)) I1=$(((s+1)*STEP)) OUT=$OUTA/snap_$s.npz \
         python3 -u opt_int.py > $OUTA/snap_$s.log 2>&1 &
     done
@@ -42,6 +44,7 @@ if [ "${ONLY:-A}" != "B" ]; then
 fi
 if [ "${ONLY:-A}" != "A" ] || [ -z "${ONLY}" ]; then
   for s in $(seq 1 $J); do
+    [ -f $OUTB/plate_s$((5000+s)).npz ] && continue
     env $COMMON MODE=tlabel NS=$perb SEED=$((5000+s)) OUT=$OUTB/plate_s$((5000+s)).npz \
       python3 -u opt_int.py > $OUTB/plate_s$((5000+s)).log 2>&1 &
   done
