@@ -1,0 +1,11 @@
+# 계산 엔진 (CPU): 위상 최적화 · FEM · 열 · CAD · 도면
+numpy>=1.26
+scipy>=1.11
+pypardiso>=0.4      # Intel MKL PARDISO (x86_64). ARM 등에서는 scipy.sparse.linalg.splu 로 교체 필요
+mmapy>=0.3          # MMA 최적화
+scikit-image>=0.22
+trimesh>=4.0
+manifold3d>=2.4
+cadquery>=2.4
+matplotlib>=3.8
+pytest>=8
