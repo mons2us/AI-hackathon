@@ -216,3 +216,24 @@ def test_fixing_parts():
         rep = I.design("", out=d, with_mesh=True)
         assert len(rep["aux"]) == 4 and os.path.exists(os.path.join(d, "design_1st_assembly.step"))
     return f"집게 {m['jaw']:.1f} g · 위 걸이 {m['tophook']:.1f} g · 출력 합계 {rep['cad']['print_total_g']} g"
+
+
+def test_view_mesh_clean():
+    """3D 보기용 P01 표면: 간소화해도 닫힌 다양체 (구멍 · 3면 공유 모서리 없음, 뒤집힌 면이 원본보다 늘지 않음) -> 표면에 줄이 안 생김."""
+    import base64
+    import tempfile
+    import trimesh
+    with tempfile.TemporaryDirectory() as d:
+        rep = I.design("", out=d, with_mesh=True)
+        full = trimesh.load(os.path.join(d, "design_1st.stl"))
+    pos = np.frombuffer(base64.b64decode(rep["mesh"]["pos"]), np.float32).reshape(-1, 3)
+    m = trimesh.Trimesh(pos.reshape(-1, 3, 3).reshape(-1, 3), np.arange(len(pos)).reshape(-1, 3))
+    m.merge_vertices()
+    e = np.sort(np.vstack([m.faces[:, [0, 1]], m.faces[:, [1, 2]], m.faces[:, [2, 0]]]), axis=1)
+    _, cnt = np.unique(e, axis=0, return_counts=True)
+    flips = int((m.face_adjacency_angles > np.radians(150)).sum())
+    flips0 = int((full.face_adjacency_angles > np.radians(150)).sum())
+    assert (cnt == 1).sum() == 0 and (cnt > 2).sum() == 0, ((cnt == 1).sum(), (cnt > 2).sum())
+    assert flips <= flips0 + 1, (flips, flips0)
+    assert abs(abs(m.volume) / full.volume - 1) < 0.002
+    return f"{len(full.faces):,} → {len(m.faces):,} 삼각형, 구멍 0 · 뒤집힌 면 {flips} (원본 {flips0}), 부피 차 {abs(abs(m.volume) / full.volume - 1) * 100:.2f} %"

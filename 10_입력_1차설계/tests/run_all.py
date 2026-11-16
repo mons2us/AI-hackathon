@@ -36,6 +36,7 @@ CHECKS = [
     ("P01: 발표 문장 · 스케치 → P01", test_integral.test_routing),
     ("P01: 파이프라인 출력 파일", test_integral.test_pipeline_outputs),
     ("P01: 폰 고정 부품 (집게 ×2 · 위 걸이) = 팀 parts.py · 발표 22쪽 무게", test_integral.test_fixing_parts),
+    ("P01: 3D 보기 표면 = 닫힌 다양체 (간소화 뒤에도 구멍 · 뒤집힌 면 없음)", test_integral.test_view_mesh_clean),
     ("3D 분포(응력·흔들림·온도) = 발표 8쪽 · 메쉬 정점마다", test_integral.test_heat_maps),
     ("데모 제품: 복셀 FEM 외팔보 이론식", test_products.test_voxfem_cantilever),
     ("TV 스탠드: 넘어짐 각 · 수평력 · 바퀴 하중 = 손계산", test_products.test_tv_tip_hand_calc),

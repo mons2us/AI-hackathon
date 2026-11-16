@@ -650,28 +650,26 @@ def grid_mesh(rho_full, iso=0.45, sig=0.6):
     return m
 
 
-def cluster_decimate(V, F, cell=0.9):
-    """정점 군집 간소화 (추가 패키지 없이): cell mm 격자 칸마다 정점 하나(평균), 납작해진 삼각형 · 중복 삼각형 제거."""
-    key = np.floor(V / cell).astype(np.int64)
-    _, inv = np.unique(key, axis=0, return_inverse=True)
-    inv = inv.ravel()
-    n = inv.max() + 1
-    Vn = np.zeros((n, 3))
-    np.add.at(Vn, inv, V)
-    Vn /= np.bincount(inv, minlength=n)[:, None]
-    Fn = inv[F]
-    ok = (Fn[:, 0] != Fn[:, 1]) & (Fn[:, 1] != Fn[:, 2]) & (Fn[:, 0] != Fn[:, 2])
-    Fn = Fn[ok]
-    _, keep = np.unique(np.sort(Fn, axis=1), axis=0, return_index=True)
-    return Vn, Fn[np.sort(keep)]
+def view_mesh(V, F, tol=0.02):
+    """3D 보기용 간소화 — manifold3d simplify(허용 오차 tol mm): 닫힌 다양체 유지(구멍 · 뒤집힌 면 없음).
+    18 만 -> 약 2.8 만 삼각형, 부피 차 0.02 %. (예전 정점 군집 방식은 구멍 78개 · 뒤집힌 면 627개를 만들어 표면에 줄이 보였음)"""
+    import manifold3d as mf
+    try:
+        M = mf.Manifold(mf.Mesh(vert_properties=np.asarray(V, np.float32), tri_verts=np.asarray(F, np.uint32))).simplify(tol)
+        o = M.to_mesh()
+        if M.num_tri() > 0:
+            return np.asarray(o.vert_properties)[:, :3].astype(float), np.asarray(o.tri_verts)
+    except Exception:
+        pass
+    return V, F
 
 
 def view_payload(world_mesh, rho_full, F):
     """3D 보기용: 메쉬(스템 옆 자리) + 분포(절점 값)."""
     from .templates.bike_mount import Y_SYM
     V, Fc = np.asarray(world_mesh.vertices), np.asarray(world_mesh.faces)
-    if len(Fc) > 80000:                                 # 0.5 mm 평활 표면 30 만 삼각형 -> 보기용 (STL 파일은 원본 그대로)
-        V, Fc = cluster_decimate(V, Fc, cell=0.7)        # 18 만 -> 8 만, 표면 오차 p99 0.4 mm (0.5 mm 격자와 같은 수준)
+    if len(Fc) > 50000:                                 # 0.5 mm 평활 표면 18 만 삼각형 -> 보기용 (STL 파일은 원본 그대로)
+        V, Fc = view_mesh(V, Fc)
     pos = V[Fc].reshape(-1, 3).astype(np.float32).copy()
     pos[:, 1] += Y_SYM
     return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(Fc))),
