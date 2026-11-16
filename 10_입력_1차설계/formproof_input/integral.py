@@ -440,26 +440,20 @@ HEAT_SCALE = {   # 같은 색 척도 (발표 8쪽처럼 두 설계를 같은 척
 }
 
 
-def heat_payload(world_pts, rho_full, F):
-    """세계 좌표 메쉬 정점마다 분포 값 (폰 판 좌표로 되돌려 절점 값 보간, y 대칭)."""
-    from .heat import pack, sample_nodes
-    t = math.radians(TILT)
-    P = np.asarray(world_pts, float)
-    loc = np.c_[P[:, 0] * math.cos(t) + P[:, 2] * math.sin(t), np.abs(P[:, 1]), -P[:, 0] * math.sin(t) + P[:, 2] * math.cos(t)]
+def heat_payload(rho_full, F):
+    """분포 (절점 값, 3D 텍스처용): 화면이 픽셀마다 폰 판 좌표로 되돌려 보간 — 메쉬 삼각형 모양과 무관."""
+    from .heat import grid_info, pack_nodes
+    from .templates.bike_mount import Y_SYM
     valid = node_valid(rho_full)
     out = {}
     for k, sc in HEAT_SCALE.items():
         vals = F[sc["src"]]
-        ok = valid & (vals > 0) if k in ("stress", "temp") else valid
-        if k == "temp":
-            ok = ok & (vals > 0.05)
-        v = sample_nodes(loc, vals, ok, ORIGIN, H, (NX, NY, NZ))
-        body_max = float(np.nanmax(v)) if np.isfinite(v).any() else 0.0
-        out[k] = dict(pack(v, sc["lo"], sc["hi"]), name=sc["name"], unit=sc["unit"], max=round(body_max, 2))
+        ok = valid & (vals > 0.05) if k == "temp" else valid
+        out[k] = dict(pack_nodes(vals, ok, sc["lo"], sc["hi"]), name=sc["name"], unit=sc["unit"])
     out["shake"]["note"] = "각 점의 흔들림 크기를 노면 10–100 Hz 동안 평균(RMS)한 값. 판정값(폰 무게중심 최대)과 다름"
     out["mode1"]["note"] = f"1차 고유진동 {F['f1']:.1f} Hz 의 모양 (가장 많이 움직이는 곳 = 1)"
     out["temp"]["note"] = "판 · 폰 영역만 계산 (나머지 회색)"
-    return out
+    return dict(grid=grid_info(ORIGIN, H, (NX, NY, NZ), TILT, ysym=Y_SYM, yoff=0.0), fields=out)
 
 
 def judge(res, tg=None):
@@ -622,13 +616,12 @@ def grid_mesh(rho_full, iso=0.45, sig=0.6):
 
 
 def view_payload(world_mesh, rho_full, F):
-    """3D 보기용: 메쉬(스템 옆 자리) + 분포 색."""
+    """3D 보기용: 메쉬(스템 옆 자리) + 분포(절점 값)."""
     from .templates.bike_mount import Y_SYM
-    pts = world_mesh.vertices[world_mesh.faces].reshape(-1, 3)
-    heat = heat_payload(pts, rho_full, F)
-    pos = pts.astype(np.float32).copy()
+    pos = world_mesh.vertices[world_mesh.faces].reshape(-1, 3).astype(np.float32).copy()
     pos[:, 1] += Y_SYM
-    return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(world_mesh.faces))), heat=heat)
+    return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(world_mesh.faces))),
+                heat=heat_payload(rho_full, F))
 
 
 def shape_view(sid):

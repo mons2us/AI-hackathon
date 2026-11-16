@@ -1,4 +1,4 @@
-"""Heat-map values on a CAD mesh: sample nodal fields of an analysis grid at mesh vertices, pack them for the viewer."""
+"""Heat maps: node fields of an analysis grid, packed for the viewer (sampled per pixel on the GPU as a 3D texture)."""
 import base64
 
 import numpy as np
@@ -51,3 +51,20 @@ def pack(v, lo, hi):
     q[m] = np.clip(np.round((v[m] - lo) / (hi - lo) * 254), 0, 254).astype(np.uint8)
     r = lambda x: float(f"{x:.3g}")
     return dict(q=base64.b64encode(q.tobytes()).decode(), lo=r(lo), hi=r(hi))
+
+
+def pack_nodes(vals, valid, lo, hi):
+    """Node field for the viewer's 3D texture: uint8 per node, 0..254 = lo..hi (clipped), 255 = no data.
+    The viewer samples it on the GPU at every pixel (validity-weighted trilinear), so colours do not depend on
+    how the CAD surface is triangulated."""
+    v = np.where(np.asarray(valid, bool), np.asarray(vals, float), np.nan)
+    d = pack(v, lo, hi)
+    d["max"] = round(float(np.nanmax(v)), 2) if np.isfinite(v).any() else 0.0
+    return d
+
+
+def grid_info(origin, h, shape, tilt_deg=0.0, ysym=0.0, yoff=0.0):
+    """Scene point (x, y, z) -> grid frame: y_l = yoff + |y - ysym|, then rotate by tilt about y
+    (x_l = x cos t + z sin t, z_l = -x sin t + z cos t). shape = elements (nx, ny, nz); texture = nodes."""
+    return dict(origin=[float(v) for v in origin], h=float(h), nodes=[int(shape[0]) + 1, int(shape[1]) + 1, int(shape[2]) + 1],
+                tilt_deg=float(tilt_deg), ysym=float(ysym), yoff=float(yoff))

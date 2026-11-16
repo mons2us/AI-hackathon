@@ -326,24 +326,60 @@ function turbo(t){t=Math.min(Math.max(t,0),1)*(TURBO.length-1);const i=Math.min(
   return [0,1,2].map(k=>(a[k]+(b[k]-a[k])*f)/255);}
 const HM_ORDER=[['geom','형상'],['stress','응력'],['shake','흔들림'],['temp','온도'],['mode1','1차 모드'],['disp','변위']];
 function setupHeat(rep,keep){
-  V3.heat=rep.heat||null; const keys=V3.heat?HM_ORDER.filter(([k])=>k==='geom'||V3.heat[k]):[];
+  V3.heat=rep.heat||null; const F=V3.heat?V3.heat.fields:null, keys=F?HM_ORDER.filter(([k])=>k==='geom'||F[k]):[];
+  V3.hmTex={};
   $('#hm').hidden=!keys.length;
   $('#hmSeg').innerHTML=keys.map(([k,n])=>`<button data-k="${k}">${n}</button>`).join('');
   $$('#hmSeg button').forEach(b=>b.onclick=()=>applyHeat(b.dataset.k));
-  applyHeat(keep&&V3.heat&&V3.heat[keep]?keep:'geom');
+  applyHeat(keep&&F&&F[keep]?keep:'geom');
+}
+// node field -> RG8 3D texture (R = value * valid, G = valid): GPU trilinear filtering of both, R/G per pixel =
+// validity-weighted interpolation (same as the analysis grid), independent of the CAD triangulation.
+function heatTexture(k){
+  if(V3.hmTex[k])return V3.hmTex[k];
+  const g=V3.heat.grid,[nx,ny,nz]=g.nodes,b=atob(V3.heat.fields[k].q),n=nx*ny*nz,d=new Uint8Array(2*n);
+  for(let i=0;i<n;i++){const q=b.charCodeAt(i);if(q!==255){d[2*i]=q;d[2*i+1]=255;}}
+  const t=new THREE.Data3DTexture(d,nx,ny,nz);t.format=THREE.RGFormat;t.type=THREE.UnsignedByteType;
+  t.minFilter=t.magFilter=THREE.LinearFilter;t.wrapS=t.wrapT=t.wrapR=THREE.ClampToEdgeWrapping;t.unpackAlignment=1;t.needsUpdate=true;
+  return V3.hmTex[k]=t;
+}
+const HU={hmTex:{value:null},hmOrigin:{value:new THREE.Vector3()},hmN:{value:new THREE.Vector3()},hmH:{value:2},hmTilt:{value:0},hmYsym:{value:0},hmYoff:{value:0}};
+function heatMaterial(){
+  if(V3.heatMat)return V3.heatMat;
+  const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.6,metalness:0.0});
+  m.onBeforeCompile=sh=>{
+    Object.assign(sh.uniforms,HU);
+    sh.vertexShader='varying vec3 vHmPos;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvHmPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader=`varying vec3 vHmPos;
+uniform highp sampler3D hmTex;uniform vec3 hmOrigin;uniform vec3 hmN;uniform float hmH;uniform float hmTilt;uniform float hmYsym;uniform float hmYoff;
+const vec3 TB[10]=vec3[10](vec3(48,18,59),vec3(70,98,215),vec3(54,170,249),vec3(26,228,182),vec3(114,254,94),vec3(200,239,52),vec3(250,186,57),vec3(246,107,25),vec3(202,42,4),vec3(122,4,3));
+vec3 hmTurbo(float t){float x=clamp(t,0.0,1.0)*9.0;int i=int(min(floor(x),8.0));return mix(TB[i],TB[i+1],x-float(i))/255.0;}
+vec3 hmColor(){
+  vec3 p=vHmPos;float c=cos(hmTilt),s=sin(hmTilt);
+  vec3 l=vec3(p.x*c+p.z*s, hmYoff+abs(p.y-hmYsym), -p.x*s+p.z*c);
+  vec3 g=(l-hmOrigin)/hmH;
+  vec3 col=vec3(0.72,0.74,0.76);
+  if(all(greaterThanEqual(g,vec3(-0.6)))&&all(lessThanEqual(g,hmN-vec3(0.4)))){
+    vec2 rg=texture(hmTex,(g+0.5)/hmN).rg;
+    if(rg.g>0.03)col=hmTurbo(rg.r/rg.g*255.0/254.0);
+  }
+  return pow(col,vec3(2.2));
+}
+`+sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );','vec4 diffuseColor = vec4( hmColor(), opacity );');
+  };
+  return V3.heatMat=m;
 }
 function applyHeat(k){
   const m=V3.mount;if(!m)return;
   $$('#hmSeg button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
   const phoneOn=$('#vPhone').classList.contains('on');
   if(V3.holder)V3.holder.visible=phoneOn&&(k==='geom'||k==='shake');      // 폰이 판을 가리지 않게
-  if(k==='geom'||!V3.heat||!V3.heat[k]){m.material=V3.baseMat;$('#hmLeg').hidden=true;return;}
-  const h=V3.heat[k],b=atob(h.q),n=m.geometry.attributes.position.count,col=new Float32Array(n*3);
-  for(let i=0;i<n;i++){const q=i<b.length?b.charCodeAt(i):255;const c=q===255?[0.72,0.74,0.76]:turbo(q/254);
-    const lin=c.map(x=>Math.pow(x,2.2));col[3*i]=lin[0];col[3*i+1]=lin[1];col[3*i+2]=lin[2];}
-  m.geometry.setAttribute('color',new THREE.BufferAttribute(col,3));
-  if(!V3.heatMat)V3.heatMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.0});
-  m.material=V3.heatMat;m.material.needsUpdate=true;
+  const F=V3.heat&&V3.heat.fields;
+  if(k==='geom'||!F||!F[k]){m.material=V3.baseMat;$('#hmLeg').hidden=true;return;}
+  const g=V3.heat.grid,h=F[k];
+  HU.hmTex.value=heatTexture(k);HU.hmOrigin.value.set(...g.origin);HU.hmN.value.set(...g.nodes);HU.hmH.value=g.h;
+  HU.hmTilt.value=g.tilt_deg*Math.PI/180;HU.hmYsym.value=g.ysym;HU.hmYoff.value=g.yoff;
+  m.material=heatMaterial();
   const u=h.unit?' '+h.unit:'';
   $('#hmLeg').hidden=false;
   $('#hmLeg').innerHTML=`<b>${h.name}</b><div class="bar"></div><div class="ends"><span>${h.lo}${u}</span><span>${h.hi}${u} 이상</span></div>

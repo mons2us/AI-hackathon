@@ -170,18 +170,23 @@ def test_heat_maps():
     Fb = I.fields(I.full_density(I.shape("formproof_body")), tag="formproof_body")
     assert float(Fb["trms"][I.node_valid(I.full_density(I.shape("formproof_body")))].max()) < 1.2
     d = I.shape_view("llm_C")
-    n = len(base64.b64decode(d["mesh"]["pos"])) // 12
+    g = d["heat"]["grid"]
+    nn = g["nodes"][0] * g["nodes"][1] * g["nodes"][2]
+    assert g["nodes"] == [I.NX + 1, I.NY + 1, I.NZ + 1] and g["tilt_deg"] == 35.0
     for k in ("stress", "shake", "temp", "mode1"):
-        q = np.frombuffer(base64.b64decode(d["heat"][k]["q"]), np.uint8)
-        assert len(q) == n, k
-    assert d["heat"]["shake"]["max"] > 5                 # C: 위쪽 레일 공진 6.6배 (판정은 무게중심, 분포는 RMS)
+        q = np.frombuffer(base64.b64decode(d["heat"]["fields"][k]["q"]), np.uint8)
+        assert len(q) == nn, k                             # 절점 값 (화면이 픽셀마다 보간 — 삼각형 모양과 무관)
+    assert d["heat"]["fields"]["shake"]["max"] > 5        # C: 위쪽 레일 공진 (판정은 무게중심 6.57배, 분포는 RMS)
     from formproof_input import pipeline
     with tempfile.TemporaryDirectory() as td:
         rep = pipeline.design("자갈길에서도 폰이 안 흔들리게", template="T01", out=td, with_mesh=True)
-        assert {"stress", "shake", "disp"} <= set(rep["heat"]) and "_pts" not in rep["mesh"]
-        q = np.frombuffer(base64.b64decode(rep["heat"]["stress"]["q"]), np.uint8)
-        assert len(q) == len(base64.b64decode(rep["mesh"]["pos"])) // 12 and (q < 255).mean() > 0.8
-    return f"처음 설계 흔들림 {F['trms'][v].max():.2f}배 · 출력 몸체 {Fb['trms'].max():.2f}배 · LLM C {d['heat']['shake']['max']}배"
+        HF = rep["heat"]["fields"]
+        assert {"stress", "shake", "disp"} <= set(HF)
+        q = np.frombuffer(base64.b64decode(HF["stress"]["q"]), np.uint8)
+        gg = rep["heat"]["grid"]
+        assert len(q) == gg["nodes"][0] * gg["nodes"][1] * gg["nodes"][2] and gg["ysym"] == gg["origin"][1]
+        assert abs(HF["stress"]["max"] - rep["first_design_check"]["checks"]["stress"]["value"]) < 0.25 * HF["stress"]["max"]
+    return f"처음 설계 흔들림 {F['trms'][v].max():.2f}배 · 출력 몸체 {Fb['trms'].max():.2f}배 · LLM C {d['heat']['fields']['shake']['max']}배"
 
 
 if __name__ == "__main__":
