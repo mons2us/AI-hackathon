@@ -169,6 +169,85 @@ def frf(r,neig=10,zeta=0.03):
         szt=np.maximum(s_[:,2],0)                                     # 층간: 적층 방향 = z'
         stress[nm]=dict(vm999=round(float(np.percentile(vm,99.9)),1),interlayer999=round(float(np.percentile(szt,99.9)),1))
     res['shock']=stress; ps.free_memory(everything=True); return res
+# ==== 11-16 추가: 프레임 생성기(gen_frame) 학습 데이터 — 구조(label3) · 열 전용(tlabel) ===================
+GRIPN = 2 if GRIP2 else (1 if GRIP else 0)
+def _gen_meta():
+    return dict(xc=xc, yc=yc, zc=zc, design=design, solid=solid, plate=plate, nx=nx, ny=ny, nz=nz)
+def thermal_T(r):
+    """열만 (수반 해석 없이): 폰 온도장. thermal() 과 같은 식"""
+    ke=np.where(phone[the],K_PH,K_AIR+r[the]**3*(K_PETG-K_AIR))
+    Kt=sp.coo_matrix(((KTh.ravel()[None,:]*ke[:,None]).ravel(),(iT,jT)),shape=(nn,nn)).tocsr()
+    Kt=Kt+facemat(ptop,ftop,H_RIDE*(1-r[ptop]))+facemat(pbot,fbot,H_RIDE*r[pbot])+facemat(pfront,ftop,np.full(len(pfront),H_FRONT))
+    A=Kt.tocsr()[thn][:,thn]; ps=pypardiso.PyPardisoSolver(); T=np.zeros(nn); T[thn]=ps.solve(A,qv[thn]); ps.free_memory(everything=True)
+    return T
+EXT_NAMES=['f3_hz','f4_hz','band_vert','band_fore','peak80_vert','peak80_fore','rms80_vert','rms80_fore',
+           'shock_vm999_fore_mpa','interlayer999_vert_mpa','interlayer999_fore_mpa']
+def label_full(r, neig=int(env('NEIG','10')), zeta=0.03):
+    """구조 정답 한 번에: 모드 neig 개 → 흔들림(진동 전달 5–100 Hz, 위아래·앞뒤) · 터치 · 충격(위아래·앞뒤 von Mises, 층간)
+    frf() · eval 과 같은 식. 반환: (label2 와 같은 7개 중 구조 6개 dict, 추가값 dict, 요소 vm(위아래))"""
+    out,phis,ps,A,MM=analyse(r,neig,True); f=[float(np.sqrt(max(l,0))/2/np.pi) for l,_ in out]
+    fr=np.linspace(5,100,191); ext={}
+    for nm,dvec in (('vert',(st,ct)),('fore',(ct,-st))):
+        ri=np.zeros(3*nn); ri[0::3]=dvec[0]; ri[2::3]=dvec[1]; ri[fd]=0; H=np.ones(len(fr),complex)
+        for (lam_,_),phi in zip(out,phis):
+            wn=np.sqrt(lam_); G=phi@(MM@ri); rb=Tp@np.c_[phi[3*topn],phi[3*topn+2]].reshape(-1); cg=rb[0]*dvec[0]+rb[1]*dvec[1]
+            w=2*np.pi*fr; H+=cg*G*w**2/(wn**2-w**2+2j*zeta*wn*w)
+        T_=np.abs(H); b=(fr>=34.6)&(fr<=45.6); s8=(fr>=6.3)&(fr<=80)
+        ext['band_'+nm]=float(T_[b].max()); ext['peak80_'+nm]=float(T_[s8].max()); ext['rms80_'+nm]=float(np.sqrt(np.mean(T_[s8]**2)))
+    tch=[]
+    for f_ in FT_:
+        u=np.zeros(3*nn); u[free]=ps.solve(A,f_[free]); tch.append(float(f_@u)/FTCH)
+    vm_el=np.zeros(len(ei)); sh={}
+    for nm,dvec in (('vert',(st,ct)),('fore',(ct,-st))):
+        Fr=Mrb@np.array([dvec[0],dvec[1],0.])*48.5*9810.; fn=Tp.T@Fr; F=np.zeros(3*nn); F[dd]=fn
+        U=np.zeros(3*nn); U[free]=ps.solve(A,F[free]); on=np.where((r>0.5)&active)[0]
+        s_=(C@B0@U[edof[on]].T).T; vm=np.sqrt(0.5*((s_[:,0]-s_[:,1])**2+(s_[:,1]-s_[:,2])**2+(s_[:,2]-s_[:,0])**2)+3*(s_[:,3:]**2).sum(1))
+        szt=np.maximum(s_[:,2],0); k_=rr[on]>19
+        sh[nm]=(float(np.percentile(vm[k_],99.9)) if k_.any() else 0., float(np.percentile(szt[k_],99.9)) if k_.any() else 0.)
+        if nm=='vert': vm_el[on]=vm
+    ps.free_memory(everything=True)
+    ext.update(f3_hz=f[2] if len(f)>2 else np.nan, f4_hz=f[3] if len(f)>3 else np.nan, shock_vm999_fore_mpa=sh['fore'][0],
+               interlayer999_vert_mpa=sh['vert'][1], interlayer999_fore_mpa=sh['fore'][1])
+    base=dict(f1=f[0],f2=f[1],touch_top=tch[0],touch_bot=tch[1],vm_vert=sh['vert'][0])
+    return base,ext,vm_el
+if MODE=='label3':  # 구조 + 열 정답 (프레임 생성기 또는 SRC). lab = label2 와 같은 7열(ai/ 코드 그대로 사용) + lab_ext 11열
+    import gen_frame; rng=np.random.default_rng(int(env('SEED','0'))); t0=time.time(); src=None; SR=env('SRC')
+    if SR:
+        _d=np.load(SR); _R=np.unpackbits(_d['r'],axis=1)[:,:len(ei)]; _N=list(_d['names']); a0,a1=int(env('I0','0')),int(env('I1',str(len(_N))))
+        src=[(_N[q],_R[q]) for q in range(a0,min(a1,len(_N)))]
+    N=len(src) if src else int(env('NS','40')); FAM=env('FAMILY') or None; GM=_gen_meta()
+    O=[];L=[];X=[];FT_T=[];FT_V=[];NAMES=[];PRM=[]
+    for i in range(N):
+        if src: nm,_r=src[i]; occ=(np.asarray(_r).ravel()>0.5)&design; prm={}
+        else:
+            occ,prm=gen_frame.sample(rng,GM,GRIPN,FAM); nm='frame_%d_%d'%(int(env('SEED','0')),i)
+            if occ is None: continue
+        if occ.sum()<30: continue
+        r=np.where(design,occ.astype(float),fixval); t1=time.time()
+        try: base,ext,vm_el=label_full(r); T=thermal_T(r)
+        except Exception as e: print('fail',nm,e,flush=True); continue
+        L.append([massg(r),base['f1'],base['f2'],float(T[phn].max()),base['touch_top'],base['touch_bot'],base['vm_vert']])
+        X.append([ext[k] for k in EXT_NAMES]); O.append(np.packbits(occ[didx]))
+        FT_T.append(np.asarray(T)[en].mean(1).astype(np.float16)); FT_V.append(vm_el.astype(np.float16)); NAMES.append(nm); PRM.append(json.dumps(prm))
+        print(json.dumps(dict(i=i,name=nm,lab=[round(v,3) for v in L[-1]],ext=[round(v,3) for v in X[-1]],dt=round(time.time()-t1,1),t=round(time.time()-t0))),flush=True)
+    np.savez_compressed(env('OUT'),occ=np.array(O),lab=np.array(L),lab_ext=np.array(X),T=np.array(FT_T),vm=np.array(FT_V),names=np.array(NAMES),
+        prm=np.array(PRM),grip=GRIPN,lab_names=np.array(['mass_g','f1_hz','f2_hz','phone_Tmax_rise_c','touch_top_mm','touch_bottom_mm','shock_vm999_mpa']),
+        ext_names=np.array(EXT_NAMES))
+    print('done',len(O),round(time.time()-t0),flush=True); sys.exit()
+if MODE=='tlabel':  # 열 전용: 받침판 패턴만 바꿔 폰 온도장. 판 아래 몸체는 열 모델에 없으므로 비움
+    import gen_frame; rng=np.random.default_rng(int(env('SEED','0'))); N=int(env('NS','200')); t0=time.time()
+    pidx=np.where(plate&design)[0]; O=[];Y=[];TF=[];PRM=[]; seen=set(); dup=0
+    for i in range(N):
+        p=gen_frame.draw_plate(rng); occ=gen_frame.plate_mask(p,xc,yc,zc,plate)&design
+        key=np.packbits(occ[pidx]).tobytes()
+        if key in seen: dup+=1; continue                                  # 격자 위에서 같은 패턴은 한 번만
+        seen.add(key); r=np.where(design,occ.astype(float),fixval); t1=time.time()
+        try: T=thermal_T(r)
+        except Exception as e: print('fail',i,e,flush=True); continue
+        O.append(np.packbits(occ[pidx])); Y.append(float(T[phn].max())); TF.append(np.asarray(T)[en[the]].mean(1).astype(np.float16)); PRM.append(json.dumps(p))
+        if i<5 or i%50==0: print(json.dumps(dict(i=i,kind=p['kind'],layers=p['layers'],Tmax=round(Y[-1],3),dt=round(time.time()-t1,2),t=round(time.time()-t0,1))),flush=True)
+    np.savez_compressed(env('OUT'),occ_plate=np.array(O),Tmax=np.array(Y),T_thermal=np.array(TF),prm=np.array(PRM),pidx=pidx,the=the,grip=GRIPN)
+    print('done',len(O),'중복 건너뜀',dup,round(time.time()-t0),flush=True); sys.exit()
 if MODE=='meta':    # 학습 코드가 쓰는 격자 정보 (설계 · 고정 · 빈 영역, 좌표)
     np.savez(env('OUT','grid_meta.npz'),nx=nx,ny=ny,nz=nz,h=h,origin=np.array([x0,y0,z0]),didx=didx,solid=solid,void=void,design=design,
              phone=phone,plate=plate,xc=xc,yc=yc,zc=zc); print('meta ok',env('OUT','grid_meta.npz')); sys.exit()
