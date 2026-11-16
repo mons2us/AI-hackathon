@@ -39,7 +39,11 @@ idle = cpu if quota else max(1, int(cpu - os.getloadavg()[0]))
 mem = int([l.split()[1] for l in open('/proc/meminfo') if l.startswith('MemAvailable')][0]) / 2**20
 try:                                                                 # 컨테이너 메모리 제한
     lim = open('/sys/fs/cgroup/memory.max').read().strip()
-    if lim != 'max': mem = min(mem, (int(lim) - int(open('/sys/fs/cgroup/memory.current').read())) / 2**30)
+    if lim != 'max':                                                  # 사용량에서 파일 캐시(비울 수 있음)는 뺌
+        cur = int(open('/sys/fs/cgroup/memory.current').read())
+        try: cur -= int([l.split()[1] for l in open('/sys/fs/cgroup/memory.stat') if l.startswith('file ')][0])
+        except Exception: pass
+        mem = min(mem, (int(lim) - cur) / 2**30)
 except Exception: pass
 print(cpu, idle, int(mem))
 EOF
