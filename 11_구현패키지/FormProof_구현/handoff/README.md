@@ -123,6 +123,10 @@ mkdir -p runs/gate_big && cd runs/gate_big && for f in ../latent_big/cand_*.npy;
 ```bash
 cp -r vcpu vimp && cd vimp && rm -rf runs data/shards_*         # 코드 사본 (또는 GitHub sosopapa 최신 패키지를 새로 풀기)
 BASE=../vcpu nohup bash handoff/step4_improve.sh > step4.out 2>&1 &
+# CPU 서버에서 데이터만 → GPU 서버에서 학습부터 (같은 공유 폴더, 11-16 추가):
+#   [CPU] UNTIL=i2 BASE=../vcpu nohup bash handoff/step4_improve.sh > step4_cpu.out 2>&1 &   → '데이터까지 끝'
+#   [GPU] BASE=../vcpu nohup bash handoff/step4_improve.sh > step4_gpu.out 2>&1 &            → i1 · i2 건너뛰고 i3 부터
+#   데이터 연결은 상대 경로라 두 서버의 공유 폴더 위치가 달라도 됨. 단 BASE 는 두 번 다 같은 상대 경로로
 bash handoff/step4_improve.sh status                              # 어디까지 끝났는지
 cat runs/improve/report.md                                        # 끝나면: 비교표 · 선택
 ```

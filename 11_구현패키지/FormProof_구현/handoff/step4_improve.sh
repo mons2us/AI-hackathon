@@ -5,6 +5,9 @@
 #   (새 폴더 = 이 패키지 사본, 예: vimp)   cd vimp && BASE=../vcpu nohup bash handoff/step4_improve.sh > step4.out 2>&1 &
 #   bash handoff/step4_improve.sh status
 #
+#   CPU 서버 → GPU 서버 (같은 공유 폴더):  [CPU] UNTIL=i2 BASE=../vcpu nohup bash handoff/step4_improve.sh > step4_cpu.out 2>&1 &
+#                                          [GPU] 같은 폴더에서 BASE 를 같게 주고 UNTIL 없이 다시 실행 → i1 · i2 건너뛰고 i3 학습부터
+#
 #  i1 준비     BASE 의 학습 데이터 · 격자 연결(복사 안 함, 읽기만) + 열 연산자(thermal_ops.npz, PINO 용)
 #  i2 데이터   추가 학습 데이터 NX 개(씨앗 3001~) + 공통 시험 셋 NT 개(씨앗 9001~, 어느 모델도 학습에 안 씀)   [CPU]
 #              두 데이터 모두 충격 · 터치 변위 정답 저장(STORE_U=1, 구조 PINO 용)
@@ -78,7 +81,7 @@ say "BASE=$BASE | J=$J | 추가 데이터 ${NXS} · 시험 셋 ${NT} | 형상 AI
 prep() {
   [ -f $BASE/data/grid_meta.npz ] && [ -n "$(ls $BASE/data/shards_frame/*.npz 2>/dev/null)" ] || { echo "BASE 에 데이터 없음: $BASE"; exit 1; }
   mkdir -p data/shards_frame; cp $BASE/data/grid_meta.npz $M
-  for f in $BASE/data/shards_frame/*.npz; do ln -sf $f data/shards_frame/base_$(basename $f); done
+  for f in $BASE/data/shards_frame/*.npz; do ln -sfr $f data/shards_frame/base_$(basename $f); done   # 상대 경로 (서버마다 공유 폴더 위치가 달라도 됨)
   (cd engine && env $COMMON MODE=thermops OUT=../data/thermal_ops.npz CHECK=1 python3 opt_int.py)
   (cd engine && env $COMMON MODE=structops OUT=../data/struct_ops.npz CHECK=1 python3 opt_int.py)
   ls data/shards_frame | wc -l | xargs echo "연결한 BASE 묶음:"
@@ -102,9 +105,11 @@ c = lambda p: sum(len(np.load(f)['occ']) for f in glob.glob(p))
 n_t, n_x, n_b = c('data/shards_test/*.npz'), c('data/shards_extra/*.npz'), c('data/shards_frame/*.npz')
 print('시험 셋', n_t, '| 추가', n_x, '| BASE', n_b); assert n_t > 0, '시험 셋 0개 — data/shards_test/*.log 확인'
 EOF
-  for f in $DX/*.npz; do [ -f "$f" ] && ln -sf $ROOT/$f data/shards_frame/; done; true
+  for f in $DX/*.npz; do [ -f "$f" ] && ln -sfr $f data/shards_frame/; done; true
 }
 stage i2_data "데이터: 시험 셋 ${NT} + 추가 ${NXS} (J=${J})" data
+if [ "${UNTIL:-}" = "i2" ]; then say "데이터까지 끝 (UNTIL=i2). GPU 서버에서 이 폴더로 와서 BASE 를 같게 주고 UNTIL 없이 같은 명령 실행"; exit 0; fi
+python3 -c "import torch" 2>/dev/null || { say "torch 없음 — 학습(i3~)은 GPU 서버에서. CPU 서버면 UNTIL=i2 로 실행"; exit 1; }
 DA='data/shards_frame/*.npz'
 
 # ---------- i3 학습 (GPU 동시)
