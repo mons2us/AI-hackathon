@@ -139,13 +139,14 @@ footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
     <section>
       <div class="card">
         <h2>아이디어 입력</h2>
-        <p class="sub">말로 쓰고, 옆에서 본 모양을 그리거나 사진을 올려 주세요</p>
+        <p class="sub">말로 쓰고, 모양을 그리거나 사진을 올려 주세요</p>
+        <div class="seg" id="prodSeg" style="margin-bottom:8px"><button data-p="bike" class="on">자전거 폰 거치대</button><button data-p="tv">TV 스탠드</button><button data-p="glasses">AI 글래스</button></div>
         <textarea id="text" placeholder="예) 자갈길에서도 폰이 안 흔들리게, 최대한 가볍게. 갤럭시 S25 울트라 쓰고 3D 프린터로 뽑을 거야."></textarea>
         <div class="chips" id="chips"></div>
         <div class="seg"><button id="mSketch" class="on">스케치</button><button id="mImage">이미지 첨부</button></div>
         <div id="sketchBox">
           <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
-            <span class="hint">옆에서 본 모습 · 원 = 핸들바 클램프</span><span class="arrow">진행 방향 →</span></div>
+            <span class="hint" id="padHint">옆에서 본 모습 · 원 = 핸들바 클램프</span><span class="arrow" id="padArrow">진행 방향 →</span></div>
           <div class="tools">
             <button class="btn" id="undo">되돌리기</button><button class="btn" id="clear">지우기</button>
             <select class="btn" id="example"><option value="">예시 스케치…</option></select>
@@ -154,6 +155,7 @@ footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
         <div id="imageBox" style="display:none">
           <label class="drop" id="drop"><div id="dropInner">종이 스케치 사진이나 실물 사진을 끌어 놓거나 눌러서 선택<br><small>PNG · JPG</small></div>
             <input type="file" id="file" accept="image/*" hidden></label>
+          <div class="tools"><select class="btn" id="photoEx"><option value="">예시 사진…</option></select></div>
         </div>
         <button class="btn primary" id="go">1차 설계 만들기</button>
       </div>
@@ -199,7 +201,7 @@ footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
     <section>
       <div class="card">
         <h2>1차 설계 성능 <span class="tag" id="perfTag">최적화 전</span></h2>
-        <p class="sub">스케치 형상 그대로의 성능. 기준 충족은 물리 최적화 단계에서</p>
+        <p class="sub" id="perfSub">스케치 형상 그대로의 성능. 기준 충족은 물리 최적화 단계에서</p>
         <div class="kpis"><div class="kpi"><small>질량 (CAD)</small><b id="kMass">–</b></div><div class="kpi"><small>처리 시간 (CPU)</small><b id="kTime">–</b></div></div>
         <div id="metrics"></div>
       </div>
@@ -255,10 +257,27 @@ pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.
 ['pointerup','pointercancel','pointerleave'].forEach(n=>pad.addEventListener(n,()=>{S.cur=null;}));
 $('#undo').onclick=()=>{if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();};
 $('#clear').onclick=()=>{S.strokes=[];S.bgImg=null;$('#example').value='';redraw();};
-fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u.includes('/presentation/')?'발표 입력 스케치 (P01)':'예시 '+u.match(/hand_(.+)\.png$/)[1];$('#example').appendChild(o);}));
+S.examples=[];
+function fillExamples(){const sel=$('#example');sel.innerHTML='<option value="">예시 스케치…</option>';
+  S.examples.filter(u=>S.product==='tv'?/hand_TV/.test(u):!/hand_TV/.test(u)).forEach(u=>{const o=document.createElement('option');o.value=u;
+    o.textContent=u.includes('/presentation/')?'발표 입력 스케치 (P01)':'예시 '+u.match(/hand_(.+)\.png$/)[1];sel.appendChild(o);});}
+fetch('/api/examples').then(r=>r.json()).then(list=>{S.examples=list;fillExamples();});
+fetch('/api/photos').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/,'').replace(/_/g,' ');$('#photoEx').appendChild(o);}));
+$('#photoEx').onchange=async e=>{if(!e.target.value)return;const b=await (await fetch(e.target.value)).blob();loadFile(new File([b],decodeURIComponent(e.target.value.split('/').pop()),{type:b.type}));};
 $('#example').onchange=e=>{if(!e.target.value)return;const im=new Image();im.onload=()=>{S.bgImg=im;S.strokes=[];redraw();};im.src=e.target.value;};
 redraw();
 const hasSketch = () => S.strokes.length>0 || !!S.bgImg;
+
+/* ---------- product ---------- */
+S.product='bike';
+const PROD={bike:{hint:'옆에서 본 모습 · 원 = 핸들바 클램프',arrow:'진행 방향 →',ph:'예) 자갈길에서도 폰이 안 흔들리게, 최대한 가볍게. 갤럭시 S25 울트라 쓰고 3D 프린터로 뽑을 거야.',mode:'sketch'},
+  tv:{hint:'정면 모습 · TV 화면 + 스탠드 (스탠드만 그려도 됨)',arrow:'',ph:'예) 55인치 TV, 거실장 위에 올릴 스탠드. 바닥형이면 "바닥", 삼각대면 "이젤".',mode:'sketch'},
+  glasses:{hint:'',arrow:'',ph:'예) 젠틀몬스터 협업 AI 글래스 정면 사진. 렌즈 폭을 알면 "렌즈 52" 처럼 적어 주세요 (기본 50 mm).',mode:'image'}};
+function setProduct(p){S.product=p;$$('#prodSeg button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  const P=PROD[p];$('#padHint').textContent=P.hint;$('#padArrow').textContent=P.arrow;$('#text').placeholder=P.ph;
+  (P.mode==='image'?$('#mImage'):$('#mSketch')).onclick();fillExamples();
+  $('#chips').style.display=p==='bike'?'':'none';}
+$$('#prodSeg button').forEach(b=>b.onclick=()=>setProduct(b.dataset.p));
 
 /* ---------- image attach ---------- */
 $('#mSketch').onclick=()=>{S.mode='sketch';$('#mSketch').classList.add('on');$('#mImage').classList.remove('on');$('#sketchBox').style.display='';$('#imageBox').style.display='none';};
@@ -305,7 +324,7 @@ function init3d(){
   bike.add(wheel(A));bike.add(wheel(Rr));
   const ring=new THREE.Mesh(new THREE.CylinderGeometry(95,95,6,48),alMat);ring.position.set(BB.x,-60,BB.z);bike.add(ring);
   bike.add(tube(V(BB.x,-66,BB.z),V(BB.x+60,-70,BB.z-160),9,alMat));bike.add(tube(V(BB.x,66,BB.z),V(BB.x-60,70,BB.z+160),9,alMat));
-  const handlebar=new THREE.Group();scene.add(handlebar);               // bar stays visible in close-up
+  const handlebar=new THREE.Group();scene.add(handlebar);V3.handlebar=handlebar;               // bar stays visible in close-up
   V3.barMesh=tube(V(0,-360,0),V(0,360,0),15.9,alMat,48);handlebar.add(V3.barMesh);
   const ctl=new THREE.OrbitControls(cam,R.domElement);ctl.enableDamping=true;ctl.dampingFactor=0.12;
   Object.assign(V3,{R,scene,cam,ctl,bike,ground,M,tube,V,darkMat,mount:null,holder:null});
@@ -316,7 +335,8 @@ function init3d(){
 }
 function view(kind){
   const {cam,ctl}=V3, close=kind==='close';
-  if(close){cam.fov=20;cam.position.set(420,560,-60);ctl.target.set(70,50,5);}
+  if(V3.fit){const f=V3.fit[close?'close':'full'];cam.fov=25;cam.position.copy(f.pos);ctl.target.copy(f.target);}
+  else if(close){cam.fov=20;cam.position.set(420,560,-60);ctl.target.set(70,50,5);}
   else{cam.fov=25;cam.position.set(1500,2600,700);ctl.target.set(-380,0,-420);}
   cam.updateProjectionMatrix();ctl.update();$('#vClose').classList.toggle('on',close);V3.kind=kind;
 }
@@ -324,9 +344,17 @@ function view(kind){
 const TURBO=[[48,18,59],[70,98,215],[54,170,249],[26,228,182],[114,254,94],[200,239,52],[250,186,57],[246,107,25],[202,42,4],[122,4,3]];
 function turbo(t){t=Math.min(Math.max(t,0),1)*(TURBO.length-1);const i=Math.min(Math.floor(t),TURBO.length-2),f=t-i,a=TURBO[i],b=TURBO[i+1];
   return [0,1,2].map(k=>(a[k]+(b[k]-a[k])*f)/255);}
-const HM_ORDER=[['geom','형상'],['stress','응력'],['shake','흔들림'],['temp','온도'],['mode1','1차 모드'],['disp','변위']];
-function setupHeat(rep,keep){
+const HM_ORDER=[['geom','형상'],['stress','응력'],['shake','흔들림'],['temp','온도'],['mode1','1차 모드'],['disp','변위'],
+  ['clamp_stress','착용 응력'],['clamp_disp','착용 변위'],['bridge_stress','브리지 응력'],['bridge_disp','브리지 변위']];
+async function decodeField(f){
+  if(f.raw)return;
+  const b=atob(f.q||f.qz);let u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  if(f.qz){const ds=new DecompressionStream('deflate');u=new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(ds)).arrayBuffer());}
+  f.raw=u;
+}
+async function setupHeat(rep,keep){
   V3.heat=rep.heat||null; const F=V3.heat?V3.heat.fields:null, keys=F?HM_ORDER.filter(([k])=>k==='geom'||F[k]):[];
+  if(F)await Promise.all(Object.values(F).map(decodeField));
   V3.hmTex={};
   $('#hm').hidden=!keys.length;
   $('#hmSeg').innerHTML=keys.map(([k,n])=>`<button data-k="${k}">${n}</button>`).join('');
@@ -337,13 +365,13 @@ function setupHeat(rep,keep){
 // validity-weighted interpolation (same as the analysis grid), independent of the CAD triangulation.
 function heatTexture(k){
   if(V3.hmTex[k])return V3.hmTex[k];
-  const g=V3.heat.grid,[nx,ny,nz]=g.nodes,b=atob(V3.heat.fields[k].q),n=nx*ny*nz,d=new Uint8Array(2*n);
-  for(let i=0;i<n;i++){const q=b.charCodeAt(i);if(q!==255){d[2*i]=q;d[2*i+1]=255;}}
+  const g=V3.heat.grid,[nx,ny,nz]=g.nodes,b=V3.heat.fields[k].raw,n=nx*ny*nz,d=new Uint8Array(2*n);
+  for(let i=0;i<n;i++){const q=b[i];if(q!==255){d[2*i]=q;d[2*i+1]=255;}}
   const t=new THREE.Data3DTexture(d,nx,ny,nz);t.format=THREE.RGFormat;t.type=THREE.UnsignedByteType;
   t.minFilter=t.magFilter=THREE.LinearFilter;t.wrapS=t.wrapT=t.wrapR=THREE.ClampToEdgeWrapping;t.unpackAlignment=1;t.needsUpdate=true;
   return V3.hmTex[k]=t;
 }
-const HU={hmTex:{value:null},hmOrigin:{value:new THREE.Vector3()},hmN:{value:new THREE.Vector3()},hmH:{value:2},hmTilt:{value:0},hmYsym:{value:0},hmYoff:{value:0}};
+const HU={hmTex:{value:null},hmOrigin:{value:new THREE.Vector3()},hmN:{value:new THREE.Vector3()},hmH:{value:2},hmTilt:{value:0},hmYsym:{value:0},hmYoff:{value:0},hmMirror:{value:1}};
 function heatMaterial(){
   if(V3.heatMat)return V3.heatMat;
   const m=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.6,metalness:0.0});
@@ -351,12 +379,12 @@ function heatMaterial(){
     Object.assign(sh.uniforms,HU);
     sh.vertexShader='varying vec3 vHmPos;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvHmPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
     sh.fragmentShader=`varying vec3 vHmPos;
-uniform highp sampler3D hmTex;uniform vec3 hmOrigin;uniform vec3 hmN;uniform float hmH;uniform float hmTilt;uniform float hmYsym;uniform float hmYoff;
+uniform highp sampler3D hmTex;uniform vec3 hmOrigin;uniform vec3 hmN;uniform float hmH;uniform float hmTilt;uniform float hmYsym;uniform float hmYoff;uniform float hmMirror;
 const vec3 TB[10]=vec3[10](vec3(48,18,59),vec3(70,98,215),vec3(54,170,249),vec3(26,228,182),vec3(114,254,94),vec3(200,239,52),vec3(250,186,57),vec3(246,107,25),vec3(202,42,4),vec3(122,4,3));
 vec3 hmTurbo(float t){float x=clamp(t,0.0,1.0)*9.0;int i=int(min(floor(x),8.0));return mix(TB[i],TB[i+1],x-float(i))/255.0;}
 vec3 hmColor(){
   vec3 p=vHmPos;float c=cos(hmTilt),s=sin(hmTilt);
-  vec3 l=vec3(p.x*c+p.z*s, hmYoff+abs(p.y-hmYsym), -p.x*s+p.z*c);
+  vec3 l=vec3(p.x*c+p.z*s, hmMirror>0.5?hmYoff+abs(p.y-hmYsym):p.y, -p.x*s+p.z*c);
   vec3 g=(l-hmOrigin)/hmH;
   vec3 col=vec3(0.72,0.74,0.76);
   if(all(greaterThanEqual(g,vec3(-0.6)))&&all(lessThanEqual(g,hmN-vec3(0.4)))){
@@ -378,7 +406,7 @@ function applyHeat(k){
   if(k==='geom'||!F||!F[k]){m.material=V3.baseMat;$('#hmLeg').hidden=true;return;}
   const g=V3.heat.grid,h=F[k];
   HU.hmTex.value=heatTexture(k);HU.hmOrigin.value.set(...g.origin);HU.hmN.value.set(...g.nodes);HU.hmH.value=g.h;
-  HU.hmTilt.value=g.tilt_deg*Math.PI/180;HU.hmYsym.value=g.ysym;HU.hmYoff.value=g.yoff;
+  HU.hmTilt.value=g.tilt_deg*Math.PI/180;HU.hmYsym.value=g.ysym;HU.hmYoff.value=g.yoff;HU.hmMirror.value=g.mirror===false?0:1;
   m.material=heatMaterial();
   const u=h.unit?' '+h.unit:'';
   $('#hmLeg').hidden=false;
@@ -402,8 +430,41 @@ async function showP01Shape(id, btn){
     setMountMesh(d.mesh);setupHeat(d,cur);$('#ovl3d').textContent=`${d.name} (격자 형상, 발표 10쪽과 같은 표면) · ${d.f1} Hz`;}
   catch(e){toast(e.message);}
 }
+function clearProductScene(){
+  const {scene}=V3;(V3.aux||[]).forEach(o=>{scene.remove(o);o.geometry.dispose();});V3.aux=[];V3.fit=null;
+  V3.ground.position.z=-903;V3.bike.visible=V3.ground.visible=$('#vBike').classList.contains('on');V3.handlebar.visible=true;
+  if(V3.baseMat)V3.baseMat.color.set(0x2aa3a6);$('#perfSub').textContent='스케치 형상 그대로의 성능. 기준 충족은 물리 최적화 단계에서';
+  $('#vBike').hidden=$('#vPhone').hidden=false;
+}
+function b64mesh(pos){const b=atob(pos),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();return g;}
+function showProduct(rep){
+  const {scene,M}=V3;
+  clearProductScene();
+  if(V3.holder){scene.remove(V3.holder);V3.holder=null;}
+  setMountMesh(rep.mesh);
+  const sc=rep.scene||{};
+  V3.bike.visible=false;V3.handlebar.visible=false;$('#vBike').hidden=$('#vPhone').hidden=true;
+  if(sc.color)V3.baseMat.color.set(sc.color);$('#perfSub').textContent='데모용 1차 설계 판정 (제품 · 형상에 맞는 물리 조건)';
+  if(sc.floor_z!==null&&sc.floor_z!==undefined){V3.ground.position.z=sc.floor_z;V3.ground.visible=true;}else V3.ground.visible=false;
+  for(const a of rep.aux||[]){
+    let g;
+    if(a.kind==='box'){g=new THREE.BoxGeometry(...a.size);}else g=b64mesh(a.pos);
+    const mat=new THREE.MeshStandardMaterial({color:new THREE.Color(a.color),roughness:0.35,metalness:0.1,transparent:a.opacity<1,opacity:a.opacity,depthWrite:a.opacity>=1});
+    const o=new THREE.Mesh(g,mat);if(a.kind==='box')o.position.set(...a.center);o.castShadow=a.opacity>=1;scene.add(o);V3.aux.push(o);
+  }
+  const box=new THREE.Box3().setFromObject(V3.mount);V3.aux.forEach(o=>box.expandByObject(o));
+  const c=box.getCenter(new THREE.Vector3()),r=box.getSize(new THREE.Vector3()).length();
+  const mb=new THREE.Box3().setFromObject(V3.mount),mc=mb.getCenter(new THREE.Vector3()),mr=mb.getSize(new THREE.Vector3()).length();
+  const dir=new THREE.Vector3(0.55,-1,0.42).normalize(), k=1/Math.tan(12.5*Math.PI/180)*0.55;
+  V3.fit={full:{pos:c.clone().addScaledVector(dir,r*k),target:c},close:{pos:mc.clone().addScaledVector(new THREE.Vector3(0.9,-0.7,0.5).normalize(),mr*k),target:mc}};
+  $('#ovl3d').textContent=rep.product==='TV 스탠드'?'TV 스탠드 1차 설계 · TV(검정)는 참고용 · 드래그로 회전':'AI 글래스 1차 설계 · 렌즈(투명)는 참고용 · 드래그로 회전';
+  setupHeat(rep);
+  view('full');
+}
 function showMount(rep){
   const {scene,M,V}=V3;
+  clearProductScene();
   setMountMesh(rep.mesh);
   $('#ovl3d').textContent=rep.kind==='integral'?'1차 설계 (출력 몸체) · 드래그로 회전':'자전거 핸들 위 1차 설계 · 드래그로 회전';
   if(V3.holder){scene.remove(V3.holder);}
@@ -430,7 +491,7 @@ fetch('/api/templates').then(r=>r.json()).then(l=>l.forEach(t=>S.tpls[t.id]=t));
 const STAGES=['선 추출','핸들 원 찾기 · 축척','템플릿 비교','설계 명세 · 물리 조건','CAD · 도면 생성','1차 성능 계산'];
 async function run(template){
   const text=$('#text').value.trim();
-  const req={text};
+  const req={text,product:S.product};
   if(template&&S.last){Object.assign(req,S.last);req.template=template;}
   else{
     if(S.mode==='sketch'&&hasSketch())req.sketch=pad.toDataURL('image/png');
@@ -522,7 +583,50 @@ function renderIntegral(rep, req){
   $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f){a.href=f+'?dl=1';}});
   const h=$('#handoff');h.disabled=false;h.onclick=()=>{location.href=rep.files['handoff.zip']+'?dl=1';setStep(3);};
 }
+function renderProduct(rep, req){
+  const t=rep.template, j=rep.judge, m=t.match;
+  $('#reqs').innerHTML=rep.summary.map(([k,v])=>`<div class="req"><small>${k}</small><b>${v}</b></div>`).join('');
+  $('#reqSub').textContent=`${rep.product} — 제품 · 형상에 맞는 물리 조건 ${rep.conditions.length}개 (항목마다 출처)`;
+  $('#questions').innerHTML='';
+  $('#tplTag').className='tag blue';$('#tplTag').textContent=`${t.id} ${t.name} · ${t.chosen_by}`;
+  const ex=rep.extra||{}, fem=ex.fem||{};
+  const fl=[`입력: ${t.chosen_by}`];
+  if(rep.product==='TV 스탠드')fl.push(m?`정면 스케치 → 템플릿 ${m.candidates.length}개 비교`:'문장에서 형식 선택',`TV ${ex.tv.size_in}형 ${ex.tv.mass_kg} kg`,`넘어짐 정역학`,`복셀 FEM ${fem.elements.toLocaleString()} 요소`);
+  else fl.push(ex.photo?`렌즈 윤곽 · 테 치수 추출 (${ex.photo.mode==='holes'?'렌즈 구멍':'실루엣'})`:'기본 형상',`무게 · 발열 계산`,`복셀 FEM ${fem.elements.toLocaleString()} 요소 × 2 하중`);
+  fl.push(`STEP · 도면`);
+  $('#flow').innerHTML=fl.map(x=>`<span class="ok">✓ ${x}</span>`).join('');
+  if(rep.product==='TV 스탠드'&&m){
+    $('#cands').innerHTML=`<div class="cand input"><img src="${req.sketch||req.image}"><div class="t">입력</div><div class="s">${m.source}</div></div>`+
+      m.candidates.slice(0,3).map((x,i)=>`<button class="cand ${x.id===t.id?'on':''}" data-id="${x.id}"><img src="${(S.tpls[x.id]||{}).thumb||''}"><div class="t">${x.id} ${x.name}</div><div class="s">${i===0?'가장 비슷함':'유사도 '+Math.round(x.confidence*100)+'%'}</div></button>`).join('');
+    $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
+  }else if(rep.product==='TV 스탠드'){
+    $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">${t.chosen_by==='지정'?'선택한 형식':'문장에서 형식을 골랐습니다'}: <b>${t.id} ${t.name}</b> — ${t.desc}</div>`+
+      ['TV01','TV02','TV03','TV04'].map(id=>`<button class="cand ${id===t.id?'on':''}" data-id="${id}"><img src="${(S.tpls[id]||{}).thumb||''}"><div class="t">${id} ${(S.tpls[id]||{}).name||''}</div></button>`).join('');
+    $$('#cands button.cand').forEach(b=>b.onclick=()=>{if(b.dataset.id!==t.id)run(b.dataset.id);});
+  }else{
+    const f=rep.analysis.features;
+    $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">${ex.photo?'사진에서 렌즈 윤곽(빨강)과 테 범위(파랑)를 찾아 mm로 옮겼습니다':'사진이 없거나 안경으로 인식되지 않아 기본 형상을 썼습니다'} — <b>${f.style_name}</b> · 세로/가로 ${f.aspect} · 윗선 직선 ${f.top_flat} · 바깥 올림 ${f.outer_lift}</div>
+      <img src="${rep.files['analysis.png']}" style="grid-column:1/-1;width:100%;border-radius:8px;border:1px solid var(--line)">`;
+  }
+  showProduct(rep);
+  $('#imgSide').src=rep.files['side_view.png'];$('#imgDraw').src=rep.files['design_1st_drawing.png'];
+  $('#kMass').textContent=rep.cad.mass_g>=1000?`${fmt(rep.cad.mass_g/1000,2)} kg`:`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
+  $('#metrics').innerHTML=j.rows.map(r=>{const ge=r.op==='>=',ratio=ge?r.value/r.limit:r.limit/Math.max(r.value,1e-6);
+    return `<div class="metric"><div class="row"><span>${r.name}</span><b class="num" style="color:${r.ok?'var(--green)':'var(--red)'}">${r.value} ${r.unit}</b></div>
+    <div class="bar"><i class="${r.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>기준 ${ge?'≥':'≤'} ${r.limit} ${r.unit} · ${r.source}</span><span>${r.ok?'충족':'미충족'}</span></div></div>`;}).join('')+
+    `<div class="note">${rep.product==='TV 스탠드'?`넘어짐 = 지지면 · 무게중심 정역학, 응력 · 흔들림 = 복셀 FEM (${fem.h} mm 격자, ${fem.solve_s} s). 3D 위 버튼으로 응력 · 변위 분포를 봅니다.`
+      :`클램프 힘 · 응력 = 복셀 FEM (${fem.h} mm 격자, 다리 강성 ${fem.k_N_per_mm} N/mm), 온도 = 집중 열저항. 3D 위 버튼으로 착용 · 브리지 하중의 분포를 봅니다.`} 데모용 1차 설계 — 최적화 단계로 넘기지 않습니다.</div>`;
+  $('#perfTag').className='tag '+(j.pass_?'green':'amber');$('#perfTag').textContent=j.pass_?'기준 충족':'일부 미충족';
+  $('#vars').innerHTML=rep.design_vars.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  $('#loadsSub').textContent=rep.product==='TV 스탠드'?'IEC 62368-1 안정성 · TV 무게 · 재료 강도':'무게 · 착용 클램프 힘 · 브리지 · 피부 온도';
+  $('#cons').innerHTML=rep.conditions.map(c=>`<div class="con"><b>${c.name}: ${c.value}</b><small>${c.source}</small></div>`).join('')+
+    `<div class="con"><b>출처</b><small>${rep.sources.map(x=>`<a href="${x.url}" target="_blank" rel="noopener">${x.title}</a>`).join('<br>')}</small></div>`;
+  $('#assumpList').innerHTML=rep.assumptions.map(a=>`<li>${a}</li>`).join('');
+  $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f){a.href=f+'?dl=1';}});
+  const h=$('#handoff');h.disabled=false;h.onclick=()=>{location.href=rep.files['handoff.zip']+'?dl=1';setStep(3);};
+}
 function render(rep, req){
+  if(rep.kind==='product') return renderProduct(rep, req);
   if(rep.kind==='integral') return renderIntegral(rep, req);
   const s=rep.summary, t=rep.template, c=rep.first_design_check;
   // requirements card

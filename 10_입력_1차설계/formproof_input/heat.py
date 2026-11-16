@@ -50,6 +50,9 @@ def pack(v, lo, hi):
     lo, hi = float(f"{lo:.3g}"), float(f"{hi:.3g}")
     q[m] = np.clip(np.round((v[m] - lo) / (hi - lo) * 254), 0, 254).astype(np.uint8)
     r = lambda x: float(f"{x:.3g}")
+    if len(q) > 200_000:                       # big product grids are mostly "no data": zlib (viewer: DecompressionStream)
+        import zlib
+        return dict(qz=base64.b64encode(zlib.compress(q.tobytes(), 6)).decode(), lo=r(lo), hi=r(hi))
     return dict(q=base64.b64encode(q.tobytes()).decode(), lo=r(lo), hi=r(hi))
 
 
@@ -63,8 +66,8 @@ def pack_nodes(vals, valid, lo, hi):
     return d
 
 
-def grid_info(origin, h, shape, tilt_deg=0.0, ysym=0.0, yoff=0.0):
-    """Scene point (x, y, z) -> grid frame: y_l = yoff + |y - ysym|, then rotate by tilt about y
+def grid_info(origin, h, shape, tilt_deg=0.0, ysym=0.0, yoff=0.0, mirror=True):
+    """Scene point (x, y, z) -> grid frame: y_l = yoff + |y - ysym| (mirror=False: y_l = y), then rotate by tilt about y
     (x_l = x cos t + z sin t, z_l = -x sin t + z cos t). shape = elements (nx, ny, nz); texture = nodes."""
     return dict(origin=[float(v) for v in origin], h=float(h), nodes=[int(shape[0]) + 1, int(shape[1]) + 1, int(shape[2]) + 1],
-                tilt_deg=float(tilt_deg), ysym=float(ysym), yoff=float(yoff))
+                tilt_deg=float(tilt_deg), ysym=float(ysym), yoff=float(yoff), mirror=bool(mirror))

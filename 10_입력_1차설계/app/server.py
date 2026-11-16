@@ -82,8 +82,9 @@ class Handler(BaseHTTPRequestHandler):
         if p.startswith("/runs/"):
             return self._file(_safe_join(RUNS, p[len("/runs/"):]), download="dl=1" in (u.query or ""))
         if p == "/api/templates":
+            from formproof_input.products.tv_stand import TEMPLATES as TV
             return self._send(200, [dict(id=t["id"], name=t["name"], desc=t["desc"],
-                                         thumb=f"/examples/templates/{t['id']}.png") for t in TEMPLATES])
+                                         thumb=f"/examples/templates/{t['id']}.png") for t in TEMPLATES + TV])
         if p == "/api/p01_shape":                     # 발표 10쪽 비교 형상 하나 (표면 + 분포)
             from urllib.parse import parse_qs
             from formproof_input import integral
@@ -95,6 +96,10 @@ class Handler(BaseHTTPRequestHandler):
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")
             return self._send(200, ["/examples/presentation/input_sketch.png"] + [f"/examples/hand/{f}" for f in hand])
+        if p == "/api/photos":                        # AI 글래스 예시 사진 (실제 제품 사진은 사용자가 넣음)
+            d = os.path.join(EXAMPLES, "glasses")
+            fs = sorted(f for f in os.listdir(d) if f.lower().endswith((".png", ".jpg", ".jpeg"))) if os.path.isdir(d) else []
+            return self._send(200, [f"/examples/glasses/{f}" for f in fs])
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -108,7 +113,8 @@ class Handler(BaseHTTPRequestHandler):
             rid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
             out = os.path.join(RUNS, rid)
             with LOCK:
-                rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True)
+                rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
+                                      product=req.get("product") or None)
             rep["run_id"] = rid
             rep["files"] = {name: f"/runs/{rid}/{name}" for name in sorted(os.listdir(out))}
             return self._send(200, rep)

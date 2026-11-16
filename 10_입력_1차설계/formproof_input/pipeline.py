@@ -5,6 +5,7 @@ import math
 import io
 import json
 import os
+import re
 import time
 import zipfile
 
@@ -138,10 +139,40 @@ def payload_summary(spec, cad_info=None):
     return out
 
 
-def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False):
-    """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate)."""
+TV_WORDS = re.compile(r"TV|티비|텔레비전|tv\s*스탠드|TV\s*받침", re.I)
+GLASSES_WORDS = re.compile(r"안경|글래스|glasses|아이웨어|eyewear", re.I)
+
+
+def route_product(text="", sketch=None, image=None, template=None, product=None):
+    """Which product scenario: 'bike' (phone mount, default), 'tv' (TV stand), 'glasses' (AI glasses)."""
+    if product in ("bike", "tv", "glasses"):
+        return product
+    if template:
+        return "tv" if str(template).startswith("TV") else "glasses" if str(template).startswith("AG") else "bike"
+    if GLASSES_WORDS.search(text or ""):
+        return "glasses"
+    if TV_WORDS.search(text or ""):
+        return "tv"
+    if image is not None:
+        from .products.glasses import is_glasses_image
+        if is_glasses_image(image):
+            return "glasses"
+    return "bike"
+
+
+def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
+    """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate).
+    product: 'bike' | 'tv' | 'glasses' (None = from template id, text words, or a glasses photo)."""
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
+    prod = route_product(text, sketch, image, template, product)
+    if prod == "tv":
+        from .products import tv_stand
+        g = sketch if sketch is not None else image
+        return tv_stand.design(text, sketch=g, out=out, with_mesh=with_mesh, template=template if (template or "").startswith("TV") else None)
+    if prod == "glasses":
+        from .products import glasses
+        return glasses.design(text, image=image if image is not None else sketch, out=out, with_mesh=with_mesh)
     rep = dict(input=dict(text=text, sketch=sketch is not None, image=image is not None, template=template))
     # P01 일체형 (발표 사례): 지정 · 발표 문장 · 발표 입력 스케치(데모 DB) -> 팀 엔진과 같은 문제
     from . import integral

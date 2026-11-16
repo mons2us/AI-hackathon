@@ -3,7 +3,7 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
-import test_looks, test_integral
+import test_looks, test_integral, test_products
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
@@ -36,6 +36,15 @@ CHECKS = [
     ("P01: 발표 문장 · 스케치 → P01", test_integral.test_routing),
     ("P01: 파이프라인 출력 파일", test_integral.test_pipeline_outputs),
     ("3D 분포(응력·흔들림·온도) = 발표 8쪽 · 메쉬 정점마다", test_integral.test_heat_maps),
+    ("데모 제품: 복셀 FEM 외팔보 이론식", test_products.test_voxfem_cantilever),
+    ("TV 스탠드: 넘어짐 각 = 손계산", test_products.test_tv_tip_hand_calc),
+    ("TV 스탠드: IEC 62368-1 수치 (13 %·50 %·10°)", test_products.test_tv_conditions_iec),
+    ("TV 스탠드: 정면 스케치 매칭", test_products.test_tv_sketch_match),
+    ("TV 스탠드: 4형식 1차 설계 · 판정 · 파일", test_products.test_tv_designs),
+    ("AI 글래스: 합성 제품 사진 → 렌즈 윤곽 · 치수", test_products.test_glasses_photo_analysis),
+    ("AI 글래스: 거치대 그림은 안경 아님", test_products.test_glasses_no_false_positive),
+    ("AI 글래스: 무게 · 클램프 · 온도 판정", test_products.test_glasses_design),
+    ("제품 선택 · 큰 격자 분포 압축", test_products.test_routing_and_heat_payload),
 ]
 
 if __name__ == "__main__":

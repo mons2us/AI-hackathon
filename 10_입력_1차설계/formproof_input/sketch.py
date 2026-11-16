@@ -58,6 +58,9 @@ def template_strokes(params, phone=True):
     if params.get("integral"):
         from .integral import side_strokes
         return [s for _, s in side_strokes(phone=phone)]
+    if params.get("tv"):
+        from .products.tv_stand import front_strokes
+        return front_strokes(params["tv"])
     if params.get("look"):
         from .look_sketch import strokes_for
         return [s for _, s in strokes_for(params["look"], "outline", phone)]
@@ -86,6 +89,9 @@ def template_skeleton(params, phone=True):
     if params.get("integral"):
         from .integral import side_skeleton
         return side_skeleton(phone)
+    if params.get("tv"):
+        from .products.tv_stand import front_strokes
+        return [("outline", st) for st in front_strokes(params["tv"])]
     if params.get("look"):
         from .look_sketch import strokes_for
         return strokes_for(params["look"], "skeleton", phone)
