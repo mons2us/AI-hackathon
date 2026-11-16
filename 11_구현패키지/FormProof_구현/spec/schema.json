@@ -1,0 +1,11 @@
+{"_설명": "① 조건 생성기 출력(설계 명세) 형식. geometry · objectives · constraints 의 모든 항목은 {value, source} 를 가진다. source = 텍스트 | 스케치 | 근거 DB:<id> | 가정",
+ "required": ["input", "geometry", "objectives", "constraints", "questions_to_user"],
+ "properties": {
+  "input": {"text": "요청 원문", "sketch": "스케치 파일 이름 (없으면 빈 값)"},
+  "geometry": {"mount_on": "장착 위치", "tilt_deg": "거치 각도", "keep_out": "피할 곳 목록", "design_space": "AI가 정할 영역", "handlebar_diameter_mm": "핸들바 지름"},
+  "objectives": {"vibration": "진동 목표", "mass": "무게 목표"},
+  "constraints": {"phones": "대응 폰 범위", "thermal": "폰 온도 상승 한계", "touch": "터치 처짐 한계", "shock": "충격 응력 한계", "manufacturing": "제작 방법 · 제약"},
+  "questions_to_user": "빠진 조건 질문 목록"},
+ "to_targets": {"_설명": "계산 엔진이 쓰는 판정 기준(spec/bike_mount_targets.json)으로 바꾸는 규칙",
+  "f1_min_hz": "vibration → 길 진동 상한(근거 DB) 위로: 거치대 예시 95", "phone_Tmax_rise_max_c": "constraints.thermal", "touch_max_mm": "constraints.touch",
+  "shock_vm_max_mpa": "재료 항복 ÷ 안전계수", "shock_interlayer_max_mpa": "출력 층간 강도 ÷ 안전계수"}}

@@ -1,0 +1,172 @@
+<title>FormProof 구현 목록</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 레이아웃: 단일 열 목록. 묶음(시연 필수 → 입력 형식 → 남은 확인 → 자료) 순서 = 우선순위 */
+:root{
+  --bg:#f5f7f7; --paper:#fff; --ink:#14323a; --muted:#5a6d73; --line:#d5e1e0;
+  --teal:#0f7c80; --teal-soft:#e2f0ef; --amber:#a96a12; --amber-soft:#fbefdc; --red:#ad3a2f; --red-soft:#f8e3e0; --gray-soft:#eceff0;
+  --f-body:'IBM Plex Sans KR',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1b1e; --paper:#152529; --ink:#e2eded; --muted:#9db1b4; --line:#2a3f44;
+  --teal:#56c3c6; --teal-soft:#173a3c; --amber:#e6b25e; --amber-soft:#3a2e1a; --red:#e8877b; --red-soft:#3d2320; --gray-soft:#1e3034; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f1b1e; --paper:#152529; --ink:#e2eded; --muted:#9db1b4; --line:#2a3f44;
+  --teal:#56c3c6; --teal-soft:#173a3c; --amber:#e6b25e; --amber-soft:#3a2e1a; --red:#e8877b; --red-soft:#3d2320; --gray-soft:#1e3034; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+h1{font-size:28px;margin:0;line-height:1.25;text-wrap:balance}
+.lede{color:var(--muted);margin:8px 0 0;max-width:70ch}
+.meta{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-top:10px}
+h2{font-size:18px;margin:0 0 4px;display:flex;gap:10px;align-items:baseline;text-wrap:balance}
+h2 .k{font-family:var(--f-mono);font-size:12px;color:var(--teal);font-weight:500;letter-spacing:.04em}
+.sub{color:var(--muted);font-size:13.5px;margin:0 0 12px}
+.decide{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--red);border-radius:10px;padding:14px 16px}
+.decide h2{color:var(--red)}
+.decide ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 12px}
+.no{font-family:var(--f-mono);font-size:13px;color:var(--muted);padding-top:2px}
+.item h3{margin:0;font-size:15.5px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.body{grid-column:2;display:flex;flex-direction:column;gap:6px;font-size:14px;min-width:0}
+.row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px}
+.row b{font-weight:600;color:var(--muted);font-size:12.5px;padding-top:1px}
+.tag{font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.t-none{background:var(--red-soft);color:var(--red)}
+.t-manual{background:var(--amber-soft);color:var(--amber)}
+.t-part{background:var(--teal-soft);color:var(--teal)}
+.t-wait{background:var(--gray-soft);color:var(--muted)}
+.t-opt{background:var(--gray-soft);color:var(--muted)}
+code{font-family:var(--f-mono);font-size:12.5px;background:var(--gray-soft);padding:0 4px;border-radius:4px;word-break:break-all}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12.5px;color:var(--muted);align-items:center}
+@media (max-width:520px){ .item{grid-template-columns:minmax(0,1fr)} .body{grid-column:1} .row{grid-template-columns:minmax(0,1fr)} }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>FormProof 구현 목록</h1>
+  <p class="lede">발표 자료가 주장하는 기능 중 아직 코드로 돌아가지 않는 것, 그리고 남은 확인 항목입니다. 위에 있을수록 먼저 합니다. 각 항목에 그 기능이 근거가 되는 장표 번호(발표 초안 v17 기준)를 적었습니다.</p>
+  <div class="meta">2026-11-15 작성 · 저장소 mons2us/AI-hackathon</div>
+  <div class="legend" style="margin-top:12px"><span class="tag t-none">코드 없음</span><span class="tag t-manual">수동으로 1회 실행</span><span class="tag t-part">스크립트 따로 있음</span><span class="tag t-wait">대기</span><span class="tag t-opt">선택</span></div>
+</header>
+
+<section class="decide">
+  <h2>제출 전 반드시 구현 — 자료에 완료로 쓴 것 (v71 기준)</h2>
+  <ul>
+    <li><b>일체형에 형상 AI · 물리 AI 적용</b> — 2 · 5쪽 "형상 AI 후보 · 성능 예측 · 잠재 공간 최적화" (지금은 분리형 계열로만 학습) → A0</li>
+    <li><b>여섯 단계 자동 연결(LLM 에이전트)</b> — 4쪽 "AI 6/6", 5쪽 "LLM 에이전트가 차례로 실행" → A2 · A6, 데모 영상에서 끊김 없이 보여야 함</li>
+    <li><b>문서 · STEP 입력</b> — 5쪽 요구 정의 "말 · 스케치 · 문서 · STEP" → B 묶음</li>
+    <li><b>근거 리포트 자동 생성</b> — 5쪽 출력 "근거 리포트" → A5</li>
+    <li><b>자료의 "확인 필요" 정리</b> — 압축 스프링 사양(C1), 67% · 45% 원문 대조, MX · DA 적용 후보 문구</li>
+  </ul>
+</section>
+<section class="decide">
+  <h2>먼저 정할 것</h2>
+  <ul>
+    <li>제출 마감일 (심사 = 제출 PPT + 데모 영상, 발표 없음)</li>
+    <li>사내에서 쓸 수 있는 LLM (작업 환경에서는 외부 AI API 호출 불가 → 1·6번은 사내 환경에서 돌릴 코드로 작성)</li>
+    <li>자료 2번이 마음에 안 드는 이유 (내용 / 디자인 / 둘 다)와 새 흐름(12장 안팎) 확정</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="k">A</span>시연 필수 — 말 + 스케치에서 제작 파일까지 자동</h2>
+  <p class="sub">이 묶음이 돌아가야 2·5·9·10번 장표와 시연 영상이 사실이 됩니다. 지금은 단계마다 사람이 손으로 이어 붙인 상태입니다.</p>
+  <div class="list">
+    <article class="item"><div class="no">A0</div>
+      <h3>일체형 거치대에 형상 생성 AI · 물리 AI 적용 <span class="tag t-wait">코드 작업 때</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>일체형 설계 공간에서 형상 데이터 생성(무게 · 1차 진동수 · 폰 온도 · 터치 처짐) → 형상 AI(DeepSDF) · 물리 AI(3D CNN) 학습 → 잠재 공간 후보 탐색 → 후보에서 수치해석 정밀화 → 지금 결과와 비교</span></div>
+        <div class="row"><b>현재</b><span>데이터 150개 생성 후 중단(2026-11-15, part_1~5.npz). 형상 1개당 약 25초, 학습에 300~600개 필요(확인 필요). 생성기 <code>opt/gen_int.py</code>, 라벨 <code>opt_int.py MODE=label</code>, 학습 · 탐색 코드는 <code>09_생성AI_물리AI</code>를 일체형 격자에 맞게 수정. 발표 자료에는 '일체형 적용 진행 중'으로 표시</span></div>
+        <div class="row"><b>근거 장표</b><span>2 (핵심 기술 줄), 5, 7</span></div>
+      </div></article>
+    <article class="item"><div class="no">A1</div>
+      <h3>입력 → 설계 명세 (텍스트 + 스케치) <span class="tag t-manual">수동으로 1회 실행</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>사내 LLM에 텍스트와 스케치 이미지를 넣어 설계 명세 JSON을 출력. 항목마다 출처(텍스트 / 스케치 / 근거 DB / 가정) 표시, 빠진 조건은 사용자 질문으로 반환</span></div>
+        <div class="row"><b>현재</b><span>이 대화에서 Claude가 스케치를 읽어 1회 작성: <code>03_자전거거치대/일체형_제작형_v1/입력/FormProof_설계명세_스케치입력_v1.json</code></span></div>
+        <div class="row"><b>근거 장표</b><span>2, 5, 6, 9, 10</span></div>
+      </div></article>
+    <article class="item"><div class="no">A2</div>
+      <h3>설계 명세 → 계산 자동 실행 <span class="tag t-manual">수동 설정</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>명세 JSON을 읽어 고정 부품(걸이 · 집게 하우징 · 레일) CAD 생성, 최적화 설정값(각도, 진동수 목표, 온도·처짐 제한, 폰+부품 무게, 격자 크기) 자동 입력 후 실행</span></div>
+        <div class="row"><b>현재</b><span><code>opt_int.py</code>에 환경변수(TILT, FT, TLIM, DLIM, GRIP, MSYS, NX)를 손으로 넣어 실행, 1회 약 66분(CPU 2코어)</span></div>
+        <div class="row"><b>근거 장표</b><span>10, 11</span></div>
+      </div></article>
+    <article class="item"><div class="no">A3</div>
+      <h3>검증 관문 자동 판정 <span class="tag t-part">스크립트 따로 있음</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>한 번에 판정하고 합격/불합격 리포트 출력: 흔들림(10–100 Hz), 폰 온도, 터치 처짐, 충격·층간 응력, 한 덩어리 여부, 부재 두께, 부품 간섭, <b style="color:var(--red)">폰 고정(이탈) 점검</b></span></div>
+        <div class="row"><b>현재</b><span><code>opt_int.py MODE=eval</code>, <code>binthick.py</code>, 간섭 확인(cadquery)은 따로 실행. 폰 이탈 점검은 손계산만 했고 코드 없음 — 12번 장표에 "검증 항목에 추가"라고 적었으므로 반드시 구현</span></div>
+        <div class="row"><b>근거 장표</b><span>8, 10, 12, 13</span></div>
+      </div></article>
+    <article class="item"><div class="no">A4</div>
+      <h3>제작 파일 자동 생성 <span class="tag t-part">스크립트 따로 있음</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>최적화 결과 → 출력용 STL(정밀 하우징·구멍 결합, 물샐틈없는 메쉬) → 출력 형상 재해석 → 도면 → 조립 설명서 HTML까지 한 명령으로</span></div>
+        <div class="row"><b>현재</b><span><code>build_body.py</code>, <code>vox.py</code>, <code>parts.py</code>, <code>dwg.py</code>, <code>dwg_body.py</code>, 설명서는 수작업 HTML</span></div>
+        <div class="row"><b>근거 장표</b><span>10, 14</span></div>
+      </div></article>
+    <article class="item"><div class="no">A5</div>
+      <h3>근거 리포트 <span class="tag t-none">코드 없음</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>최종 수치, 조건별 출처, 가정값, 확인 필요 항목을 한 장으로 자동 정리</span></div>
+        <div class="row"><b>근거 장표</b><span>5 (근거 리포트 박스)</span></div>
+      </div></article>
+    <article class="item"><div class="no">A6</div>
+      <h3>LLM 에이전트 루프 (불합격 → 재설계) <span class="tag t-none">코드 없음</span></h3>
+      <div class="body">
+        <div class="row"><b>할 일</b><span>A3 리포트가 불합격이면 LLM이 원인을 읽고 조건·설정을 바꿔 A2를 다시 실행</span></div>
+        <div class="row"><b>현재</b><span>이번 사례의 재설계(폰 고정 추가, 레일 위치 변경, 연결부 보강)는 대화하며 사람과 Claude가 직접 판단</span></div>
+        <div class="row"><b>근거 장표</b><span>5, 10 ("불합격이면 에이전트가 다시 계산")</span></div>
+      </div></article>
+  </div>
+</section>
+
+<section>
+  <h2><span class="k">B</span>자료가 주장하는 입력 형식</h2>
+  <p class="sub">4·6번 장표에 ✓로 적혀 있음. A1과 같은 틀(입력 → 명세 JSON)에 붙이면 됩니다.</p>
+  <div class="list">
+    <article class="item"><div class="no">B1</div><h3>사진 입력 (실물 · 사용 환경) <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>할 일</b><span>사진에서 형상·치수·사용 조건 추출 → 명세</span></div></div></article>
+    <article class="item"><div class="no">B2</div><h3>문서 · PPT 입력 (기획서 · 요구 사양서) <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>할 일</b><span>사양·제약 조건 추출 → 명세</span></div></div></article>
+    <article class="item"><div class="no">B3</div><h3>특허 아이디어 입력 (청구항 · 도면) <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>할 일</b><span>구조·기능 요구 추출 → 형상 후보</span></div></div></article>
+    <article class="item"><div class="no">B4</div><h3>STEP 입력 (기존 제품 개선) <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>할 일</b><span>STEP을 읽어 지킬 곳 · 비울 곳 지정 → 경량화·보강 최적화</span></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2><span class="k">C</span>남은 확인 · 계산</h2>
+  <div class="list">
+    <article class="item"><div class="no">C1</div><h3>스프링 시판품 사양 확정 <span class="tag t-wait">확인 필요</span></h3><div class="body"><div class="row"><b>할 일</b><span>사용 길이 20.5 → 7.5 mm(밀착 길이 ≤ 7 mm), 바깥지름 ≤ 5 mm를 견디는 제품 찾기 → 집게 미는 힘 다시 계산</span></div></div></article>
+    <article class="item"><div class="no">C2</div><h3>잠금 나사 조임력 · M4 클램프 강도 <span class="tag t-wait">미계산</span></h3><div class="body"><div class="row"><b>할 일</b><span>집게 벌어지는 힘 약 21 N을 잠금 마찰로 막는지, 핸들바 조임부(귀) 강도·미끄럼</span></div></div></article>
+    <article class="item"><div class="no">C3</div><h3>AI 학습(7번 장표)을 일체형 기준으로 다시 <span class="tag t-opt">선택</span></h3><div class="body"><div class="row"><b>현재</b><span>분리형 거치대로 학습·탐색한 결과. 장표에 "(분리형 거치대)" 표시</span></div></div></article>
+    <article class="item"><div class="no">C4</div><h3>LLM 단독 비교를 일체형 기준으로 다시 <span class="tag t-part">진행 중</span></h3><div class="body"><div class="row"><b>현재</b><span>분리형 거치대 조건 비교. 장표에 "분리형 거치대 · 같은 조건 비교" 표시</span></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2><span class="k">E</span>참가신청서에서 약속한 산출물</h2>
+  <p class="sub">처음 제출한 참가신청서(산출물 · 개발 범위)에 적은 것. 위 A·B와 겹치는 것은 번호만 표시.</p>
+  <div class="list">
+    <article class="item"><div class="no">E1</div><h3>한 화면에서 동작하는 프로토타입 <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>약속</b><span>아이디어 · 사진 입력 → 3D 설계(CAD) → 성능 검증 → 재설계 → CAD · 도면 · STL 출력까지 한 화면에서 동작 (A1~A4를 묶는 화면)</span></div></div></article>
+    <article class="item"><div class="no">E2</div><h3>음성 입력 · 사진에서 형상 · 치수 추출 <span class="tag t-none">코드 없음</span></h3><div class="body"><div class="row"><b>약속</b><span>텍스트 · 음성 · 스케치 · 이미지 · 사진 · STEP 입력. 사진에서 형상 · 치수를 뽑아 설계 조건으로 사용 (B1과 연결, 팀원 C 담당 영역)</span></div></div></article>
+    <article class="item"><div class="no">E3</div><h3>CAD(STEP) 첫 형상 생성 · 치수 수정 <span class="tag t-part">일부</span></h3><div class="body"><div class="row"><b>약속</b><span>CadQuery 기반 치수 수정 가능한 첫 형상, 최적화 결과를 제작 형상으로 변환 후 최소 두께 · 연결 상태 · 성능 재확인</span></div><div class="row"><b>현재</b><span>집게 · 걸이 · 하우징은 CadQuery로 작성. 몸체는 STL만(STEP 아님)</span></div></div></article>
+    <article class="item"><div class="no">E4</div><h3>물리 AI 가속 비교 <span class="tag t-part">일부</span></h3><div class="body"><div class="row"><b>약속</b><span>학습에 쓰지 않은 사례에서 정밀 계산 대비 주요 지표 오차와 전체 재설계 시간(정밀 재검증 포함) 비교</span></div><div class="row"><b>현재</b><span>분리형 거치대 계열에서 오차 6.9%, 탐색 39초. 일체형 사례에는 미적용</span></div></div></article>
+    <article class="item"><div class="no">E5</div><h3>검증 절차 자동화 <span class="tag t-part">일부</span></h3><div class="body"><div class="row"><b>약속</b><span>입력 조건(단위 · 재료 · 하중 · 고정 위치 · 누락) 확인, 계산 엔진 이론해 비교, 격자 수렴 · 이상 결과 감지, 제작 형상 최소 두께 · 연결 확인, 미확인 결과는 검증 완료로 표시하지 않음 (A3 · A5와 연결)</span></div></div></article>
+    <article class="item"><div class="no">E6</div><h3>실물 비교 (3D 프린트) <span class="tag t-wait">결정 필요</span></h3><div class="body"><div class="row"><b>약속</b><span>처음 설계와 재설계를 3D 프린트해 같은 하중으로 비교, 접이 · 착용 확인</span></div><div class="row"><b>현재</b><span>측정은 하지 않기로 함. 출력 · 조립 확인만 할지, 발표에서 이 약속을 어떻게 다룰지 결정 필요</span></div></div></article>
+  </div>
+</section>
+
+<section>
+  <h2><span class="k">D</span>발표 자료 · 영상</h2>
+  <div class="list">
+    <article class="item"><div class="no">D1</div><h3>자료 전면 재구성 <span class="tag t-wait">대기</span></h3><div class="body"><div class="row"><b>할 일</b><span>결론 먼저, 장마다 메시지 하나, 12장 안팎. 실증은 입력 → 계산 → 검토·수정 → 결과 → 제작 순서. TV · 무선충전 · AI 학습 상세는 부록</span></div><div class="row"><b>대기 이유</b><span>발표 시간, 2번 불만 이유, 흐름 확정</span></div></div></article>
+    <article class="item"><div class="no">D2</div><h3>데모 영상 (심사 자료) <span class="tag t-wait">A 묶음 이후</span></h3><div class="body"><div class="row"><b>할 일</b><span>A1~A4가 실제로 돌아가는 화면으로 촬영, 소요 시간 실측값으로 자료 갱신</span></div><div class="row"><b>왜 중요</b><span>심사는 발표가 아니라 제출 PPT + 데모 영상으로 함 — 영상이 "실제로 돌아간다"의 유일한 증거</span></div><div class="row"><b>연결</b><span>PPT 2 · 8쪽에 영상 구간 표시, 영상 장면 순서 = PPT 3 → 8 → 9 → 10쪽 흐름</span></div></div></article>
+  </div>
+</section>
+
+</div>
