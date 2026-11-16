@@ -15,6 +15,8 @@
 #   NB          B 열 데이터: 받침판 패턴 뽑기 수 (기본 20000, 중복 약 1/3 은 건너뜀)
 #   SDF_STEPS   형상 AI 학습 스텝 (기본 30000)     PHYS_STEPS  물리 AI 학습 스텝 (기본 20000)
 #   GPUS=0,2,3  학습에 쓸 GPU 직접 지정 (기본: nvidia-smi 로 여유 메모리 GPU_MIN_FREE_MB=6000 이상인 것을 자동 선택)
+#   UNTIL=s2    데이터(s0~s2)까지만 하고 data_fp11.zip 으로 묶고 끝 — GPU 없는 CPU 서버용. torch · GPU 검사 안 함
+#               GPU 서버에서 fp11 폴더에 data_fp11.zip 을 풀고 같은 명령(UNTIL 없이)을 실행하면 s1 · s2 를 건너뛰고 학습부터
 #   TINY=1      시험 실행 (데이터 몇 개 · 학습 수십 스텝, CPU 가능, 약 10분) — 처음에 한 번 돌려 볼 것
 # =====================================================================================================
 set -e
@@ -80,13 +82,15 @@ check() {
   python3 - <<'EOF'
 import importlib, sys
 bad = []
-for m in ('numpy', 'scipy', 'pypardiso', 'mmapy', 'torch'):
+import os
+for m in ('numpy', 'scipy', 'pypardiso', 'mmapy') + (() if os.environ.get('UNTIL') == 's2' else ('torch',)):
     try: importlib.import_module(m)
     except Exception as e: bad.append(f'{m}: {e}')
 if bad: print('패키지 없음:', *bad, sep='\n  '); sys.exit(1)
+if os.environ.get('UNTIL') == 's2': print('데이터만 (UNTIL=s2): torch · GPU 검사 생략'); sys.exit()
 import torch; print('torch', torch.__version__, 'GPU', torch.cuda.is_available(), torch.cuda.device_count())
 EOF
-  if [ "${TINY:-0}" != "1" ]; then
+  if [ "${TINY:-0}" != "1" ] && [ "${UNTIL:-}" != "s2" ]; then
     python3 -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" || { echo 'GPU 가 안 보임 (TINY=1 이 아니면 학습이 매우 느림). 강제로 하려면 CPU_OK=1'; [ "${CPU_OK:-0}" = "1" ]; }
   fi
 }
@@ -102,6 +106,16 @@ n=sum(len(np.load(f)['occ']) for f in glob.glob('data/shards_frame/*.npz')); pri
 assert n>0, 'A 데이터 0개 — data/shards_frame/*.log 확인 (Killed 면 J 를 줄일 것)'"
 }
 stage s2_data "학습 데이터 A(구조+열 ${NA}+기록) · B(열 ${NB}) — 오래 걸림 (J=${J})" data
+if [ "${UNTIL:-}" = "s2" ]; then   # CPU 서버: 데이터만 묶어서 끝. GPU 서버에서 풀면 s1 · s2 를 건너뜀 (s0 환경 확인은 GPU 서버에서 다시)
+  python3 - <<'EOF'
+import glob, os, zipfile
+fs = ['data/grid_meta.npz', 'runs/state/s1_meta.done', 'runs/state/s2_data.done'] + sorted(glob.glob('data/shards_frame/*') + glob.glob('data/shards_thermal/*'))
+with zipfile.ZipFile('data_fp11.zip', 'w', zipfile.ZIP_STORED) as z:        # npz 는 이미 압축됨
+    for f in fs: z.write(f)
+print('data_fp11.zip', round(os.path.getsize('data_fp11.zip') / 1e9, 2), 'GB,', len(fs), '파일')
+EOF
+  say "데이터만 끝 (UNTIL=s2). data_fp11.zip 을 GPU 서버 fp11 폴더에 풀고: nohup bash handoff/step2_server_all.sh > step2.out 2>&1 &"; exit 0
+fi
 
 sdf_fit() {   # 기준 구조 = 위상 최적화 기록 int35f95g2 마지막(119) — 원래 파일(rbin_int35f95g2.npy)은 저장소에 없음(.gitignore *.npy)
   python3 - <<'EOF'

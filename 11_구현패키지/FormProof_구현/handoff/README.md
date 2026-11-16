@@ -78,6 +78,19 @@ GPU 2장: 형상 AI 한 장 + (CNN → FNO) 한 장      GPU 1장 이하: 차례
 - 최종 판정(s8 FEM 검증 관문 `MODE=eval`)은 **원래 방식 그대로** — 빠른 방식은 학습 데이터에만 사용.
 - 원래 방식으로 되돌리려면 `REDUCE=0` (이때 J 를 메모리 ÷ 4.5 로 직접 줄일 것).
 
+## 2a. 데이터는 CPU 서버, 학습은 GPU 서버 (11-16 추가, `UNTIL=s2`)
+```bash
+# [CPU 서버] fp11 폴더 (step1 묶음 그대로 풀고 requirements.txt 만 설치. torch 불필요)
+nohup env UNTIL=s2 bash handoff/step2_server_all.sh > step2.out 2>&1 &   # s0 ~ s2 → data_fp11.zip
+# [GPU 서버] fp11 폴더에 data_fp11.zip 복사 후
+unzip -o data_fp11.zip && nohup bash handoff/step2_server_all.sh > step2.out 2>&1 &   # s1 · s2 건너뛰고 s3 학습부터
+```
+- `UNTIL=s2` 는 torch · GPU 검사를 하지 않고, s2 가 끝나면 `data_fp11.zip`(격자 정보 + 학습 데이터 묶음 + s1 · s2 완료 표시)을 만들고 끝남.
+- GPU 서버는 완료 표시가 있으니 데이터를 다시 만들지 않음. s0 환경 확인(GPU 포함)만 GPU 서버에서 다시 함.
+- 묶음 크기(추정): 구조 데이터 형상당 약 30 KB → 5,245개 약 0.2 GB, 열 데이터(B) 약 1 ~ 2 GB.
+- GPU 서버에 이전 실행의 `data/shards_*` · `runs/` 가 남아 있으면 먼저 지울 것 (섞이지 않게).
+- 11-16 시험 (이 작업 환경, TINY=1): CPU 쪽 `UNTIL=s2` → zip → 다른 폴더에서 풀고 실행 → s1 · s2 건너뜀, s3 ~ s9 통과.
+
 ## 2b. (선택) step2 와 같이 돌리는 추가 작업 — `step2b_extra.sh` (11-16 추가)
 **step2 가 돌고 있어도 그대로 두고** 새 창에서 실행. 실행 중인 `step2_server_all.sh` · `scripts/gen_data_frame.sh` 파일은 덮어쓰지 말 것 (bash 는 실행 중에 파일을 이어서 읽음).
 ```bash
