@@ -22,6 +22,9 @@ DEV=$(python -c "print(','.join(f'cuda:{i}' for i in range($NG)))")
 if [ "$NG" -lt 3 ]; then DEV="$DEV,$DEV,$DEV"; fi
 echo "장치: $DEV"
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
+# 11-16 서버 실측: 작업자를 코어 수(256)만큼 띄우면 실제로 8개 정도만 일하고 파일이 하나씩 처리됨(원인 미확인).
+# 64개로 지정하자 64개가 동시에 돌아 거치대 그룹 하나가 약 2~3분. 바꾸려면 WORKERS=96 bash ... 처럼
+WORKERS=${WORKERS:-$(( $(nproc) < 64 ? $(nproc) : 64 ))}
 if [ "$PLAN" = "B" ]; then
   [ -d data ] || python -m fp08.pack unpack upload_data.zip .
   STAGES=sdf,pino,gate,al,demo
@@ -31,7 +34,7 @@ fi
 # --sweep : 학습 방법 후보 4개(fp08/sweep.py) → 20% 학습으로 거르고 최선 1개를 끝까지 (GPU 시간 약 1.6배)
 #           시간이 모자라면 --sweep 을 지우면 기존처럼 1개 설정(8층×256, PINO 폭 24)만 학습
 SWEEP=${SWEEP---sweep --sweep-topk 1}
-python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $(nproc) $SWEEP \
+python -m fp08.loop --run runs/main --data data --stages $STAGES --devices "$DEV" --workers $WORKERS $SWEEP \
   --n-shapes ${N_SHAPES:-5000} --n-cand 12000 --eso --topdown 100 --n-fem ${N_FEM:-1000} \
   --sdf-steps ${SDF_STEPS:-20000} --sdf-width 256 --sdf-depth 8 --pino-steps ${PINO_STEPS:-30000} \
   --al-n 200 --max-rounds 3 2>&1 | tee -a runs_main.out

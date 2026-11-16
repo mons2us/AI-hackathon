@@ -16,6 +16,8 @@ if not defined N_FEM set N_FEM=1000
 if not defined SDF_STEPS set SDF_STEPS=20000
 if not defined PINO_STEPS set PINO_STEPS=30000
 if not defined SWEEP set SWEEP=--sweep --sweep-topk 1
+if not defined WORKERS set WORKERS=%NUMBER_OF_PROCESSORS%
+if %WORKERS% GTR 64 set WORKERS=64
 python -c "import torch,os;print('torch',torch.__version__,'GPU',torch.cuda.device_count(),[torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],'CPU',os.cpu_count())"
 set DEV=
 for /f "delims=" %%i in ('python -m fp08.pack devices') do set DEV=%%i
@@ -33,7 +35,7 @@ if /i "%PLAN%"=="B" (
 ) else (
   set STAGES=shapes,fem,sdf,pino,gate,al,demo
 )
-python -m fp08.loop --run runs\main --data data --stages %STAGES% --devices "%DEV%" --workers %NUMBER_OF_PROCESSORS% %SWEEP% ^
+python -m fp08.loop --run runs\main --data data --stages %STAGES% --devices "%DEV%" --workers %WORKERS% %SWEEP% ^
   --n-shapes %N_SHAPES% --n-cand 12000 --eso --topdown 100 --n-fem %N_FEM% ^
   --sdf-steps %SDF_STEPS% --sdf-width 256 --sdf-depth 8 --pino-steps %PINO_STEPS% ^
   --al-n 200 --max-rounds 3

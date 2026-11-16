@@ -224,6 +224,7 @@ DeepSDF IoU 가 0.90 에 못 미치면: 스텝을 늘려 이어서 학습 (ckpt 
 | 시연 `fallback` | 대리 모델 후보가 전부 FEM 검증 실패 | 표시만 됨(자동 대체 없음). §6-1 사다리로 모델 개선 또는 팀 FEM 직접 최적화 결과를 수동 사용. summary 에 그대로 보고 |
 | `torch.load` 에러 `weights_only` | torch 버전 차이 | 코드가 `weights_only=False` 사용 중. torch ≥ 2.1 사용 |
 | Windows 에서 한글 깨짐 | 콘솔 코드페이지 | bat 첫 줄 `chcp 65001` 유지 |
+| 서버에서 데이터 생성이 파일 하나씩 느리게 진행 (CPU 95% 놀고 있음, 작업자 프로세스가 8개 정도만 보임) | 작업자를 코어 수(256)만큼 띄웠을 때 생김 (11-16 실측, 원인 미확인 — 프로세스 수 제한·CPU 제한은 아니었음) | 작업자 64개로 지정 (`step3` 기본값으로 반영, `WORKERS=` 로 변경). 확인: `ps aux \| grep -c "[s]pawn_main"` 가 작업자 수 근처, 로그가 여러 줄씩 찍히면 정상 |
 | bat 실행 시 `'cho'`, `'THREADS'` 등 조각난 명령 오류 | bat 줄끝이 LF | 편집기에서 CRLF 로 저장 (VS Code 오른쪽 아래 LF→CRLF) |
 | Windows 에서 ESO·FEM 이 매우 느림 (작업자 CPU 2~3%) | **Windows 의 pypardiso 가 SuperLU 보다 20~40배 느림** (11-14 실측: 형상당 17~43 s vs 0.6~2.7 s) | 코드가 Windows 에서는 자동으로 SuperLU 사용 (`fp08/fem.py`). 강제: `FP08_NO_PARDISO=1` / `FP08_PARDISO=1`. 확인: `diag_eso.bat` |
 
