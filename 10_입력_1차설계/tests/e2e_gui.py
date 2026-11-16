@@ -3,8 +3,8 @@
 
 확인: 4단 화면이 한 화면에 들어감(페이지 · 카드 스크롤 없음), 제품 4개(P01 · T01 · TV · AI 글래스)마다 형상 + 분포 창,
 메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기,
-성능 항목을 눌러 최적화 대상 고르기(1개 이상이면 실행 버튼 켜짐) → 고른 항목이 든 optimize_input.zip."""
-import math, os, sys, tempfile, time
+P01 만 성능 항목을 눌러 최적화 대상 고르기(1개 이상이면 실행 버튼 켜짐) → 역설계 재생(형상 · 예측값) → FEM 검증 · optimize_input.zip."""
+import json, math, os, sys, tempfile, time
 from playwright.sync_api import sync_playwright
 
 SP = os.path.join(tempfile.gettempdir(), "formproof_e2e"); os.makedirs(SP, exist_ok=True)
@@ -78,21 +78,42 @@ with sync_playwright() as p:
     page.screenshot(path=f"{SP}/gui_draw.png")
     page.click("#vDraw"); page.wait_for_timeout(500)
 
-    # 성능 항목을 눌러 최적화 대상 고르기 → 1개 이상이면 버튼 켜짐 → 고른 항목이 든 최적화 입력 묶음
-    import json, zipfile
+    # P01 이 아닌 제품(마지막 = AI 글래스)은 1차 설계까지만: 고르기 · 최적화 버튼 없음
+    assert page.is_hidden("#optimize") and page.is_hidden("#pickHint"), "P01 이 아닌데 최적화 버튼이 보임"
+
+    # P01: 성능 블록 고르기 → 물리 기반 최적화 실행 → 형상이 프레임마다 바뀌고 예측값이 움직임 → FEM 검증 값
+    page.click("#prodSeg button[data-p=bike]"); page.wait_for_timeout(300)
+    page.select_option("#example", "/examples/presentation/input_sketch.png"); page.wait_for_timeout(1200)
+    page.click("#go"); wait_result(page)
     assert page.is_disabled("#optimize"), "아무것도 안 골랐는데 최적화 버튼이 켜져 있음"
     blocks = page.locator("#metrics .metric")
-    blocks.nth(0).click(); blocks.nth(2).click(); blocks.nth(2).click(); blocks.nth(3).click()   # 0, 3 선택 (2는 눌렀다 해제)
-    assert not page.is_disabled("#optimize")
-    picked = [blocks.nth(i).inner_text().split("\n")[0].lstrip("✓").strip() for i in (0, 3)]
-    with page.expect_download() as d:
-        page.click("#optimize")
-    zp = f"{SP}/optimize_input_test.zip"
-    d.value.save_as(zp)
-    T = json.loads(zipfile.ZipFile(zp).read("optimize_targets.json"))
-    got = [t["label"] for t in T["targets"]]
-    assert got == picked and "spec.json" in zipfile.ZipFile(zp).namelist(), (got, picked)
-    print("최적화 버튼:", d.value.suggested_filename, "| 대상:", got, "| 버튼:", page.inner_text("#optimize"))
+    blocks.nth(0).click(); blocks.nth(2).click(); blocks.nth(2).click(); blocks.nth(1).click()   # 떨림 주파수 · 폰 온도 (화면 휨은 눌렀다 해제)
+    assert page.inner_text("#optimize").endswith("(2개)")
+    tri0 = page.evaluate("() => V3.mount.geometry.attributes.position.count")
+    t = time.time()
+    page.click("#optimize")
+    seen = set()
+    while time.time() - t < 300:
+        st = page.evaluate("() => [document.querySelector('#optText').textContent, V3.mount.geometry.attributes.position.count,"
+                           " document.querySelector('#optInfo').className]")
+        seen.add(st[1])
+        if "ok" in st[2].split() or "bad" in st[2].split():
+            break
+        page.wait_for_timeout(250)
+    final = page.inner_text("#optText")
+    vals = page.locator("#metrics .metric").all_inner_texts()
+    print(f"최적화: {time.time() - t:.1f} s, 형상 {len(seen)}가지(처음 {tri0 // 3} 삼각형) | {final}")
+    print("  성능:", [v.split("\n")[0].lstrip("✓") + " " + v.split("\n")[1] for v in vals][:6])
+    assert len(seen) >= 10, "형상이 거의 안 바뀜"
+    assert "FEM 검증" in vals[0] and not page.is_hidden("#fOpt")
+    page.screenshot(path=f"{SP}/gui_optimized.png")
+    import urllib.request, zipfile, io
+    href = page.get_attribute("#fOpt", "href").split("?")[0]
+    base = URL.rstrip("/")
+    z = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(base + href.replace("opt_final.stl", "optimize_input.zip")).read()))
+    T = json.loads(z.read("optimize_targets.json"))
+    assert sorted(T["targets"]) == ["Tmax", "f1"] and "opt_final.stl" in z.namelist() and "spec.json" in z.namelist(), T
+    print("최적화 입력 묶음: 대상", T["targets"], "| 파일", len(z.namelist()), "개")
     errs = [l for l in logs if "error" in l.lower() or "PAGEERROR" in l]
     print("\n".join(errs)[:2000] or "콘솔 오류 없음")
     b.close()

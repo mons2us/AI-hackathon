@@ -41,8 +41,15 @@ if errorlevel 1 (
 rem 3) check
 ".venv\Scripts\python.exe" -c "import cadquery, pypardiso, manifold3d, mmapy, skimage, ezdxf; print('setup OK')"
 
+rem 3b) P01 physics optimization model (optional): models\results_fp11.zip + models\grid_meta.npz -> PyTorch CPU + check
+if exist "models\results_fp11.zip" if exist "models\grid_meta.npz" (
+  echo Trained model found in models\ - installing PyTorch CPU (once, about 200 MB^)...
+  ".venv\Scripts\python.exe" -c "import torch" >nul 2>&1 || ".venv\Scripts\python.exe" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+  ".venv\Scripts\python.exe" -m formproof_input.inverse check
+)
+
 rem 4) template result DB (1st designs are templates: compute once, then every run loads in < 4 s) - about 3 min
-echo Building template result DB (once, about 3 min)...
+echo Building template result DB (once, about 3 min; with the trained model the P01 optimization paths take longer)...
 ".venv\Scripts\python.exe" -m formproof_input.memo
 echo.
 echo Done. Start the GUI with app\start.bat

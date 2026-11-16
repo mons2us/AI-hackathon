@@ -31,7 +31,7 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
-APP_VERSION = "2026-11-16e"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
+APP_VERSION = "2026-11-16f"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
 OPT_JOBS = {}                                              # 간이 물리 최적화 job id -> 진행 (반복 · 기록 · 최신 표면)
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
@@ -58,8 +58,14 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps(body, ensure_ascii=False).encode("utf-8")
         elif isinstance(body, str):
             body = body.encode("utf-8")
+        gz = len(body) > 65536 and ctype.startswith("application/json") and "gzip" in (self.headers.get("Accept-Encoding") or "")
+        if gz:                                                  # 큰 JSON(최적화 프레임 · 분포)은 gzip — 브라우저가 알아서 풂
+            import gzip
+            body = gzip.compress(body, 5)
         self.send_response(code)
         self.send_header("Content-Type", ctype)
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         for k, v in (extra or {}).items():
@@ -104,6 +110,10 @@ class Handler(BaseHTTPRequestHandler):
                                "지금 템플릿 하나가 끝나면 이 요청을 먼저 계산합니다")
             out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
                        history=J["history"], done=J["done"], error=J["error"])
+            if "frames" in J:                                   # 최적화: 아직 안 보낸 프레임만 (since = 받은 개수)
+                since = int(parse_qs(u.query).get("since", ["0"])[0] or 0)
+                out["frames"] = J["frames"][since:]
+                out["nframes"] = len(J["frames"])
             if J["done"]:
                 out["result"] = J["rep"]
                 JOBS.pop(jid, None)
@@ -151,34 +161,62 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, {"error": "not found"})
 
     def _optimize(self):
-        """GUI 에서 고른 최적화 대상(1차 설계 성능 항목) -> 실행 폴더에 optimize_targets.json, 그것을 넣은 최적화 입력 묶음."""
+        """물리 기반 최적화 (P01): GUI 에서 고른 성능 항목을 기준으로 역설계(형상 AI × 물리 AI) — 작업(job)으로 돌리고
+        프레임(형상 · 예측값 · 분포)을 진행 조회 때 조금씩 보냄. 끝나면 FEM 검증 관문 + 결과 파일(최적 형상 STL · 최적화 기록 ·
+        최적화 입력 묶음 optimize_input.zip)."""
+        import re
         import zipfile
+        from formproof_input import inverse as OPT
         n = int(self.headers.get("Content-Length", 0))
         try:
             req = json.loads(self.rfile.read(n).decode("utf-8"))
             rid = str(req["run"])
-            targets = list(req["targets"])
+            sel = [str(k) for k in req["targets"]]
         except Exception as e:                                  # noqa: BLE001
             return self._send(400, {"error": f"잘못된 요청: {e}"})
-        if not targets:
+        sel = [k for k in sel if k in OPT.KEYS]
+        if not sel:
             return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
-        import re
         out = os.path.join(RUNS, rid)
         if not re.fullmatch(r"[\w.-]+", rid) or rid.startswith(".") or not os.path.isfile(os.path.join(out, "handoff.zip")):
             return self._send(404, {"error": "이 1차 설계의 결과 폴더가 없습니다. 1차 설계를 다시 만들어 주세요."})
-        keep = ("name", "label", "value", "unit", "op", "limit", "ok", "ref", "source")
-        doc = dict(run=rid, created=time.strftime("%Y-%m-%d %H:%M:%S"),
-                   note="GUI 에서 사용자가 고른 최적화 대상. 이 항목들을 목표로 물리 기반 최적화를 수행",
-                   targets=[{k: t.get(k) for k in keep if k in t} for t in targets])
-        with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
-            json.dump(doc, f, ensure_ascii=False, indent=2)
-        src, dst = os.path.join(out, "handoff.zip"), os.path.join(out, "optimize_input.zip")
-        with zipfile.ZipFile(src) as zi, zipfile.ZipFile(dst, "w", zipfile.ZIP_DEFLATED) as zo:
-            for it in zi.infolist():
-                if it.filename != "optimize_targets.json":
-                    zo.writestr(it, zi.read(it.filename))
-            zo.write(os.path.join(out, "optimize_targets.json"), "optimize_targets.json")
-        return self._send(200, {"zip": f"/runs/{rid}/optimize_input.zip", "targets": len(doc["targets"])})
+        jid = "opt-" + uuid.uuid4().hex[:8]
+        now = time.time()
+        J = JOBS[jid] = dict(stage="대기 (앞 요청 계산 중)", detail="", t0=now, ts=now, history=[], done=False, error=None, rep=None, frames=[])
+        with WAIT_LOCK:
+            WAITING[0] += 1
+
+        def work():
+            try:
+                with LOCK:
+                    with WAIT_LOCK:
+                        WAITING[0] -= 1
+                    J.update(stage="역설계 준비 (형상 AI · 물리 AI)", ts=time.time())
+
+                    def on_frame(fr):
+                        J["frames"].append(fr)
+                        J.update(stage=f"역설계 반복 {fr['it']} / {fr['iters']}", detail=f"무게 {fr['mass_g']:.1f} g · 기준 벌점 {fr['pen']:.2f}")
+                    res = OPT.run(sel, on_frame)
+                    J.update(stage="FEM 검증 관문 (팀 엔진으로 마지막 형상 다시 계산)", detail="", ts=time.time())
+                    g = OPT.gate(res, out=out)
+                    with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
+                        json.dump(dict(run=rid, targets=sel, limits=res["limits"], created=time.strftime("%Y-%m-%d %H:%M:%S")), f, ensure_ascii=False, indent=2)
+                    with zipfile.ZipFile(os.path.join(out, "handoff.zip")) as zi, \
+                            zipfile.ZipFile(os.path.join(out, "optimize_input.zip"), "w", zipfile.ZIP_DEFLATED) as zo:
+                        for it in zi.infolist():
+                            zo.writestr(it, zi.read(it.filename))
+                        for f in ("optimize_targets.json", "optimize_result.json", "opt_final.stl", "opt_final_rho.npy"):
+                            if os.path.exists(os.path.join(out, f)):
+                                zo.write(os.path.join(out, f), f)
+                files = {f: f"/runs/{rid}/{f}" for f in ("opt_final.stl", "optimize_result.json", "optimize_input.zip")}
+                J.update(rep=json.loads(json.dumps(dict(gate=g, files=files, fit=res["fit"], seconds=res["seconds"], cached=res["cached"],
+                                                        selection=sel), ensure_ascii=False, default=float)), done=True)
+            except Exception as e:                                      # noqa: BLE001
+                traceback.print_exc()
+                J.update(error=f"최적화 실패: {e}", done=True)
+
+        threading.Thread(target=work, daemon=True).start()
+        return self._send(200, {"job": jid})
 
     def do_POST(self):
         if urlparse(self.path).path == "/api/optimize":

@@ -81,13 +81,16 @@ def jobs():
     from . import pipeline
     for t in TEMPLATES:
         out.append((t["id"], lambda d, t=t: pipeline.design("", template=t["id"], out=d, with_mesh=True, product="bike")))
+    # P01 물리 기반 최적화: 기본 선택(1차 설계 미충족 5개 · 전부)의 역설계 경로 + FEM 검증 → 누르면 바로 재생
+    out.append(("P01-opt", lambda d: __import__("formproof_input.inverse", fromlist=["precompute"]).precompute(log=lambda *a: None)))
     return out
 
 
 def marker():
     """'전부 채움' 표시 파일 — 공통 VERSION + 제품별 버전(바뀐 제품만 다시 계산되고, 서버 · setup 이 다시 채우게)."""
     from .products.glasses import GM_VERSION
-    return os.path.join(DB, f"_complete_{VERSION}_g{GM_VERSION}")
+    from .inverse import models_stamp
+    return os.path.join(DB, f"_complete_{VERSION}_g{GM_VERSION}_o{models_stamp()}")   # 학습 모델을 넣거나 바꾸면 다시 채움
 
 
 def fill(names=None, log=print):

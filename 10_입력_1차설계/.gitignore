@@ -3,3 +3,5 @@ out*/
 *.npz
 .venv/
 formproof_input/templates/db/precomputed/
+models/*
+!models/README.md

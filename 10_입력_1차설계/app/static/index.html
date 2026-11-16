@@ -92,6 +92,11 @@ select.btn{width:100%;margin-top:8px}
 .metric.sel .ck{background:var(--blue);border-color:var(--blue)}
 .metric .sub{display:flex;justify-content:space-between;color:var(--ink3);font-size:11.5px;margin-top:2px}
 .pick{font-size:12px;color:var(--ink2);margin:0 0 8px}
+.nopick .metric{cursor:default}.nopick .metric:hover{background:#f8f9fb;border-color:#eef0f4}.nopick .ck{display:none}
+.metric .src{font-size:10.5px;color:var(--blue);margin-left:6px;font-weight:600}
+.optinfo{position:absolute;left:50%;transform:translateX(-50%);top:9px;z-index:4;background:rgba(20,28,44,.9);color:#fff;border-radius:10px;padding:7px 12px;font-size:12.5px;min-width:300px;text-align:center}
+.optinfo .pb{height:4px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:5px;overflow:hidden}.optinfo .pb i{display:block;height:100%;background:#5b9cff;width:0}
+.optinfo.ok{background:rgba(15,159,110,.92)}.optinfo.bad{background:rgba(211,58,75,.92)}
 #metrics{min-height:0;overflow:auto}
 .drop img{max-height:min(34vh,420px)}
 @media (max-height:820px){            /* 노트북 화면: 블록 · 요약 칸을 줄여 한 화면에 */
@@ -157,6 +162,7 @@ select.btn{width:100%;margin-top:8px}
         <div class="views" id="views">
           <div class="vp vmain" id="vMain">
             <span class="ovl" id="ovl3d">드래그 = 회전 · 휠 = 확대</span>
+            <div class="optinfo" id="optInfo" hidden><span id="optText"></span><div class="pb"><i id="optBar"></i></div></div>
             <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
             <img class="draw" id="imgDraw" alt="">
             <div class="empty" id="empty">왼쪽에서 입력하고 1차 설계 만들기를 누르세요</div>
@@ -181,6 +187,7 @@ select.btn{width:100%;margin-top:8px}
         <div class="spacer"></div>
         <div class="files" id="files">
           <a class="off" data-f="design_1st.step">STEP</a><a class="off" data-f="design_1st_drawing.pdf">도면 PDF</a><a class="off" data-f="design_1st.stl">STL</a>
+          <a id="fOpt" hidden>최적 STL</a>
         </div>
         <button class="btn opt" id="optimize" disabled>물리 기반 최적화 실행</button>
       </div>
@@ -465,7 +472,7 @@ $('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
 // 서버 버전 확인: 화면만 새것이고 서버가 예전 것이면(업데이트 뒤 서버를 다시 안 켬, 서버 창 두 개) 바로 알려 줌
-const APP_V='2026-11-16e';
+const APP_V='2026-11-16f';
 const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 개 떠 있습니다. 열려 있는 서버 창(검은 창)을 모두 닫고 app\\start.bat 을 다시 실행한 뒤 이 페이지를 새로고침해 주세요.';
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
@@ -476,6 +483,7 @@ async function run(){
   if(S.mode==='sketch'&&hasSketch())req.sketch=pad.toDataURL('image/png');
   if(S.mode==='image'&&S.image)req.image=S.image;
   if(!req.sketch&&!req.image&&!text){toast('문장을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요.');return;}
+  if(S.opt)return;
   S.last={...req};
   S.sel=new Set();updateOpt();
   $('#go').disabled=true;$('#empty').style.display='none';$('#busy').classList.add('on');
@@ -503,44 +511,112 @@ $('#go').onclick=()=>run();
 
 const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
 // 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
-function showMetrics(rows){
-  S.rows=rows;S.sel=new Set();
-  $('#metrics').innerHTML=rows.map((m,i)=>{const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6);
-    return `<button class="metric${m.ref?' ref':''}" data-i="${i}" title="${noPres(m.source||'')}"><div class="row"><span><i class="ck">✓</i>${m.label}</span><b style="color:${m.ref?'var(--ink2)':m.ok?'var(--green)':'var(--red)'}">${m.value} ${m.unit}</b></div>
+function metricHtml(m,i){
+  const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6),v=typeof m.value==='number'?+m.value.toPrecision(4):m.value;
+  return `<button class="metric${m.ref?' ref':''}${S.sel&&S.sel.has(i)?' sel':''}" data-i="${i}" title="${noPres(m.source||'')}"><div class="row"><span><i class="ck">✓</i>${m.label}${m.src?`<span class="src">${m.src}</span>`:''}</span><b style="color:${m.ref?'var(--ink2)':m.ok?'var(--green)':'var(--red)'}">${v} ${m.unit}</b></div>
     <div class="bar"><i class="${m.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
-    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;}).join('');
-  $$('#metrics .metric').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;S.sel.has(i)?S.sel.delete(i):S.sel.add(i);b.classList.toggle('sel',S.sel.has(i));updateOpt();});
-  $('#pickHint').hidden=!rows.length;updateOpt();
+    <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;
+}
+// 1차 설계 성능 항목 = 연한 블록. P01 은 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐.
+// 다른 제품(TV 스탠드 · AI 글래스 · 템플릿 거치대)은 1차 설계까지만 → 고르기 · 실행 버튼 없음
+function showMetrics(rows,pick){
+  S.rows=rows;S.sel=new Set();S.pick=!!pick;
+  drawMetrics();
+  $('#metrics').classList.toggle('nopick',!S.pick);$('#pickHint').hidden=!S.pick||!rows.length;$('#optimize').hidden=!S.pick;
+  updateOpt();
+}
+function drawMetrics(){
+  $('#metrics').innerHTML=S.rows.map(metricHtml).join('');
+  $$('#metrics .metric').forEach(b=>b.onclick=()=>{if(!S.pick||S.opt)return;const i=+b.dataset.i;S.sel.has(i)?S.sel.delete(i):S.sel.add(i);b.classList.toggle('sel',S.sel.has(i));updateOpt();});
 }
 function updateOpt(){
   const n=S.sel?S.sel.size:0,b=$('#optimize');
-  b.disabled=!n||!S.rep;b.textContent=n?`물리 기반 최적화 실행 (${n}개)`:'물리 기반 최적화 실행';
+  b.disabled=!n||!S.rep||!!S.opt;b.textContent=S.opt?'최적화 중…':n?`물리 기반 최적화 실행 (${n}개)`:'물리 기반 최적화 실행';
+}
+// ---------- 물리 기반 최적화 (P01): 서버가 역설계 프레임(형상 · 예측값 · 분포)을 보내면 차례로 재생
+function q16mesh(m){
+  const b=atob(m.q16),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  const q=new Int16Array(u.buffer),p=new Float32Array(q.length);
+  for(let i=0;i<q.length;i++){const a=i%3;p[i]=(q[i]+32768)*m.sc[a]+m.lo[a];}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.computeVertexNormals();return g;
+}
+async function applyHeat(heat){
+  if(!heat)return;
+  await Promise.all(Object.values(heat.fields).map(decodeField));
+  V3.small.forEach((s,i)=>{const f=s.key&&heat.fields[s.key];if(!f)return;
+    if(s.mat){s.mat.userData.tex.dispose();s.mat.dispose();}
+    s.mat=heatMaterial(heat,s.key);
+    const leg=$(SMALL[i]).querySelector('.leg b');if(leg)leg.textContent=`${f.max}${f.unit?' '+f.unit:''}`;});
+}
+function applyFrame(f){
+  if(f.mesh){const g=q16mesh(f.mesh);V3.mount.geometry.dispose();V3.mount.geometry=g;
+    const bb=new THREE.Box3().setFromObject(V3.mount);if(!V3.optBox||!V3.optBox.containsBox(bb)){V3.optBox=(V3.optBox||bb.clone()).union(bb);V3.box=V3.optBox.clone();V3.mc=V3.box.getCenter(new THREE.Vector3());fitSmall();}}
+  if(f.heat)applyHeat(f.heat);
+  S.rows.forEach(m=>{if(!m.key||f.pred[m.key]==null)return;m.value=f.pred[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='예측';});
+  drawMetrics();
+  const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`최적화 중 · ${nf?'미충족 '+nf+'개':'예측 충족'}`;
+  $('#kMass').textContent=`${fmt(f.mass_g)} g`;
+  $('#optText').textContent=`역설계 반복 ${f.it} / ${f.iters} · 무게 ${fmt(f.mass_g)} g · 기준 벌점 ${f.pen.toFixed(2)}`;
+  $('#optBar').style.width=`${100*f.it/f.iters}%`;
+}
+function finishOpt(r){
+  const g=r.gate;
+  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='FEM 검증';}});
+  drawMetrics();applyHeat(g.heat);
+  $('#kMass').textContent=`${fmt(g.mass_g)} g`;
+  const nf=g.rows.filter(x=>!x.ok).length;
+  $('#perfTag').className='tag '+(g.pass_?'green':'amber');$('#perfTag').textContent=g.pass_?'최적 설계 · 목표 충족':`최적 설계 · 미충족 ${nf}개`;
+  const box=$('#optInfo');box.classList.add(g.pass_?'ok':'bad');
+  $('#optText').textContent=`최적 설계 완료 · 무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · FEM 검증 ${g.pass_?'모든 기준 통과':'미충족 '+nf+'개'}`;
+  $('#optBar').style.width='100%';
+  const a=$('#fOpt');a.hidden=false;a.href=r.files['opt_final.stl']+'?dl=1';
+  setStep(2);
 }
 $('#optimize').onclick=async()=>{
-  const rep=S.rep;if(!rep||!S.sel.size)return;
+  const rep=S.rep;if(!rep||!S.sel.size||S.opt)return;
   const run=(rep.files['handoff.zip']||'').split('/')[2];
-  const targets=[...S.sel].sort((a,b)=>a-b).map(i=>{const m=S.rows[i];return {name:m.name,label:m.label,value:m.value,unit:m.unit,op:m.op,limit:m.limit,ok:m.ok,ref:!!m.ref,source:m.source||''};});
-  const b=$('#optimize');b.disabled=true;
-  try{const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
+  const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
+  S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();$('#go').disabled=true;
+  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='역설계 준비 (형상 AI · 물리 AI)';$('#optBar').style.width='0';
+  V3.optBox=null;
+  if(V3.kind!=='close')view('close');
+  try{
+    const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
     const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
-    location.href=j.zip+'?dl=1';setStep(2);
-    toast(`최적화 대상 ${j.targets}개(${targets.map(t=>t.label).join(' · ')})로 최적화 입력을 만들었습니다 (optimize_input.zip).`);}
-  catch(e){toast(e.message);}finally{updateOpt();}
+    // 재생: 0.14 s 마다 한 프레임 (미리 계산한 경로도 형상이 바뀌는 것이 보이게)
+    const play=new Promise(res=>{const h=setInterval(()=>{const o=S.opt;
+      if(o.queue.length){const f=o.queue.shift();if(o.m0==null)o.m0=f.mass_g;applyFrame(f);}
+      else if(o.done){clearInterval(h);res();}},140);});
+    while(!S.opt.done){
+      await new Promise(res=>setTimeout(res,300));
+      const rq=await fetch(`/api/job?id=${encodeURIComponent(j.job)}&since=${S.opt.n}`),q=await rq.json();
+      if(!rq.ok)throw new Error(STALE+(q.error?` (${q.error})`:''));
+      if(q.error)throw new Error(q.error);
+      if(q.frames){S.opt.queue.push(...q.frames);S.opt.n+=q.frames.length;}
+      if(!q.frames||!q.frames.length)$('#optText').textContent=q.stage+(q.detail?' · '+q.detail:'');
+      if(q.done){S.opt.res=q.result;S.opt.done=true;}
+    }
+    await play;
+    finishOpt(S.opt.res);
+  }catch(e){toast(e.message);$('#optInfo').hidden=true;}
+  finally{S.opt=null;$('#go').disabled=false;updateOpt();}
 };
 function setCommon(rep, massG){
   const t=rep.template;
   $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(`${t.id} ${t.name}`);
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
   $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
-  $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
+  $$('#files a[data-f]').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
+  $('#fOpt').hidden=true;$('#optInfo').hidden=true;
 }
 function setPerfTag(pass,nFail){$('#perfTag').className='tag '+(pass?'green':'amber');$('#perfTag').textContent=pass?'목표 충족':`미충족 ${nFail}개`;}
-const judgeRows=j=>j.rows.map(r=>({name:r.name,label:easy(r.name),value:r.value,unit:r.unit,op:r.op,limit:r.limit,ok:r.ok,ref:!!r.ref,source:r.source}));
+const judgeRows=j=>j.rows.map(r=>({key:r.key,name:r.name,label:easy(r.name),value:r.value,unit:r.unit,op:r.op,limit:r.limit,ok:r.ok,ref:!!r.ref,source:r.source}));
 function renderIntegral(rep){          // P01 (일체형 거치대)
   const j=rep.judge;
   showMount(rep);
   setCommon(rep, rep.cad.print_total_g||rep.cad.mass_g);
-  showMetrics(judgeRows(j));
+  showMetrics(judgeRows(j),true);              // 학습 모델(역설계)은 P01 에만
   setPerfTag(j.pass_, j.rows.filter(r=>!r.ok).length);
 }
 function renderProduct(rep){          // TV 스탠드 · AI 글래스
