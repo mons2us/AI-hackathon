@@ -101,7 +101,8 @@ mkdir -p runs/gate_big && cd runs/gate_big && for f in ../latent_big/cand_*.npy;
   GRIP=2 NX=88 MSYS=0.311 MODE=eval RHO=$(realpath $f) TAG=$t python3 ../../engine/opt_int.py | tail -1 & done; wait; cd ../..
 ```
 - 시간(추정): ① 약 1시간 (CPU 몫 84 → JX=36), ② · ③ 은 GPU 1장에서 FNO 학습 3번 (1000 · 2000 은 동시에). step2 보다 1시간 안팎 늦게 끝날 것으로 봄 (미측정).
-- 메모리: ① 36 × 4.1 GB ≈ 150 GB + step2 학습. 720 GB 몫 안.
+- 메모리: ① 36 × 0.94 GB ≈ 35 GB (재료 칸만 조립. 원래 방식 REDUCE=0 이면 36 × 4.1 GB ≈ 150 GB) + step2 학습. 720 GB 몫 안.
+- 시간은 재료 칸만 조립으로 ① 이 약 1/10 로 줄 것으로 봄 (서버 미측정).
 - 11-16 시험 (이 작업 환경, TINY=1): ①~⑤ 통과, 끊긴 뒤 이어하기 확인.
 
 ## 3. 회사 PC: 결과 보기
