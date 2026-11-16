@@ -10,7 +10,7 @@
 # 단계를 다시 하려면 runs/state/<단계>.done 을 지우고 실행.
 #
 # 설정 (환경 변수, 앞에 붙여 실행. 예: NA=2000 bash handoff/step2_server_all.sh)
-#   J           데이터 생성 병렬 수. 기본 = min(여유 메모리 GB ÷ 4.5, 빈 코어 ÷ 2)  (프로세스당 메모리 약 4.1 GB, 11-16 측정)
+#   J           데이터 생성 병렬 수. 기본 = min(여유 메모리 GB ÷ 1.2, 빈 코어 ÷ 2)  (재료 칸만 조립 REDUCE=1: 프로세스당 메모리 약 0.94 GB, 11-16 측정. REDUCE=0 이면 약 3.9 GB → J 를 직접 줄일 것)
 #   NA          A 구조 데이터: 프레임 생성기 형상 수 (기본 5000) + 위상 최적화 기록 245개
 #   NB          B 열 데이터: 받침판 패턴 뽑기 수 (기본 20000, 중복 약 1/3 은 건너뜀)
 #   SDF_STEPS   형상 AI 학습 스텝 (기본 30000)     PHYS_STEPS  물리 AI 학습 스텝 (기본 20000)
@@ -43,7 +43,7 @@ print(cpu, idle, int(mem))
 EOF
 )
 export OMP_NUM_THREADS=${THREADS:-2} MKL_NUM_THREADS=${THREADS:-2}
-JA=$(( MEM * 10 / 45 )); JC=$(( IDLE / ${THREADS:-2} )); JD=$(( JA < JC ? JA : JC )); [ $JD -lt 1 ] && JD=1
+JA=$(( MEM * 10 / 12 )); JC=$(( IDLE / ${THREADS:-2} )); JD=$(( JA < JC ? JA : JC )); [ $JD -lt 1 ] && JD=1
 J=${J:-$JD}
 if [ "${TINY:-0}" = "1" ]; then
   NA=${NA:-2}; NB=${NB:-40}; SNAP_N=${SNAP_N:-2}; SDF_STEPS=${SDF_STEPS:-60}; PHYS_STEPS=${PHYS_STEPS:-60}; LK=1; LIT=5; J=1
@@ -72,9 +72,9 @@ if [ "$1" = "status" ]; then
   exit 0
 fi
 
-EST=$(( (NA + 245) * 30 / J / 60 ))
+EST=$(( (NA + 245) * 3 / J / 60 + 1 ))
 say "설정: 메모리 여유 ${MEM} GB · 코어 ${CPU} (그중 비어 있음 ${IDLE}) → 병렬 J=${J} | A ${NA}개(+기록) · B ${NB}번 | 형상 AI ${SDF_STEPS} · 물리 AI ${PHYS_STEPS} 스텝 | TINY=${TINY:-0}"
-say "데이터 A 예상 약 ${EST}분 (형상 1개 약 30초 기준, 서버에서 다를 수 있음)"; [ $EST -gt 600 ] && say "경고: 10시간 넘음. 코어를 더 받거나 NA 를 줄일 것"
+say "데이터 A 예상 약 ${EST}분 (형상 1개 약 3초 기준 = 2코어 단독 실측. 서버에서 동시에 많이 돌면 느려질 수 있음 → 로그의 dt 로 확인)"; [ $EST -gt 600 ] && say "경고: 10시간 넘음. 코어를 더 받거나 NA 를 줄일 것"
 
 check() {
   python3 - <<'EOF'

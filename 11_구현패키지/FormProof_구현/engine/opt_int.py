@@ -210,6 +210,53 @@ def label_full(r, neig=int(env('NEIG','10')), zeta=0.03):
                interlayer999_vert_mpa=sh['vert'][1], interlayer999_fore_mpa=sh['fore'][1])
     base=dict(f1=f[0],f2=f[1],touch_top=tch[0],touch_bot=tch[1],vm_vert=sh['vert'][0])
     return base,ext,vm_el
+# ==== 11-16 추가: 재료 칸만 조립 (REDUCE=1, label3 기본) ============================================================
+# 학습 데이터는 0/1 형상이므로 빈 칸(EMIN)을 빼고 재료 칸 + 고정 부품만 조립 → 행렬이 작아져 분해가 빨라짐.
+# 클램프(고정 절점)와 이어지지 않은 조각은 계산에서 뺌(무게에는 포함). 폰 붙는 절점이 끊겨 있으면 None → 원래 방식.
+from scipy.sparse.csgraph import connected_components
+_FULL=None
+def reduced_on(r):
+    global active,free,iK,jK,_FULL
+    if _FULL is None: _FULL=(active,free,iK,jK)
+    act=solid|(design&(r>0.5))
+    ae=np.where(act)[0]; nodes=en[ae]
+    G=sp.coo_matrix((np.ones(nodes.size),(np.repeat(np.arange(len(ae)),8),nodes.ravel())),shape=(len(ae),nn)).tocsr()
+    B=sp.bmat([[None,G],[G.T,None]]).tocsr(); _,lab=connected_components(B,directed=False); ln=lab[len(ae):]
+    keep=np.unique(ln[fixn]); nk=np.isin(ln,keep)
+    if not nk[topn].all(): return False
+    act2=np.zeros(len(ei),bool); act2[ae[nk[nodes[:,0]]]]=True
+    u2=np.zeros(nn,bool); u2[en[act2].ravel()]=True
+    active=act2; free=np.setdiff1d(np.where(np.repeat(u2,3))[0],fd)
+    ea_=edof[act2].astype(np.int32); iK=np.repeat(ea_,24,1).ravel(); jK=np.tile(ea_,(1,24)).ravel(); return True
+def reduced_off():
+    global active,free,iK,jK
+    if _FULL is not None: active,free,iK,jK=_FULL
+def label_any(r):
+    """REDUCE=1(기본): 재료 칸만 조립해 label_full, 안 되면 원래 방식"""
+    if env('REDUCE','1')=='1' and reduced_on(r):
+        try: return label_full(r)
+        finally: reduced_off()
+    return label_full(r)
+if MODE=='bench':   # 원래 방식 vs 재료 칸만: 같은 생성기 형상 N개로 시간 · 값 비교
+    import gen_frame; rng=np.random.default_rng(int(env('SEED','2001'))); GM=dict(xc=xc,yc=yc,zc=zc,design=design,solid=solid,plate=plate,nx=nx,ny=ny,nz=nz)
+    GRIPN=2 if GRIP2 else (1 if GRIP else 0); n=0
+    while n<int(env('NS','3')):
+        occ,prm=gen_frame.sample(rng,GM,GRIPN,None)
+        if occ is None or occ.sum()<30: continue
+        r=np.where(design,occ.astype(float),fixval); n+=1; res={}
+        for nm in ('full','reduced'):
+            t1=time.time()
+            if nm=='reduced':
+                ok=reduced_on(r)
+                if not ok: print('reduced 불가(끊김)'); continue
+            try: b,x_,_=label_full(r)
+            finally: reduced_off()
+            res[nm]=(time.time()-t1,b,x_)
+        if len(res)<2: continue
+        (ta,ba,xa),(tb,bb,xb)=res['full'],res['reduced']
+        d={k:round(100*(bb[k]-ba[k])/(abs(ba[k])+1e-12),2) for k in ba}; d.update({k:round(100*(xb[k]-xa[k])/(abs(xa[k])+1e-12),2) for k in ('band_vert','band_fore','interlayer999_vert_mpa')})
+        print(json.dumps(dict(material=int(occ[design].sum()),dof_full=int(len(_FULL[1])) if _FULL else None,t_full=round(ta,1),t_red=round(tb,1),f1=round(ba['f1'],2),diff_pct=d)),flush=True)
+    sys.exit()
 if MODE=='label3':  # 구조 + 열 정답 (프레임 생성기 또는 SRC). lab = label2 와 같은 7열(ai/ 코드 그대로 사용) + lab_ext 11열
     import gen_frame; rng=np.random.default_rng(int(env('SEED','0'))); t0=time.time(); src=None; SR=env('SRC')
     if SR:
@@ -224,7 +271,7 @@ if MODE=='label3':  # 구조 + 열 정답 (프레임 생성기 또는 SRC). lab 
             if occ is None: continue
         if occ.sum()<30: continue
         r=np.where(design,occ.astype(float),fixval); t1=time.time()
-        try: base,ext,vm_el=label_full(r); T=thermal_T(r)
+        try: base,ext,vm_el=label_any(r); T=thermal_T(r)
         except Exception as e: print('fail',nm,e,flush=True); continue
         L.append([massg(r),base['f1'],base['f2'],float(T[phn].max()),base['touch_top'],base['touch_bot'],base['vm_vert']])
         X.append([ext[k] for k in EXT_NAMES]); O.append(np.packbits(occ[didx]))
