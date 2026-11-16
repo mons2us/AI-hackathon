@@ -389,6 +389,79 @@ def evaluate(rho, tag="p01", use_cache=True, timeout=1800):
     return res
 
 
+FIELDS_DB = os.path.join(DB, "integral_fields.npz")
+FIELD_KEYS = ("trms", "vm", "T", "mode1")
+
+
+def fields(rho, tag="p01", use_cache=True, timeout=1800):
+    """팀 엔진 MODE=field: 절점 분포 — trms(10–100 Hz 노면 진동 동안 핸들바 대비 흔들림 배율 RMS), vm(48.5 g 위아래 충격
+    von Mises, MPa), T(판 · 폰 온도 상승 °C), mode1(1차 모드 진폭, 0–1). 발표 8쪽 그림과 같은 계산. 형상 해시로 캐시."""
+    key = _sha(rho)
+    db = dict(np.load(FIELDS_DB)) if os.path.exists(FIELDS_DB) else {}
+    if use_cache and f"{key}_trms" in db:
+        out = {k: db[f"{key}_{k}"].astype(np.float32) for k in FIELD_KEYS}
+        out["f1"] = float(db[f"{key}_f1"])
+        return out
+    with tempfile.TemporaryDirectory() as td:
+        rp = os.path.join(td, "rho.npy")
+        np.save(rp, np.asarray(rho, float).ravel())
+        env = dict(os.environ, GRIP="2", NX="88", MSYS="0.311", TILT="35", MODE="field", RHO=rp, TAG=tag, FF="30.5", PYTHONUTF8="1")
+        p = subprocess.run([sys.executable, ENGINE], cwd=td, env=env, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=timeout)
+        if p.returncode:
+            raise RuntimeError("엔진 실패: " + (p.stderr or p.stdout)[-1500:])
+        d = np.load(os.path.join(td, f"field_{tag}.npz"))
+        out = {k: np.asarray(d[k], np.float32) for k in FIELD_KEYS}
+        out["f1"] = float(d["f1"])
+    db = dict(np.load(FIELDS_DB)) if os.path.exists(FIELDS_DB) else {}
+    for k in FIELD_KEYS:
+        db[f"{key}_{k}"] = out[k].astype(np.float16)
+    db[f"{key}_f1"] = np.float32(out["f1"])
+    np.savez_compressed(FIELDS_DB, **db)
+    return out
+
+
+def node_valid(rho_full):
+    """절점이 재료 요소에 닿아 있는지 (분포 값을 믿을 수 있는 절점)."""
+    r = np.asarray(rho_full).reshape(NZ, NY, NX) > 0.5
+    v = np.zeros((NZ + 1, NY + 1, NX + 1), bool)
+    for dk in (0, 1):
+        for dj in (0, 1):
+            for di in (0, 1):
+                v[dk:dk + NZ, dj:dj + NY, di:di + NX] |= r
+    return v.ravel()
+
+
+HEAT_SCALE = {   # 같은 색 척도 (발표 8쪽처럼 두 설계를 같은 척도로) — hi 이상은 빨강
+    "shake": dict(name="흔들림 (노면 10–100 Hz, 핸들바 대비)", unit="배", lo=1.0, hi=3.5, src="trms"),
+    "stress": dict(name="충격 응력 (48.5 g 위아래, von Mises)", unit="MPa", lo=0.0, hi=15.0, src="vm"),
+    "temp": dict(name="온도 상승 (폰 발열 4 W, 주행 중)", unit="°C", lo=0.0, hi=33.0, src="T"),
+    "mode1": dict(name="1차 진동 모드 모양", unit="", lo=0.0, hi=1.0, src="mode1"),
+}
+
+
+def heat_payload(world_pts, rho_full, F):
+    """세계 좌표 메쉬 정점마다 분포 값 (폰 판 좌표로 되돌려 절점 값 보간, y 대칭)."""
+    from .heat import pack, sample_nodes
+    t = math.radians(TILT)
+    P = np.asarray(world_pts, float)
+    loc = np.c_[P[:, 0] * math.cos(t) + P[:, 2] * math.sin(t), np.abs(P[:, 1]), -P[:, 0] * math.sin(t) + P[:, 2] * math.cos(t)]
+    valid = node_valid(rho_full)
+    out = {}
+    for k, sc in HEAT_SCALE.items():
+        vals = F[sc["src"]]
+        ok = valid & (vals > 0) if k in ("stress", "temp") else valid
+        if k == "temp":
+            ok = ok & (vals > 0.05)
+        v = sample_nodes(loc, vals, ok, ORIGIN, H, (NX, NY, NZ))
+        body_max = float(np.nanmax(v)) if np.isfinite(v).any() else 0.0
+        out[k] = dict(pack(v, sc["lo"], sc["hi"]), name=sc["name"], unit=sc["unit"], max=round(body_max, 2))
+    out["shake"]["note"] = "각 점의 흔들림 크기를 노면 10–100 Hz 동안 평균(RMS)한 값. 판정값(폰 무게중심 최대)과 다름"
+    out["mode1"]["note"] = f"1차 고유진동 {F['f1']:.1f} Hz 의 모양 (가장 많이 움직이는 곳 = 1)"
+    out["temp"]["note"] = "판 · 폰 영역만 계산 (나머지 회색)"
+    return out
+
+
 def judge(res, tg=None):
     """판정 (팀 agent/pipeline.py gate 와 같은 항목) + 흔들림 참고 기준."""
     tg = tg or targets()
@@ -527,6 +600,44 @@ def print_body(rho_full):
     W = T.copy()
     W.apply_transform(trimesh.transformations.rotation_matrix(-t, [0, 1, 0]))
     return W, T
+
+
+def grid_mesh(rho_full, iso=0.45, sig=0.6):
+    """격자 형상 → 표면 (팀 engine/mkint.py 와 같은 방법, 발표 10쪽 그림) — 세계 좌표 trimesh."""
+    import trimesh
+    from scipy import ndimage
+    from skimage import measure
+    r = np.asarray(rho_full, float).reshape(NZ, NY, NX)
+    full = np.concatenate([r[:, ::-1], r], 1)
+    v = ndimage.gaussian_filter(np.pad(full, 1), sig)
+    vs, f, _, _ = measure.marching_cubes(v, iso, spacing=(2, 2, 2))
+    z = vs[:, 0] - 2 - 36
+    y = vs[:, 1] - 2 - 40
+    x = vs[:, 2] - 2 - 24
+    t = math.radians(TILT)
+    m = trimesh.Trimesh(np.c_[x * math.cos(t) - z * math.sin(t), y, x * math.sin(t) + z * math.cos(t)], f)
+    if m.volume < 0:
+        m.invert()
+    return m
+
+
+def view_payload(world_mesh, rho_full, F):
+    """3D 보기용: 메쉬(스템 옆 자리) + 분포 색."""
+    from .templates.bike_mount import Y_SYM
+    pts = world_mesh.vertices[world_mesh.faces].reshape(-1, 3)
+    heat = heat_payload(pts, rho_full, F)
+    pos = pts.astype(np.float32).copy()
+    pos[:, 1] += Y_SYM
+    return dict(mesh=dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(world_mesh.faces))), heat=heat)
+
+
+def shape_view(sid):
+    """비교 형상 하나: 격자 표면 + 분포 (GUI 에서 10쪽 비교표 행을 누를 때)."""
+    full = full_density(shape(sid))
+    out = view_payload(grid_mesh(full), full, fields(full, tag=sid))
+    res = evaluate(full, tag=sid)
+    out.update(id=sid, name=next(n for k, n, *_ in SHAPES if k == sid), f1=res["f"][0], judge=judge(res))
+    return out
 
 
 def phone_world(W=76.0, L=160.0, T=8.0):
@@ -821,10 +932,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
                 z.write(os.path.join(out, n), n)
     if with_mesh:
         from .templates.bike_mount import Y_SYM                        # 스템 옆 (다른 템플릿과 같은 자리)
-        mm = pw_world.copy()
-        mm.vertices[:, 1] += Y_SYM
-        pos = mm.vertices[mm.faces].reshape(-1, 3).astype(np.float32)
-        rep["mesh"] = dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(mm.faces)))
+        rep.update(view_payload(pw_world, full, fields(full, tag="p01_base")))
         pw = phone_world()
         c = [pw["center"][0], Y_SYM, pw["center"][2]]
         rep["phone"] = dict(H=pw["H"], W=pw["W"], D=pw["D"], cog=[c[0], c[2]], clamp_t=0, pose=dict(center=c, tilt_deg=TILT))

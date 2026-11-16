@@ -84,6 +84,13 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/templates":
             return self._send(200, [dict(id=t["id"], name=t["name"], desc=t["desc"],
                                          thumb=f"/examples/templates/{t['id']}.png") for t in TEMPLATES])
+        if p == "/api/p01_shape":                     # 발표 10쪽 비교 형상 하나 (표면 + 분포)
+            from urllib.parse import parse_qs
+            from formproof_input import integral
+            sid = parse_qs(urlparse(self.path).query).get("id", ["base"])[0]
+            if sid not in [s[0] for s in integral.SHAPES]:
+                return self._send(404, {"error": "unknown shape"})
+            return self._send(200, integral.shape_view(sid))
         if p == "/api/examples":
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")

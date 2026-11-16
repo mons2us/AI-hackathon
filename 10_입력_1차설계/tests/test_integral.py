@@ -160,8 +160,32 @@ def test_pipeline_outputs():
     return f"출력 몸체 {rep['cad']['mass_g']} g · STEP {rep['cad']['step_mass_g']} g · 판정 미달(처음 설계)"
 
 
+def test_heat_maps():
+    """3D 분포: 처음 설계 판 끝 흔들림 ≈ 3.4배 · 출력 몸체 ≤ 1.2배 (발표 8쪽), 온도 최대 = 판정값, 메쉬 정점마다 값."""
+    import base64
+    base = I.full_density(I.base_design())
+    F = I.fields(base, tag="base")
+    v = I.node_valid(base)
+    assert 3.3 < float(F["trms"][v].max()) < 3.6 and abs(float(F["T"].max()) - 32.57) < 0.05
+    Fb = I.fields(I.full_density(I.shape("formproof_body")), tag="formproof_body")
+    assert float(Fb["trms"][I.node_valid(I.full_density(I.shape("formproof_body")))].max()) < 1.2
+    d = I.shape_view("llm_C")
+    n = len(base64.b64decode(d["mesh"]["pos"])) // 12
+    for k in ("stress", "shake", "temp", "mode1"):
+        q = np.frombuffer(base64.b64decode(d["heat"][k]["q"]), np.uint8)
+        assert len(q) == n, k
+    assert d["heat"]["shake"]["max"] > 5                 # C: 위쪽 레일 공진 6.6배 (판정은 무게중심, 분포는 RMS)
+    from formproof_input import pipeline
+    with tempfile.TemporaryDirectory() as td:
+        rep = pipeline.design("자갈길에서도 폰이 안 흔들리게", template="T01", out=td, with_mesh=True)
+        assert {"stress", "shake", "disp"} <= set(rep["heat"]) and "_pts" not in rep["mesh"]
+        q = np.frombuffer(base64.b64decode(rep["heat"]["stress"]["q"]), np.uint8)
+        assert len(q) == len(base64.b64decode(rep["mesh"]["pos"])) // 12 and (q < 255).mean() > 0.8
+    return f"처음 설계 흔들림 {F['trms'][v].max():.2f}배 · 출력 몸체 {Fb['trms'].max():.2f}배 · LLM C {d['heat']['shake']['max']}배"
+
+
 if __name__ == "__main__":
     for fn in (test_grid_same_as_team, test_first_design_is_presentation_base, test_conditions_same_as_team_spec,
                test_comparison_shapes_same_as_team, test_numbers_same_as_presentation, test_routing, test_pipeline_outputs,
-               test_engine_reruns_same):
+               test_heat_maps, test_engine_reruns_same):
         print(fn.__name__, fn())

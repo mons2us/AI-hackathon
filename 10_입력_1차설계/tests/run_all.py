@@ -35,6 +35,7 @@ CHECKS = [
     ("P01: 수치 · 판정 = 발표 7·10·22쪽", test_integral.test_numbers_same_as_presentation),
     ("P01: 발표 문장 · 스케치 → P01", test_integral.test_routing),
     ("P01: 파이프라인 출력 파일", test_integral.test_pipeline_outputs),
+    ("3D 분포(응력·흔들림·온도) = 발표 8쪽 · 메쉬 정점마다", test_integral.test_heat_maps),
 ]
 
 if __name__ == "__main__":

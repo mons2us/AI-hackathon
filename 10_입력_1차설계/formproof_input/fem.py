@@ -90,7 +90,8 @@ def evaluate(P, dens, n_modes=2, fields=False):
         freqs += [float(np.sqrt(abs(x)) / 2 / np.pi) for x in w]
         case_dirs = [d for d in dirs if P.sym_axis is None or P.sym_case(_unit(d)) == case]
         if case_dirs and P.rigid_payloads:
-            frf.update(_transmissibility(P, case, fr, Mf, w, V, case_dirs, modal))
+            frf.update(_transmissibility(P, case, fr, Mf, w, V, case_dirs, modal,
+                                         node_out=out.setdefault("fields", {}) if fields else None))
     out["freqs_hz"] = sorted(round(f, 1) for f in freqs)
     out["f1_hz"] = out["freqs_hz"][0]
     if frf:
@@ -129,7 +130,7 @@ def _unit(d):
     return v
 
 
-def _transmissibility(P, case, fr, Mf, w, V, dirs, modal):
+def _transmissibility(P, case, fr, Mf, w, V, dirs, modal, node_out=None):
     """Base-excitation transmissibility of the payload CG (team v3 verify_sys.frf): handlebar moves sinusoidally in
     direction d, |H| = phone-CG motion / handlebar motion, modal superposition with damping ratio zeta.
     Half model: the product (CG motion per mode) x (participation) is the same as in the full model."""
@@ -156,6 +157,15 @@ def _transmissibility(P, case, fr, Mf, w, V, dirs, modal):
                        (wn[None, :] ** 2 - om[:, None] ** 2 + 2j * zeta * wn[None, :] * om[:, None]), axis=1)
         T = np.abs(H)
         band = (f >= lo) & (f <= hi)
+        if node_out is not None and f"shake_{d}" not in node_out:
+            # heat map: every node's motion / handlebar motion, RMS over the road band (same modal superposition)
+            acc = np.zeros(P.nn)
+            for o in om[band]:
+                c = gam * o ** 2 / (wn ** 2 - o ** 2 + 2j * zeta * wn * o)
+                U = (full @ c).reshape(-1, 3)
+                U[:, ax] += 1.0
+                acc += (np.abs(U) ** 2).sum(1)
+            node_out[f"shake_{d}"] = np.sqrt(acc / max(int(band.sum()), 1))
         out[d] = dict(freq=f.tolist(), T=np.round(T, 4).tolist(), Tmax_band=round(float(T[band].max()), 3),
                       Tmax_all=round(float(T.max()), 3), f_peak=float(f[np.argmax(T)]), zeta=zeta,
                       modal_gain=np.round(cg * gam, 6).tolist(), f_modes=np.round(wn / 2 / np.pi, 3).tolist())

@@ -70,6 +70,15 @@ select.btn{padding-right:8px}
 .view .vt{position:absolute;right:10px;top:10px;display:flex;gap:6px}
 .view .vt button{border:1px solid var(--line);background:rgba(255,255,255,.92);border-radius:8px;padding:4px 9px;font-size:12px}
 .view .vt button.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+table.cmp tr[data-id]:hover td{background:var(--blue-s,#eef3ff)}
+table.cmp tr.sel td{background:#e8f0ff}
+.view .hm{position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;max-width:min(360px,70%)}
+.view .hm .seg{display:flex;flex-wrap:wrap;gap:4px}
+.view .hm .seg button{white-space:nowrap;border:1px solid var(--line);background:rgba(255,255,255,.94);border-radius:8px;padding:3px 9px;font-size:12px}
+.view .hm .seg button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.view .hm .leg{background:rgba(255,255,255,.94);border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--ink2)}
+.view .hm .leg .bar{height:9px;border-radius:4px;margin:4px 0 2px;background:linear-gradient(90deg,#30123b,#4662d7,#36aaf9,#1ae4b6,#72fe5e,#c8ef34,#faba39,#f66b19,#ca2a04,#7a0403)}
+.view .hm .leg .ends{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
 .pane{display:none;height:100%}.pane.on{display:block}
 .pane img{width:100%;height:100%;object-fit:contain;background:#fff}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink3);font-size:13.5px;pointer-events:none}
@@ -169,7 +178,8 @@ footer{text-align:center;color:var(--ink3);font-size:12px;padding:6px 0 20px}
         <div class="view" id="view">
           <div class="pane on" id="p3d"><div id="three" style="width:100%;height:100%"></div>
             <span class="ovl" id="ovl3d">자전거 핸들 위 1차 설계 · 드래그로 회전</span>
-            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button></div></div>
+            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button></div>
+            <div class="hm" id="hm" hidden><div class="seg" id="hmSeg"></div><div class="leg" id="hmLeg" hidden></div></div></div>
           <div class="pane" id="pside"><img id="imgSide" alt=""></div>
           <div class="pane" id="pdraw"><img id="imgDraw" alt=""></div>
           <div class="empty" id="empty">왼쪽에서 입력하고 <b>&nbsp;1차 설계 만들기</b>를 누르세요</div>
@@ -310,13 +320,57 @@ function view(kind){
   else{cam.fov=25;cam.position.set(1500,2600,700);ctl.target.set(-380,0,-420);}
   cam.updateProjectionMatrix();ctl.update();$('#vClose').classList.toggle('on',close);V3.kind=kind;
 }
+// ---------- heat maps (turbo colour map; 255 = no data -> grey)
+const TURBO=[[48,18,59],[70,98,215],[54,170,249],[26,228,182],[114,254,94],[200,239,52],[250,186,57],[246,107,25],[202,42,4],[122,4,3]];
+function turbo(t){t=Math.min(Math.max(t,0),1)*(TURBO.length-1);const i=Math.min(Math.floor(t),TURBO.length-2),f=t-i,a=TURBO[i],b=TURBO[i+1];
+  return [0,1,2].map(k=>(a[k]+(b[k]-a[k])*f)/255);}
+const HM_ORDER=[['geom','형상'],['stress','응력'],['shake','흔들림'],['temp','온도'],['mode1','1차 모드'],['disp','변위']];
+function setupHeat(rep,keep){
+  V3.heat=rep.heat||null; const keys=V3.heat?HM_ORDER.filter(([k])=>k==='geom'||V3.heat[k]):[];
+  $('#hm').hidden=!keys.length;
+  $('#hmSeg').innerHTML=keys.map(([k,n])=>`<button data-k="${k}">${n}</button>`).join('');
+  $$('#hmSeg button').forEach(b=>b.onclick=()=>applyHeat(b.dataset.k));
+  applyHeat(keep&&V3.heat&&V3.heat[keep]?keep:'geom');
+}
+function applyHeat(k){
+  const m=V3.mount;if(!m)return;
+  $$('#hmSeg button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+  const phoneOn=$('#vPhone').classList.contains('on');
+  if(V3.holder)V3.holder.visible=phoneOn&&(k==='geom'||k==='shake');      // 폰이 판을 가리지 않게
+  if(k==='geom'||!V3.heat||!V3.heat[k]){m.material=V3.baseMat;$('#hmLeg').hidden=true;return;}
+  const h=V3.heat[k],b=atob(h.q),n=m.geometry.attributes.position.count,col=new Float32Array(n*3);
+  for(let i=0;i<n;i++){const q=i<b.length?b.charCodeAt(i):255;const c=q===255?[0.72,0.74,0.76]:turbo(q/254);
+    const lin=c.map(x=>Math.pow(x,2.2));col[3*i]=lin[0];col[3*i+1]=lin[1];col[3*i+2]=lin[2];}
+  m.geometry.setAttribute('color',new THREE.BufferAttribute(col,3));
+  if(!V3.heatMat)V3.heatMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.0});
+  m.material=V3.heatMat;m.material.needsUpdate=true;
+  const u=h.unit?' '+h.unit:'';
+  $('#hmLeg').hidden=false;
+  $('#hmLeg').innerHTML=`<b>${h.name}</b><div class="bar"></div><div class="ends"><span>${h.lo}${u}</span><span>${h.hi}${u} 이상</span></div>
+    <div>이 설계 최대 <b>${h.max}${u}</b>${h.note?' · '+h.note:''}</div>`;
+}
+function setMountMesh(mesh){
+  const {scene,M}=V3;
+  if(V3.mount){scene.remove(V3.mount);V3.mount.geometry.dispose();}
+  const b=atob(mesh.pos),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();
+  V3.baseMat=V3.baseMat||M(0x2aa3a6,0.45,0.05);V3.mount=new THREE.Mesh(g,V3.baseMat);V3.mount.castShadow=V3.mount.receiveShadow=true;scene.add(V3.mount);
+}
+async function showP01Shape(id, btn){
+  $$('#cands tr.sel').forEach(r=>r.classList.remove('sel'));
+  const cur=($$('#hmSeg button.on')[0]||{}).dataset?.k||'geom';
+  if(id==='first'){setMountMesh(S.rep.mesh);V3.heat=S.rep.heat;setupHeat(S.rep,cur);$('#ovl3d').textContent='1차 설계 (출력 몸체) · 드래그로 회전';return;}
+  if(btn)btn.classList.add('sel');
+  $('#ovl3d').textContent='불러오는 중…';
+  try{const r=await fetch('/api/p01_shape?id='+id);const d=await r.json();if(!r.ok)throw new Error(d.error);
+    setMountMesh(d.mesh);setupHeat(d,cur);$('#ovl3d').textContent=`${d.name} (격자 형상, 발표 10쪽과 같은 표면) · ${d.f1} Hz`;}
+  catch(e){toast(e.message);}
+}
 function showMount(rep){
   const {scene,M,V}=V3;
-  if(V3.mount){scene.remove(V3.mount);V3.mount.geometry.dispose();}
+  setMountMesh(rep.mesh);
+  $('#ovl3d').textContent=rep.kind==='integral'?'1차 설계 (출력 몸체) · 드래그로 회전':'자전거 핸들 위 1차 설계 · 드래그로 회전';
   if(V3.holder){scene.remove(V3.holder);}
-  const b=atob(rep.mesh.pos),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();
-  V3.mount=new THREE.Mesh(g,M(0x2aa3a6,0.45,0.05));V3.mount.castShadow=V3.mount.receiveShadow=true;scene.add(V3.mount);
   // phone + commercial clamp stand-in at the spec's phone centre of gravity
   const ph=rep.phone, ys=rep.geometry.y_sym, padTop=rep.geometry.pad.z[1], e=ph.clamp_t+ph.D/2, jz=ph.cog[1]-e;
   const hold=new THREE.Group();scene.add(hold);V3.holder=hold;
@@ -326,6 +380,7 @@ function showMount(rep){
   const body=new THREE.Mesh(new THREE.BoxGeometry(ph.H,ph.W-0.6,ph.D),M(0x2b2f36,0.35,0.6));body.castShadow=true;pg.add(body);
   const scr=new THREE.Mesh(new THREE.PlaneGeometry(ph.H-10,ph.W-8),new THREE.MeshStandardMaterial({color:0x0b2540,emissive:0x05182b,emissiveIntensity:0.4,roughness:0.2}));scr.position.z=ph.D/2+0.1;pg.add(scr);
   hold.visible=$('#vPhone').classList.contains('on');
+  setupHeat(rep);
   view('close');
 }
 $('#vBike').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);V3.bike.visible=on;V3.ground.visible=on;};
@@ -406,10 +461,12 @@ function renderIntegral(rep, req){
   $('#flow').innerHTML=[`입력: ${t.chosen_by}`,`설계 명세 (출처 표시)`,`격자 ${rep.problem.grid.join('×')} · 설계 ${rep.problem.elements.design.toLocaleString()} 요소`,
     `팀 엔진 판정`,`출력 몸체 STL ${rep.cad.mass_g} g`].map(x=>`<span class="ok">✓ ${x}</span>`).join('');
   const cmp=rep.compare||[];
-  $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">발표 10쪽과 같은 조건 · 같은 엔진으로 판정한 비교 형상 (처음 설계 = 이 1차 설계)</div>
-    <table class="vars" style="grid-column:1/-1"><tr><td><b>형상</b></td><td>무게 g</td><td>1차 Hz</td><td>최대 흔들림</td><td>폰 온도 °C</td><td>판정</td></tr>`+
-    cmp.map(r=>`<tr><td>${r.name}<br><small style="color:var(--ink3)">${r.slide}</small></td><td>${r.mass_g}</td><td>${r.f1}</td><td>${r.shake}배 (${r.shake_dir})</td><td>+${r.Tmax}</td>
+  $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">발표 10쪽과 같은 조건 · 같은 엔진으로 판정한 비교 형상 (처음 설계 = 이 1차 설계). 행을 누르면 3D에 그 형상과 응력 · 흔들림 · 온도 분포가 나옵니다. <button class="chip" id="backFirst">1차 설계 (출력 몸체)로</button></div>
+    <table class="vars cmp" style="grid-column:1/-1"><tr><td><b>형상</b></td><td>무게 g</td><td>1차 Hz</td><td>최대 흔들림</td><td>폰 온도 °C</td><td>판정</td></tr>`+
+    cmp.map(r=>`<tr data-id="${r.id}" style="cursor:pointer"><td>${r.name}<br><small style="color:var(--ink3)">${r.slide}</small></td><td>${r.mass_g}</td><td>${r.f1}</td><td>${r.shake}배 (${r.shake_dir})</td><td>+${r.Tmax}</td>
       <td style="color:${r.pass_?'var(--green)':'var(--red)'}">${r.pass_?'통과':'불합격 — '+r.fails.join(', ')}</td></tr>`).join('')+'</table>';
+  $$('#cands tr[data-id]').forEach(tr=>tr.onclick=()=>showP01Shape(tr.dataset.id,tr));
+  $('#backFirst').onclick=()=>showP01Shape('first');
   showMount(rep);
   $('#imgSide').src=rep.files['side_view.png'];$('#imgDraw').src=rep.files['design_1st_drawing.png'];
   $('#kMass').textContent=`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;

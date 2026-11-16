@@ -83,7 +83,46 @@ def mesh_payload(body, tol=0.05):
     v = np.array([[p.x, p.y, p.z] for p in verts], np.float32)
     t = np.array(tris, np.int64)
     pos = v[t].reshape(-1, 3).astype(np.float32)
-    return dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(t)))
+    return dict(pos=base64.b64encode(pos.tobytes()).decode(), triangles=int(len(t)), _pts=pos)
+
+
+def bike_heat(P, spec, fields, pts):
+    """Heat maps on the CAD mesh: shock von Mises (max of the shock cases), road-band shaking per node, static
+    shock displacement. Node values from the analysis grid, mirrored about the symmetry plane."""
+    from .heat import nodal_from_elements, pack, sample_nodes
+    pts = np.asarray(pts, float).copy()
+    if P.sym_axis is not None:
+        ax, o = P.sym_axis, P.origin[P.sym_axis]
+        pts[:, ax] = o + np.abs(pts[:, ax] - o)
+    shocks = [v for k, v in fields.items() if isinstance(v, dict) and "vm" in v]
+    out = {}
+    if shocks:
+        on = shocks[0]["on"] & ~P.rigid
+        vm = np.max([c["vm"] for c in shocks], axis=0)
+        nv, ok = nodal_from_elements(vm, P.enodes, P.nn, on)
+        lim = next((c["value"] for c in spec["constraints"] if c["quantity"] == "von_mises_max_mpa"), 26.0)
+        v = sample_nodes(pts, nv, ok, P.origin, P.h, P.shape)
+        out["stress"] = dict(pack(v, 0.0, float(lim)), name="충격 응력 (위아래·옆 충격 중 큰 값, von Mises)", unit="MPa",
+                             max=round(float(np.nanmax(v)), 2) if np.isfinite(v).any() else 0.0,
+                             note=f"빨강 = 기준 {lim} MPa 이상. 받침·관절(강체로 본 곳)은 회색")
+        disp = np.max([c["disp"] for c in shocks], axis=0)
+        nd, ok2 = nodal_from_elements(disp, P.enodes, P.nn, on)
+        v = sample_nodes(pts, nd, ok2, P.origin, P.h, P.shape)
+        hi = float(np.nanpercentile(v, 99)) if np.isfinite(v).any() else 1.0
+        out["disp"] = dict(pack(v, 0.0, max(hi, 1e-3)), name="충격 변위 (위아래·옆 충격 중 큰 값)", unit="mm",
+                           max=round(float(np.nanmax(v)), 3) if np.isfinite(v).any() else 0.0, note="자동 척도")
+    sk = fields.get("shake_z")
+    if sk is None:
+        sk = next((v for k, v in fields.items() if k.startswith("shake_")), None)
+    if sk is not None:
+        used = np.zeros(P.nn, bool)
+        used[P.enodes[shocks[0]["on"] if shocks else P.active].ravel()] = True
+        v = sample_nodes(pts, sk, used, P.origin, P.h, P.shape)
+        band = next(c["excitation_hz"] for c in spec["load_cases"] if c["type"] == "modal")
+        out["shake"] = dict(pack(v, 1.0, 3.5), name=f"흔들림 (노면 {band[0]}–{band[1]} Hz 위아래, 핸들바 대비)", unit="배",
+                            max=round(float(np.nanmax(v)), 2) if np.isfinite(v).any() else 0.0,
+                            note="각 점의 흔들림 크기를 노면 대역 동안 평균(RMS)한 값. 판정값(폰 무게중심 최대)과 다름")
+    return out
 
 
 def payload_summary(spec, cad_info=None):
@@ -145,7 +184,8 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
     P = Problem(spec)
     dens = P.initial_density()
-    check = evaluate(P, dens)
+    check = evaluate(P, dens, fields=with_mesh)
+    fields = check.pop("fields", None)
     rep["first_design_check"] = check
     rep["handoff_requirements"] = requirements.handoff_summary(spec, P)
     rep["problem"] = P.summary()
@@ -197,6 +237,9 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
             z.write(os.path.join(out, name), name)
     if with_mesh:
         rep["mesh"] = mesh_payload(body)
+        if fields:
+            rep["heat"] = bike_heat(P, spec, fields, rep["mesh"].pop("_pts"))
+        rep["mesh"].pop("_pts", None)
         rep["phone"] = dict(g["phone"], **({"pose": dict(center=g["look"]["phone_center"], tilt_deg=g["look"]["tilt_deg"])}
                                             if g.get("look") else {}))
         rep["geometry"] = dict(y_sym=g["y_sym"], pad=g["pad"], bar_d=g["bar_d"], ring_ro=g["ring_ro"])
