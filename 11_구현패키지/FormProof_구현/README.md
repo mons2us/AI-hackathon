@@ -16,7 +16,7 @@ RUN_SLOW=1 pytest -q tests                 # 기준 결과와 숫자 비교 (FEM
 |---|---|---|
 | `spec/` | 설계 명세 형식(schema), 거치대 명세 예시, 판정 기준(targets), 근거 DB | ① |
 | `agent/` | LLM 교체 인터페이스, 조건 생성기, 단계 실행기(검증 실패 시 재설계 루프) | 에이전트 · ① |
-| `engine/` | `opt_int.py` 위상 최적화 · FEM(진동 · 충격 · 터치) · 열, 학습 데이터 생성, 평가. `gen_int.py` 형상 생성기 | ② · ③ |
+| `engine/` | `opt_int.py` 위상 최적화 · FEM(진동 · 충격 · 터치) · 열, 학습 데이터 생성, 평가. `gen_int.py` 형상 생성기. **`gen_frame.py` 프레임 형상 생성기(계열 7 × 연속 변수, 11-16 추가)** | ② · ③ |
 | `ai/` | `deepsdf.py` 형상 AI, `surrogate.py` 물리 AI(CNN · FNO), `latent_search.py` 잠재 공간 역설계 (PyTorch, GPU). `reference_jax/` 해커톤 원본(분리형) | ② |
 | `cad/` | 고정 부품(`parts.py`), 최적화 형상 + 부품 결합 → 출력 STL(`build_body.py`), STL → 계산 격자(`vox.py`) | CAD 결합 |
 | `drawing/` | 부품도 · 조립도 | 제작 파일 |
@@ -57,3 +57,12 @@ python3 agent/pipeline.py --spec spec/bike_mount_targets.json --run runs/r1     
 - 층간 강도 한계 10.9 MPa, 폰 발열 4 W, 감쇠비 3 %, 터치 5 N 은 가정값 — 근거 DB 에 출처 확정 필요.
 - `pypardiso` 는 x86_64 전용. 다른 CPU 는 `scipy.sparse.linalg.splu` 로 교체.
 - 학습 코드의 성능(오차 · IoU)은 GPU 학습으로 확인해야 한다. 이 패키지에서는 CPU 소규모로 끝까지 도는 것만 확인했다.
+
+## 7. 프레임 형상 생성기 `engine/gen_frame.py` (11-16 추가, sosopapa)
+- 목적: 형상 생성기 → FEM 종류별 정답 → 물리 AI(PINO) → 최적 설계, 이어서 형상 AI(DeepSDF 등)와 비교. 형상이 덩어리가 아니라 **제품 같은 프레임**이 되도록 규칙 + 연속 변수로 만듦
+- 계열 7: 곧은 팔 · 트러스 · V자 · 아치(구스넥) · 척추 · Y자 · 판형. 단면 4: 사각 · 둥근 관 · 양옆 벽(ㄷ자) · I자. 두께 t 5–12 mm, 반폭 w 5–14 mm, 보조 부재 배율, 보강 웹 0–2
+- 폰 잡는 방식 `GRIP` 0/1/2 마다 몸체가 이을 곳(판 가운데 · 아래 끝 · 위 끝)을 바꿈. 유효성: 링과 세 곳이 한 덩어리
+- 변수 사전(`prm`)으로 같은 형상 재현 가능(`build`) → 변수 최적화 · 형상 AI 비교에 사용
+- 확인 (CPU 2코어): 98개 생성 2 s, 7계열 모두 유효. FEM(`MODE=label2`) 형상당 약 22 s. GRIP 2 계열별 1개: f1 12–97 Hz(트러스 97 Hz 만 ≥ 95), 터치 0.09–6.1 mm, 충격 응력 4–44 MPa
+- ⚠ **폰 온도는 7개 모두 20.654 °C 로 같음**: 열 해석 영역이 받침판 + 폰뿐이라 판 아래 몸체는 온도에 영향 없음. 열 학습을 하려면 생성기가 받침판 채움 패턴(구멍 · 리브 · 띠)도 바꿔야 함 — 다음 작업
+- 미리보기: `engine/gen_frame_preview.png` (계열 7 × 7개)
