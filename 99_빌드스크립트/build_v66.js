@@ -101,7 +101,7 @@ T(s, '대표 사례 — 자전거 폰 거치대 (말 + 스케치로 요청)', { 
   T(s, c[0], { x: c[3], y: PY + 1.55, w: 2.4, h: 0.2, fontSize: 9, bold: true, color: c[2], align: 'center' }); });
 s.addImage({ path: SH + 'v30_cb.png', x: 5.55, y: PY + 0.31, w: 0.62, h: 1.24, objectName: 'legend' });
 T(s, '두 설계 같은 척도', { x: 5.5, y: PY + 1.58, w: 0.95, h: 0.3, fontSize: 6.3, color: C.accent3 });
-const KP = [['폰 흔들림', '77% 감소', '울퉁불퉁한 길 · 5.6 → 1.3배'], ['충격 부담', '80% 감소', '내부 응력 14.7 → 2.9 MPa'], ['폰 온도', '12 °C 낮게', '내비 사용 시 32.6 → 20.8 °C'], ['떨림 증폭 (공진)', '없음', '진동수 30.5 → 171 Hz (길 진동 밖)'], ['범용 LLM 단독 3회', '3/3 불합격', '공진 2 · 온도 초과 1 · 11쪽']];
+const KP = [['폰 흔들림', '77% 감소', '울퉁불퉁한 길 · 5.6 → 1.3배'], ['충격 부담', '80% 감소', '내부 응력 14.7 → 2.9 MPa'], ['폰 온도', '12 °C 낮게', '내비 사용 시 32.6 → 20.8 °C'], ['떨림 증폭 (공진)', '없음', '고유 진동수 30.5 → 171 Hz'], ['범용 LLM 단독 3회', '3/3 불합격', '공진 2 · 온도 초과 1 · 11쪽']];
 KP.forEach((k, i) => { const x = 0.6 + i * 1.17, y = PY + 1.82, bad = i === 4;
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: 1.1, h: 0.66, rectRadius: 0.06, fill: { color: bad ? 'FBECEA' : 'FFFFFF' }, line: { color: bad ? X.red : X.teal, width: 1 }, objectName: 'kpi card' });
   T(s, k[0], { x: x + 0.07, y: y + 0.04, w: 1.0, h: 0.17, fontSize: 7, bold: true, color: bad ? C.accent5 : C.text2, valign: 'middle' });
