@@ -129,28 +129,43 @@ select.btn{width:100%;margin-top:8px}
 .files a{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 4px;color:var(--ink);text-decoration:none;font-size:12px;font-weight:600;white-space:nowrap}
 .files a:hover{border-color:var(--blue);color:var(--blue)}.files a.off{pointer-events:none;color:var(--ink3)}
 .muted{color:var(--ink3);font-size:13px}
-/* 필요 물리 조건 카드 (스케치 아래): 말 · 스케치 메모 한 토막 → 조건 + 근거. 형상보다 먼저 하나씩 나타남 */
-.specs{flex:1;min-height:0;overflow:auto;margin-top:10px;display:none}
-.specs.on{display:block}
-.specs .sh{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--ink);margin:0 0 6px}
-.specs .sh small{font-weight:500;color:var(--ink3);margin-left:auto}
-.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.sc{background:#f8f9fb;border:1px solid #eef0f4;border-radius:10px;padding:6px 8px;font-size:11.5px;line-height:1.35;min-width:0;
-  opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s}
-.sc.in{opacity:1;transform:none}
-.sc .q{display:flex;align-items:center;gap:4px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sc .q i{font-style:normal;font-size:10px;font-weight:700;border-radius:5px;padding:0 4px;flex:none}
-.sc .q i.t{background:var(--blue-s);color:var(--blue)}.sc .q i.s{background:#f1ebfb;color:#7146b8}.sc .q i.d{background:#eef0f4;color:var(--ink3)}
-.sc .q span{overflow:hidden;text-overflow:ellipsis}
-.sc .c{font-weight:700;color:var(--ink);margin-top:2px}
-.sc .c div{overflow-wrap:anywhere}
-.sc .b{display:flex;gap:4px;align-items:baseline;margin-top:2px;color:var(--ink3);font-size:10.5px}
-.sc .b em{font-style:normal;font-weight:700;border-radius:5px;padding:0 4px;flex:none}
-.sc .b em.k0{background:var(--green-s);color:var(--green)}.sc .b em.k1{background:#f1ebfb;color:#7146b8}.sc .b em.k2{background:var(--blue-s);color:var(--blue)}
-.sc .b em.k3{background:var(--amber-s);color:#b8601d}.sc .b em.k4{background:#fde8ea;color:var(--red)}
-.sc .b span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.has-cards .pad canvas{width:auto;height:min(26vh,300px);margin:0 auto}
-@media (max-height:820px){.has-cards .pad canvas{height:22vh}}
+/* 설계 사양 표 (스케치 아래): 한 줄 = 한 항목 · 한 수치. 수치는 고쳐 쓸 수 있고(🔒 = 계산 조건 고정), 확정해야 1차 설계 */
+.specw{flex:1;min-height:0;display:none;flex-direction:column;margin-top:10px;border:1px solid #e3e7ee;border-radius:10px;background:#fff;overflow:hidden}
+.specw.on{display:flex}
+.specw .sh{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;padding:6px 10px;background:#f4f6fa;border-bottom:1px solid #e3e7ee}
+.specw .sh small{font-weight:500;color:var(--ink3);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.specw .sh .ok{color:var(--green)}
+.specw .stale{font-size:11.5px;color:#b8601d;background:var(--amber-s);padding:4px 10px}
+.specw .sc{flex:1;min-height:0;overflow:auto}
+table.st{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+table.st th{position:sticky;top:0;z-index:1;background:#fafbfc;font-size:11px;color:var(--ink3);font-weight:600;text-align:left;padding:4px 8px;border-bottom:1px solid #eef0f4}
+table.st td{padding:3px 8px;border-bottom:1px solid #f2f4f7;vertical-align:middle;line-height:1.3}
+table.st tr.g1 td{border-top:1px solid #e3e7ee}
+table.st td.it{overflow:hidden}
+table.st td.it .q{display:block;font-size:10.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.st td.it .q i{font-style:normal;font-size:9.5px;font-weight:700;border-radius:4px;padding:0 3px;margin-right:2px}
+table.st .q i.t{background:var(--blue-s);color:var(--blue)}table.st .q i.s{background:#f1ebfb;color:#7146b8}table.st .q i.d{background:#eef0f4;color:var(--ink3)}
+table.st td.v{white-space:nowrap;font-variant-numeric:tabular-nums}
+table.st td.v .op{display:inline-block;width:12px;color:var(--ink2)}
+table.st td.v input{width:64px;border:1px solid #d6dce5;border-radius:6px;padding:2px 5px;font:inherit;font-weight:700;text-align:right;background:#fff}
+table.st td.v input:focus{border-color:var(--blue);outline:none;box-shadow:0 0 0 2px var(--blue-s)}
+table.st tr.ed td.v input{background:#fff6dd;border-color:#ebb64e}
+table.st td.v .lk{display:inline-block;min-width:64px;text-align:right;font-weight:700;color:var(--ink2);padding:0 6px}
+table.st td.v .lk:after{content:"🔒";font-size:9px;margin-left:3px;opacity:.55}
+table.st td.v .tx{display:block;white-space:normal;color:var(--ink2);font-size:11.5px}
+table.st td.v small{color:var(--ink2);margin-left:3px}
+table.st td.b em{font-style:normal;font-size:10px;font-weight:700;border-radius:5px;padding:1px 5px;white-space:nowrap}
+table.st em.k0{background:var(--green-s);color:var(--green)}table.st em.k1{background:#f1ebfb;color:#7146b8}table.st em.k2{background:var(--blue-s);color:var(--blue)}
+table.st em.k3{background:var(--amber-s);color:#b8601d}table.st em.k4{background:#fde8ea;color:var(--red)}
+table.st tbody tr{opacity:0;transition:opacity .25s}table.st tbody tr.in{opacity:1}
+.has-spec .pad canvas{width:auto;height:min(24vh,280px);margin:0 auto}
+@media (max-height:820px){.has-spec .pad canvas{height:19vh}}
+.acts{display:flex;gap:6px;margin-top:10px;flex:none}
+.acts .btn{flex:1;width:auto;margin:0;padding:11px 4px;border-radius:11px;font-weight:700;font-size:13.5px;border:0;color:#fff;white-space:nowrap}
+.acts #bSpec{background:var(--blue)}.acts #bConfirm{background:var(--green)}.acts #go{background:var(--dark)}
+.acts .btn:disabled{background:#c5ccd6 !important;cursor:default}
+.acts .btn.done{background:#e8edf3 !important;color:var(--ink2)}
+header .brand-r{height:30px;display:block;margin-left:10px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b1720;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:none;z-index:20;max-width:80vw}
 </style>
 </head>
@@ -159,7 +174,8 @@ select.btn{width:100%;margin-top:8px}
   <header class="top">
     <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
     <div class="brand"><b>FormProof</b></div>
-    <nav class="steps" id="steps"><span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>1차 설계</span><span class="step"><i>3</i>물리 최적화</span></nav>
+    <nav class="steps" id="steps"><span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>설계 사양</span><span class="step"><i>3</i>1차 설계</span><span class="step"><i>4</i>물리 최적화</span></nav>
+    <img class="brand-r" src="/static/brand/samsung_research.png" alt="Samsung Research">
   </header>
 
   <div class="grid">
@@ -167,12 +183,11 @@ select.btn{width:100%;margin-top:8px}
     <section>
       <div class="card fill">
         <h2>입력</h2>
-        <div class="seg" id="prodSeg"><button data-p="bike" class="on">폰 거치대</button><button data-p="tv">TV 스탠드</button><button data-p="glasses">AI 글래스</button></div>
-        <textarea id="text" placeholder="원하는 조건을 적어 주세요" style="min-height:56px"></textarea>
+        <textarea id="text" placeholder="만들 제품과 원하는 조건을 적어 주세요 (예: 27인치 TV 스탠드, 아이가 밀어도 안 넘어지게)" style="min-height:78px"></textarea>
         <div class="seg" style="margin-top:10px"><button id="mSketch" class="on">스케치</button><button id="mImage">사진</button></div>
         <div id="sketchBox">
           <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
-            <span class="hint" id="padHint">옆에서 본 모습 · 원 = 핸들바</span>
+            <span class="hint" id="padHint">모양을 그리고, 꼭 필요한 글자만</span>
             <div class="ico">
               <button id="undo" title="되돌리기" aria-label="되돌리기"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
               <button id="clear" title="지우기" aria-label="지우기"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></button>
@@ -184,9 +199,11 @@ select.btn{width:100%;margin-top:8px}
             <input type="file" id="file" accept="image/*" hidden></label>
           <select class="btn" id="photoEx"><option value="">예시 사진…</option></select>
         </div>
-        <div class="specs" id="specs"></div>
+        <div class="specw" id="specs"><div class="sh">설계 사양 <small id="specInfo"></small></div><div class="stale" id="specStale" hidden></div>
+          <div class="sc"><table class="st"><colgroup><col style="width:45%"><col style="width:37%"><col style="width:18%"></colgroup>
+            <thead><tr><th>항목</th><th>사양</th><th>근거</th></tr></thead><tbody id="specBody"></tbody></table></div></div>
         <div class="spacer" id="padSpacer"></div>
-        <button class="btn primary" id="go">1차 설계 만들기</button>
+        <div class="acts"><button class="btn" id="bSpec">설계 사양</button><button class="btn" id="bConfirm" disabled>확정</button><button class="btn" id="go" disabled>1차 설계 만들기</button></div>
         <div class="spec" id="specBox" hidden><h3>설계 사양 <small>입력 → 계산 조건 · 항목마다 출처</small></h3><div id="specRows"></div></div>
       </div>
     </section>
@@ -263,46 +280,34 @@ function redraw(){
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,pad.width,pad.height);
   if(S.bgImg){const r=Math.min(pad.width/S.bgImg.width,pad.height/S.bgImg.height)*0.92, w=S.bgImg.width*r, h=S.bgImg.height*r;
     ctx.drawImage(S.bgImg,(pad.width-w)/2,(pad.height-h)/2,w,h);}
-  ctx.strokeStyle='#111'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.lineJoin='round';
-  for(const s of S.strokes){ctx.beginPath();s.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));if(s.length===1)ctx.lineTo(s[0][0]+0.1,s[0][1]);ctx.stroke();}
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const s of S.strokes){ctx.strokeStyle=s.c||'#111';ctx.lineWidth=s.w||4;ctx.beginPath();s.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));if(s.length===1)ctx.lineTo(s[0][0]+0.1,s[0][1]);ctx.stroke();}
+  $('#padHint').hidden=S.strokes.length>0||S.labels.length>0||!!S.bgImg;
+  for(const L of S.labels){ctx.fillStyle=L.c||'#111';ctx.font=`700 ${L.s}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans CJK KR","Noto Sans KR",sans-serif`;ctx.textBaseline='alphabetic';ctx.fillText(L.t,L.x,L.y);}
 }
+S.labels=[];
 const pt = e => {const r=pad.getBoundingClientRect();return [(e.clientX-r.left)*pad.width/r.width,(e.clientY-r.top)*pad.height/r.height];};
-pad.addEventListener('pointerdown',e=>{pad.setPointerCapture(e.pointerId);S.cur=[pt(e)];S.strokes.push(S.cur);redraw();});
+pad.addEventListener('pointerdown',e=>{pad.setPointerCapture(e.pointerId);S.cur=[pt(e)];S.strokes.push(S.cur);redraw();inputChanged();});
 pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.cur.length-1];if(Math.hypot(p[0]-q[0],p[1]-q[1])>1.5){S.cur.push(p);redraw();}});
 ['pointerup','pointercancel','pointerleave'].forEach(n=>pad.addEventListener(n,()=>{S.cur=null;}));
-$('#undo').onclick=()=>{if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();};
-$('#clear').onclick=()=>{S.strokes=[];S.bgImg=null;$('#example').value='';redraw();clearCards();};
-S.examples=[];S.demos=[];
-// 예시: 제품마다 데모(말 + 스케치 — 지금 1차 설계 형상을 그대로 냄)가 맨 위, 그 밑에 손 스케치(스케치만)
+$('#undo').onclick=()=>{if(S.labels.length&&(!S.strokes.length||S.labelsLast))S.labels.pop();else if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();inputChanged();};
+$('#clear').onclick=()=>{S.strokes=[];S.labels=[];S.bgImg=null;$('#example').value='';redraw();inputChanged();};
+S.demos=[];
+// 예시 = 제품 셋 (말 + 스케치 — 지금 1차 설계 형상을 그대로 냄). 고르면 말과 스케치 획이 채워짐
 function fillExamples(){const sel=$('#example');sel.innerHTML='<option value="">예시 (말 + 스케치)…</option>';
-  const add=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;sel.appendChild(o);};
-  S.demos.filter(d=>d.product===S.product).forEach(d=>add(d.sketch,d.label));
-  if(S.product!=='glasses')S.examples.filter(u=>!u.includes('/presentation/')&&(S.product==='tv'?/hand_TV/.test(u):!/hand_TV/.test(u)))
-    .forEach(u=>add(u,'손 스케치 '+u.match(/hand_(.+)\.png$/)[1]));}
-const demoOf=u=>S.demos.find(d=>d.sketch===u);
-function loadSketch(u){const im=new Image();im.onload=()=>{S.bgImg=im;S.strokes=[];redraw();};im.src=u;}
-function loadDemo(p){const d=S.demos.find(d=>d.product===p);if(!d)return;$('#text').value=d.prompt;loadSketch(d.sketch);$('#example').value=d.sketch;}
-Promise.all([fetch('/api/examples').then(r=>r.json()),fetch('/api/demos').then(r=>r.ok?r.json():[]).catch(()=>[])])
-  .then(([list,demos])=>{S.examples=list;S.demos=demos;fillExamples();});
+  S.demos.forEach((d,i)=>{const o=document.createElement('option');o.value=i;o.textContent=d.label;sel.appendChild(o);});}
+function loadDemo(i){const d=S.demos[i];if(!d)return;$('#mSketch').onclick();$('#text').value=d.prompt;
+  S.bgImg=null;S.strokes=d.sketch.strokes.map(s=>Object.assign(s.p.map(q=>q.slice()),{c:s.c,w:s.w}));S.labels=d.sketch.labels.map(L=>({...L}));S.labelsLast=true;redraw();inputChanged();}
+fetch('/api/demos').then(r=>r.ok?r.json():[]).catch(()=>[]).then(demos=>{S.demos=demos;fillExamples();});
 fetch('/api/photos').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=decodeURIComponent(u.split('/').pop()).replace(/\.\w+$/,'').replace(/_/g,' ');$('#photoEx').appendChild(o);}));
 $('#photoEx').onchange=async e=>{if(!e.target.value)return;const b=await (await fetch(e.target.value)).blob();loadFile(new File([b],decodeURIComponent(e.target.value.split('/').pop()),{type:b.type}));};
-$('#example').onchange=e=>{const u=e.target.value;if(!u)return;loadSketch(u);const d=demoOf(u);if(d)$('#text').value=d.prompt;};
+$('#example').onchange=e=>{if(e.target.value!=='')loadDemo(+e.target.value);};
 redraw();
-const hasSketch = () => S.strokes.length>0 || !!S.bgImg;
+const hasSketch = () => S.strokes.length>0 || S.labels.length>0 || !!S.bgImg;
 
-/* ---------- 제품 ---------- */
-S.product='bike';
-const PROD={bike:{hint:'옆에서 본 모습 · 원 = 핸들바',mode:'sketch'},tv:{hint:'정면 모습 · TV 화면 + 스탠드',mode:'sketch'},glasses:{hint:'앞 · 옆 모습 · 메모',mode:'sketch'}};
-function setProduct(p){S.product=p;$$('#prodSeg button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
-  $('#padHint').textContent=PROD[p].hint;(PROD[p].mode==='image'?$('#mImage'):$('#mSketch')).onclick();fillExamples();
-  // 다른 제품의 데모 입력이 남아 있으면 비움 (사용자가 그린 선 · 쓴 말은 그대로)
-  if(!S.strokes.length&&S.bgImg&&demoOf(S.bgImg.src.replace(location.origin,''))){S.bgImg=null;redraw();}
-  if(S.demos.some(d=>d.prompt===$('#text').value.trim()))$('#text').value='';
-  clearCards();}
-$$('#prodSeg button').forEach(b=>b.onclick=()=>setProduct(b.dataset.p));
 $('#mSketch').onclick=()=>{S.mode='sketch';$('#mSketch').classList.add('on');$('#mImage').classList.remove('on');$('#sketchBox').style.display='';$('#imageBox').style.display='none';};
 $('#mImage').onclick=()=>{S.mode='image';$('#mImage').classList.add('on');$('#mSketch').classList.remove('on');$('#imageBox').style.display='';$('#sketchBox').style.display='none';};
-function loadFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>{S.image=rd.result;$('#dropInner').innerHTML=`<img src="${S.image}">`;};rd.readAsDataURL(f);}
+function loadFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>{S.image=rd.result;$('#dropInner').innerHTML=`<img src="${S.image}">`;inputChanged();};rd.readAsDataURL(f);}
 $('#file').onchange=e=>loadFile(e.target.files[0]);
 const drop=$('#drop');['dragover','dragenter'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(n=>drop.addEventListener(n,e=>{e.preventDefault();drop.classList.remove('over');}));
@@ -524,36 +529,83 @@ const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 �
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
 /* ---------- 실행 ---------- */
-// ---------- 필요 물리 조건 카드: 서버가 형상 계산 전에 보냄 → 스케치 아래에 하나씩, 그다음 형상
+// ---------- 설계 사양: [설계 사양] → 표 (수치 고치기) → [확정] → [1차 설계 만들기]
 const BASIS={'근거 DB':0,'스케치':1,'목표':2,'가정':3,'질문':4};
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function clearCards(){S.cardsShown=null;$('#specs').classList.remove('on');$('#specs').innerHTML='';$('#specs').closest('.card').classList.remove('has-cards');$('#padSpacer').hidden=false;}
-function cardHtml(c){
-  const fr=c.from.map(f=>`<i class="${f==='말'?'t':f==='스케치'?'s':'d'}">${f}</i>`).join('');
-  return `<div class="sc" title="${esc(c.title)} — ${esc(c.source)}"><div class="q">${fr}<span>${c.quote?'“'+esc(c.quote)+'”':esc(c.title)}</span></div>
-    <div class="c">${c.conds.map(x=>`<div>${esc(x)}</div>`).join('')}</div>
-    <div class="b"><em class="k${BASIS[c.basis]??3}">${esc(c.basis)}</em><span>${esc(c.source)}</span></div></div>`;
-}
-function showCards(cards){       // 하나씩 (0.09 s 간격) — 끝나는 시각을 돌려줌
-  const key=JSON.stringify(cards||[]);if(S.cardsShown===key)return Promise.resolve();
-  S.cardsShown=key;const box=$('#specs');
-  if(!cards||!cards.length){clearCards();S.cardsShown=key;return Promise.resolve();}
-  const n=k=>cards.filter(c=>c.from.includes(k)).length;
-  box.innerHTML=`<div class="sh">필요한 물리 조건 <small>말 ${n('말')} · 스케치 ${n('스케치')} · 기본 ${n('기본')}</small></div><div class="sgrid">${cards.map(cardHtml).join('')}</div>`;
-  box.classList.add('on');box.closest('.card').classList.add('has-cards');$('#padSpacer').hidden=true;
-  const els=[...box.querySelectorAll('.sc')];
-  return new Promise(res=>{els.forEach((el,i)=>setTimeout(()=>{el.classList.add('in');if(i===els.length-1)setTimeout(res,250);},90*i+30));});
-}
-async function run(){
-  const text=$('#text').value.trim();
-  const req={text,product:S.product};
+const OPS={'>=':'≥','<=':'≤','=':'='};
+S.spec=null;          // {req, data, edits, confirmed, stale}
+function inputReq(){
+  const req={text:$('#text').value.trim()};
   if(S.mode==='sketch'&&hasSketch())req.sketch=pad.toDataURL('image/png');
   if(S.mode==='image'&&S.image)req.image=S.image;
-  if(!req.sketch&&!req.image&&!text){toast('문장을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요.');return;}
+  return req;
+}
+function inputChanged(){          // 말 · 스케치 · 사진이 바뀌면 만든 사양은 옛것 → 다시 만들어야 확정 · 1차 설계
+  if(!S.spec||S.spec.stale)return;
+  S.spec.stale=true;S.spec.confirmed=false;$('#specStale').hidden=false;$('#specStale').textContent='입력이 바뀌었습니다 — 설계 사양을 다시 만드세요';
+  updateActs();
+}
+$('#text').addEventListener('input',inputChanged);
+function updateActs(){
+  const sp=S.spec,busy=!!S.busy||!!S.opt;
+  $('#bSpec').disabled=busy;$('#bSpec').textContent=sp?'설계 사양 다시':'설계 사양';
+  $('#bConfirm').disabled=busy||!sp||sp.stale||sp.confirmed;$('#bConfirm').textContent=sp&&sp.confirmed?'확정됨 ✓':'확정';
+  $('#bConfirm').classList.toggle('done',!!(sp&&sp.confirmed));
+  $('#go').disabled=busy||!sp||sp.stale||!sp.confirmed;
+}
+function specRowHtml(x,i,first){
+  const fr=x.quote?`<span class="q">${x.from.map(f=>`<i class="${f==='말'?'t':f==='스케치'?'s':'d'}">${f}</i>`).join('')}“${esc(x.quote)}”</span>`:'';
+  let v;
+  if(x.text!=null&&x.value==null)v=`<span class="tx">${esc(x.text)}</span>`;
+  else if(x.edit)v=`<span class="op">${OPS[x.op]||''}</span><input type="number" step="any" inputmode="decimal" data-id="${esc(x.id)}" value="${x.value}"><small>${esc(x.unit)}</small>`;
+  else v=`<span class="op">${OPS[x.op]||''}</span><span class="lk" title="계산 조건 (이 데모에서는 고정)">${x.value}</span><small>${esc(x.unit)}</small>`;
+  return `<tr class="${first?'g1':''}${x.edited?' ed':''}" title="${esc(x.group)} — ${esc(x.source)}"><td class="it"><b>${esc(x.item)}</b>${fr}</td><td class="v">${v}</td>
+    <td class="b"><em class="k${BASIS[x.basis]??3}" title="${esc(x.source)}">${esc(x.basis)}</em></td></tr>`;
+}
+function showSpec(data,animate){
+  const rows=data.rows,box=$('#specs');
+  $('#specBody').innerHTML=rows.map((x,i)=>specRowHtml(x,i,i>0&&x.group!==rows[i-1].group)).join('');
+  const G=[...new Map(rows.map(x=>[x.group,x])).values()], n=k=>G.filter(x=>x.from.includes(k)).length, ne=Object.keys(S.spec.edits).length;
+  $('#specInfo').innerHTML=`${esc(data.template.id)} · ${rows.length}줄 (말 ${n('말')} · 스케치 ${n('스케치')} · 기본 ${n('기본')})${ne?` · <b>고침 ${ne}</b>`:''}${S.spec.confirmed?' · <span class="ok">확정</span>':''}`;
+  box.classList.add('on');box.closest('.card').classList.add('has-spec');$('#padSpacer').hidden=true;$('#specStale').hidden=true;
+  const trs=[...$('#specBody').children];
+  if(animate)trs.forEach((tr,i)=>setTimeout(()=>tr.classList.add('in'),40*i));else trs.forEach(tr=>tr.classList.add('in'));
+  $$('#specBody input').forEach(inp=>{
+    inp.addEventListener('input',()=>{S.spec.confirmed=false;inp.closest('tr').classList.add('ed');updateActs();});
+    inp.addEventListener('change',async()=>{
+      const id=inp.dataset.id,v=inp.value.trim(),row=rows.find(x=>x.id===id);
+      if(v===''||!isFinite(+v)){inp.value=row.value;return;}
+      if(+v===+row.value&&!S.spec.edits[id])return;
+      S.spec.edits[id]=+v;S.spec.confirmed=false;
+      if(row.param){await makeSpec(true);return;}       // 형상 값(렌즈 폭 · 화면 크기 · 높이)은 템플릿을 다시 고름
+      row.value=+v;row.edited=true;showSpec(S.spec.data,false);updateActs();
+    });});
+  updateActs();
+}
+async function makeSpec(keepEdits){
+  const req=keepEdits&&S.spec?S.spec.req:inputReq();
+  if(!req.sketch&&!req.image&&!req.text){toast('만들 제품과 조건을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요.');return;}
+  const edits=keepEdits&&S.spec?S.spec.edits:{};
+  S.busy=true;updateActs();
+  try{
+    const r=await fetch('/api/spec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...req,edits})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
+    if(!j.rows)throw new Error(STALE);
+    S.spec={req,data:j,edits,confirmed:false,stale:false};
+    showSpec(j,!keepEdits);setStep(1);
+  }catch(e){toast(e.message);}
+  finally{S.busy=false;updateActs();}
+}
+$('#bSpec').onclick=()=>makeSpec(false);
+$('#bConfirm').onclick=()=>{if(!S.spec||S.spec.stale)return;S.spec.confirmed=true;showSpec(S.spec.data,false);};
+async function run(){
+  const sp=S.spec;
+  if(!sp||!sp.confirmed||sp.stale){toast('설계 사양을 만들고 확정해 주세요.');return;}
   if(S.opt)return;
+  const req={...sp.req,spec:sp.edits};
   S.last={...req};
-  S.sel=new Set();updateOpt();clearCards();let cardsDone=Promise.resolve();
-  $('#go').disabled=true;$('#empty').style.display='none';$('#busy').classList.add('on');
+  S.sel=new Set();updateOpt();S.busy=true;updateActs();
+  $('#empty').style.display='none';$('#busy').classList.add('on');
   // 서버가 실제로 하고 있는 단계와 경과 시간을 0.3 s 마다 받아 표시
   $('#stage').textContent='요청 보내는 중';$('#stageHist').innerHTML='';
   try{
@@ -568,16 +620,14 @@ async function run(){
       if(q.error)throw new Error(q.error);
       $('#stage').innerHTML=`<b>${q.stage||''}</b>${q.detail?' — '+q.detail:''} · ${(q.stage_s||0).toFixed(1)} s<br><small>전체 ${(q.elapsed||0).toFixed(1)} s</small>`;
       $('#stageHist').innerHTML=(q.history||[]).slice(-6).map(h=>`✓ ${h.name} · ${h.s.toFixed(1)} s`).join('<br>');
-      if(q.cards&&S.cardsShown==null)cardsDone=showCards(q.cards);
       if(q.done)rep=q.result;
     }
-    if(rep.spec_cards)cardsDone=Promise.all([cardsDone,showCards(rep.spec_cards)]);
-    await cardsDone;                    // 조건 카드가 다 나온 뒤에 형상 · 성능
-    S.rep=rep; render(rep); setStep(1);
-  }catch(err){toast(err.message);setStep(0);if(!S.rep)$('#empty').style.display='';}
-  finally{$('#busy').classList.remove('on');$('#go').disabled=false;}
+    S.rep=rep; render(rep); setStep(2);
+  }catch(err){toast(err.message);setStep(1);if(!S.rep)$('#empty').style.display='';}
+  finally{$('#busy').classList.remove('on');S.busy=false;updateActs();}
 }
 $('#go').onclick=()=>run();
+updateActs();
 
 const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
 // 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
@@ -649,14 +699,26 @@ function finishOpt(r){
   const box=$('#optInfo');box.classList.add(g.pass_?'ok':'bad');
   $('#optText').textContent=`최적 설계 완료 · 무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · FEM 검증 ${g.pass_?'모든 기준 통과':'미충족 '+nf+'개'}`;
   $('#optBar').style.width='100%';
-  const a=$('#fOpt');a.hidden=false;a.href=r.files['opt_final.stl']+'?dl=1';
-  setStep(2);
+  const a=$('#fOpt');a.hidden=false;a.textContent='최적 STL';a.href=r.files['opt_final.stl']+'?dl=1';
+  setStep(3);
+}
+// TV 스탠드 · AI 글래스 · 템플릿 거치대: 고르기까지는 같고, 최적 설계는 아직 없음 → 고른 기준을 최적화 입력 묶음으로 저장
+async function saveTargets(run,targets){
+  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optBar').style.width='0';
+  try{
+    const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
+    const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
+    box.classList.add('ok');$('#optBar').style.width='100%';
+    $('#optText').textContent=`최적 설계는 폰 거치대만 — 고른 ${targets.length}개 기준을 최적화 입력 묶음으로 저장했습니다`;
+    const a=$('#fOpt');a.hidden=false;a.textContent='최적화 입력';a.href=j.files['optimize_input.zip']+'?dl=1';
+  }catch(e){toast(e.message);box.hidden=true;}
 }
 $('#optimize').onclick=async()=>{
   const rep=S.rep;if(!rep||!S.sel.size||S.opt)return;
   const run=(rep.files['handoff.zip']||'').split('/')[2];
   const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
-  S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();$('#go').disabled=true;
+  if(rep.template.id!=='P01')return saveTargets(run,targets);
+  S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='역설계 준비 (형상 AI · 물리 AI)';$('#optBar').style.width='0';
   S.opt.hist=[];spark();$('#optPhase').textContent='① AI 탐색 · 형상 AI가 만들고 물리 AI가 예측';$('#vTitle').textContent='형상 탐색 (AI)';$('#pTitle').textContent='성능 · 물리 AI 예측';setStep(2);
   V3.optBox=null;
@@ -680,7 +742,7 @@ $('#optimize').onclick=async()=>{
     await play;
     finishOpt(S.opt.res);
   }catch(e){toast(e.message);$('#optInfo').hidden=true;}
-  finally{S.opt=null;$('#go').disabled=false;updateOpt();}
+  finally{S.opt=null;updateOpt();updateActs();}
 };
 function setCommon(rep, massG){
   const t=rep.template;
@@ -704,16 +766,16 @@ function renderProduct(rep){          // TV 스탠드 · AI 글래스
   const j=rep.judge;
   showProduct(rep);
   setCommon(rep, rep.cad.mass_g);
-  showMetrics(judgeRows(j));
+  showMetrics(judgeRows(j),true);            // 고르기는 P01 과 같음 (최적 설계는 아직 P01 만)
   setPerfTag(j.pass_, j.fails.length);
 }
 function renderTemplate(rep){         // 자전거 거치대 템플릿 (T01 …)
   const c=rep.first_design_check, ck=c.checks, rows=[], lim=x=>+x.limit.split(' ')[1];
   showMount(rep);
   setCommon(rep, rep.cad.mass_g);
-  const add=(key,label,d,unit,op)=>{const x=ck[key];if(x)rows.push({name:key,label,value:+x.value.toFixed(d),unit,op,limit:lim(x),ok:x.pass,ref:!!x.reference,source:x.limit});};
+  const add=(key,label,d,unit,op)=>{const x=ck[key];if(x)rows.push({key,name:key,label,value:+x.value.toFixed(d),unit,op,limit:lim(x),ok:x.pass,ref:!!x.reference,source:x.limit});};
   add('transmissibility','자갈길 흔들림',2,'배','<=');add('f1','떨림 주파수',1,'Hz','>=');add('stress','충격 때 가장 큰 힘',1,'MPa','<=');add('interlayer','출력 층이 벌어지는 힘',1,'MPa','<=');
-  showMetrics(rows);
+  showMetrics(rows,true);
   setPerfTag(c.pass, Object.values(ck).filter(x=>!x.pass&&!x.reference).length);
 }
 function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 · 입력이든 같은 형식 (formproof_input/spec_view.py)
@@ -725,11 +787,48 @@ function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 
   $('#specRows').innerHTML=h;box.hidden=false;
 }
 function render(rep){
-  // 설계 사양 행(spec_rows)과 같은 내용을 스케치 아래 조건 카드(spec_cards)로 먼저 보여 주므로 #specBox 는 숨김 (한 화면 유지)
+  // 설계 사양 행(spec_rows)과 같은 내용을 스케치 아래 설계 사양 표(spec_table, 확정 전에 고침)로 보여 주므로 #specBox 는 숨김 (한 화면 유지)
   if(rep.kind==='product') return renderProduct(rep);
   if(rep.kind==='integral') return renderIntegral(rep);
   return renderTemplate(rep);
 }
+// ---------- 영상 모드 (?video=1): 예시 목록 숨김. 1 · 2 · 3 키 = 폰 거치대 · TV 스탠드 · AI 글래스를 실제로 치고 그리는 모습
+// (&auto=1 이면 이어서 설계 사양 → 확정 → 1차 설계까지 자동). 콘솔에서 playDemo(0) 도 됨
+const QS=new URLSearchParams(location.search);
+if(QS.has('video'))$('#example').style.display='none';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const frame=()=>new Promise(r=>requestAnimationFrame(r));
+// 시간 기준으로 진행 (느린 PC 에서도 같은 길이): 글자 = 정해 둔 시각에, 획 = 6 초 동안 점을 차례로 이어 그림 (새 조각만 그림)
+async function playDemo(i,auto=QS.has('auto')){
+  const d=S.demos[i];if(!d||S.playing)return;S.playing=true;
+  $('#mSketch').onclick();S.strokes=[];S.labels=[];S.bgImg=null;redraw();
+  const ta=$('#text');ta.value='';ta.focus();
+  const at=[];let tt=0;for(const ch of d.prompt){tt+=ch===' '?35:/[.,]/.test(ch)?240:45+((ch.charCodeAt(0)*37)%40);at.push(tt);}
+  let t0=performance.now(),n=0;
+  while(n<at.length){await frame();const e=performance.now()-t0;while(n<at.length&&at[n]<=e)n++;ta.value=d.prompt.slice(0,n);ta.scrollTop=ta.scrollHeight;}
+  inputChanged();ta.blur();await sleep(450);
+  const P=d.sketch.strokes.reduce((a,s)=>a+s.p.length,0),D=6000;
+  let si=0,pi=0,done=0;t0=performance.now();
+  ctx.lineCap='round';ctx.lineJoin='round';
+  while(si<d.sketch.strokes.length){
+    await frame();const goal=Math.min(P,Math.round((performance.now()-t0)/D*P));
+    while(done<goal&&si<d.sketch.strokes.length){
+      const s=d.sketch.strokes[si];
+      if(pi===0)S.strokes.push(Object.assign([],{c:s.c,w:s.w}));
+      const cur=S.strokes[S.strokes.length-1],k=Math.min(s.p.length,pi+(goal-done));
+      ctx.strokeStyle=s.c;ctx.lineWidth=s.w;ctx.beginPath();const a=pi?s.p[pi-1]:s.p[0];ctx.moveTo(a[0],a[1]);
+      for(let q=pi;q<k;q++){cur.push(s.p[q].slice());ctx.lineTo(s.p[q][0],s.p[q][1]);}
+      ctx.stroke();done+=k-pi;pi=k;if(pi>=s.p.length){si++;pi=0;}
+    }
+    $('#padHint').hidden=true;
+  }
+  for(const L of d.sketch.labels){const l={...L,t:''};S.labels.push(l);for(const ch of L.t){l.t+=ch;redraw();await sleep(150);}}
+  S.labelsLast=true;inputChanged();S.playing=false;
+  if(auto){await sleep(800);await makeSpec(false);await sleep(2800);$('#bConfirm').click();await sleep(1000);run();}
+}
+window.playDemo=playDemo;
+document.addEventListener('keydown',e=>{if(!QS.has('video')||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  const i='123'.indexOf(e.key);if(i>=0)playDemo(i);});
 </script>
 </body>
 </html>

@@ -153,6 +153,12 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
         return "glasses"
     if TV_WORDS.search(text or ""):
         return "tv"
+    g = sketch if sketch is not None else image
+    if g is not None:                                    # 말에 제품 단어가 없으면: 등록된 데모 스케치인지
+        from . import demo_inputs
+        d = demo_inputs.match_any(g)
+        if d:
+            return d["product"]
     if image is not None:
         from .products.glasses import is_glasses_image, matches_reference
         if matches_reference(image) or is_glasses_image(image):
@@ -160,53 +166,9 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
     return "bike"
 
 
-def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
-    """1차 설계 + 표시용 조건 두 가지 (실패해도 1차 설계는 그대로):
-    rep['spec_cards'] — 필요 물리 조건 카드 (말 · 스케치 메모 → 조건, 형상 계산 전에도 같은 규칙 — spec_cards.py, GUI 스케치 아래)
-    rep['spec_rows']  — 설계 사양 행 (제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
-    rep = _design(text, sketch, image, template, out, with_mesh, product)
-    from . import spec_cards
-    try:
-        _, cs = spec_cards.preview(text, sketch, image, template, product)
-        rep["spec_cards"] = cs or spec_cards.from_criteria(rep)
-    except Exception as e:                               # noqa: BLE001
-        rep["spec_cards"] = []
-        rep["spec_cards_error"] = str(e)
-    try:
-        from .spec_view import spec_rows
-        rep["spec_rows"] = spec_rows(rep)
-    except Exception as e:                               # noqa: BLE001
-        rep["spec_rows"] = []
-        rep["spec_rows_error"] = str(e)
-    return rep
-
-
-def _design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None):
-    """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate).
-    product: 'bike' | 'tv' | 'glasses' (None = from template id, text words, or a glasses photo)."""
-    t0 = time.time()
-    os.makedirs(out, exist_ok=True)
-    prod = route_product(text, sketch, image, template, product)
-    if prod == "tv":
-        from .products import tv_stand
-        g = sketch if sketch is not None else image
-        return tv_stand.design(text, sketch=g, out=out, with_mesh=with_mesh, template=template if (template or "").startswith("TV") else None)
-    if prod == "glasses":
-        from .products import glasses
-        return glasses.design(text, image=image if image is not None else sketch, out=out, with_mesh=with_mesh)
-    rep = dict(input=dict(text=text, sketch=sketch is not None, image=image is not None, template=template))
-    # P01 일체형 (발표 사례): 지정 · 발표 문장 · 발표 입력 스케치(데모 DB) -> 팀 엔진과 같은 문제
-    from . import integral
-    g0 = sketch if sketch is not None else image
-    via = ("지정" if template == "P01" else
-           "발표 입력 스케치 (데모 DB)" if (not template and g0 is not None and integral.matches_presentation_sketch(g0)) else
-           "텍스트 (발표 문장 · 일체형)" if (not template and g0 is None and integral.is_presentation_text(text)) else None)
-    if via:
-        return integral.design(text, out=out, with_mesh=with_mesh, chosen_by=via,
-                               sketch_note=integral.SKETCH_NOTE if (g0 is not None or not text) else "")
+def bike_pick(text="", sketch=None, image=None, template=None, params_override=None):
+    """템플릿 거치대: 문장 · 스케치 → 템플릿 · 설계 명세 (설계 사양 표와 1차 설계가 같은 것을 씀)."""
     parsed = text_rules.parse(text)
-    rep["text"] = parsed
-
     match = None
     if sketch is not None or image is not None:
         g = sketch if sketch is not None else image
@@ -224,12 +186,78 @@ def _design(text="", sketch=None, image=None, template=None, out="out", with_mes
     else:
         tid, how = text_rules.template_from_hint(parsed["shape_hint"], TEMPLATES), "텍스트"
     tpl = BY_ID[tid]
-    rep["template"] = dict(id=tid, name=tpl["name"], desc=tpl["desc"], chosen_by=how, match=match)
-
     params = dict(tpl["params"])
     params.update(parsed["params"])
+    params.update(params_override or {})
     progress.step("설계 명세 · 물리 조건")
     spec = build_spec(params, tid, meta=dict(name=tpl["name"], chosen_by=how))
+    return dict(parsed=parsed, match=match, tid=tid, how=how, tpl=tpl, spec=spec)
+
+
+def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None, spec=None):
+    """1차 설계. spec = 설계 사양 표에서 사용자가 고친 값 {행 id: 값} (확정한 사양):
+    형상 값(렌즈 폭 · 화면 크기 · 화면 높이)은 템플릿 선택에, 판정 수치는 1차 설계 판정 기준에 들어감.
+    rep['spec_table'] = 확정한 설계 사양 표 (spec_table.py, design_spec_confirmed.json 으로도 저장 · handoff.zip 에 포함),
+    rep['spec_rows']  = 설계 사양 행 (제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
+    from . import spec_table
+    sp = spec_table.preview(text, sketch, image, template, product, edits=spec)
+    rep = _design(text, sketch, image, template, out, with_mesh, product, spec_params=spec_table.spec_params(sp["product"], sp["rows"]))
+    lim = spec_table.limits([x for x in sp["rows"] if x.get("edited")])
+    spec_table.apply_limits(rep, lim)
+    rep["spec_table"] = sp
+    try:
+        import json as _json
+        import zipfile
+        doc = dict(product=sp["product"], template=sp["template"], rows=sp["rows"], limits=spec_table.limits(sp["rows"]),
+                   edited={x["id"]: x["value"] for x in sp["rows"] if x.get("edited")})
+        with open(os.path.join(out, "design_spec_confirmed.json"), "w", encoding="utf-8") as f:
+            _json.dump(doc, f, ensure_ascii=False, indent=1)
+        hz = os.path.join(out, "handoff.zip")
+        if os.path.exists(hz):
+            with zipfile.ZipFile(hz, "a") as z:
+                if "design_spec_confirmed.json" not in z.namelist():
+                    z.write(os.path.join(out, "design_spec_confirmed.json"), "design_spec_confirmed.json")
+    except OSError:
+        pass
+    try:
+        from .spec_view import spec_rows
+        rep["spec_rows"] = spec_rows(rep)
+    except Exception as e:                               # noqa: BLE001
+        rep["spec_rows"] = []
+        rep["spec_rows_error"] = str(e)
+    return rep
+
+
+def _design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None, spec_params=None):
+    """sketch / image: gray arrays (0..1) or None. template: force a template id (e.g. user picked a candidate).
+    product: 'bike' | 'tv' | 'glasses' (None = from template id, text words, or a glasses photo)."""
+    t0 = time.time()
+    os.makedirs(out, exist_ok=True)
+    prod = route_product(text, sketch, image, template, product)
+    if prod == "tv":
+        from .products import tv_stand
+        g = sketch if sketch is not None else image
+        sp = (spec_params or {}).get("tv") or {}
+        return tv_stand.design(text, sketch=g, out=out, with_mesh=with_mesh, template=template if (template or "").startswith("TV") else None,
+                               size_in=sp.get("size_in"), zc=sp.get("zc"))
+    if prod == "glasses":
+        from .products import glasses
+        return glasses.design(text, image=image if image is not None else sketch, out=out, with_mesh=with_mesh,
+                              lens_w=((spec_params or {}).get("glasses") or {}).get("lens_w"))
+    rep = dict(input=dict(text=text, sketch=sketch is not None, image=image is not None, template=template))
+    # P01 일체형 (발표 사례): 지정 · 발표 문장 · 발표 입력 스케치(데모 DB) -> 팀 엔진과 같은 문제
+    from . import integral
+    g0 = sketch if sketch is not None else image
+    via = ("지정" if template == "P01" else
+           "발표 입력 스케치 (데모 DB)" if (not template and g0 is not None and integral.matches_presentation_sketch(g0)) else
+           "텍스트 (발표 문장 · 일체형)" if (not template and g0 is None and integral.is_presentation_text(text)) else None)
+    if via:
+        return integral.design(text, out=out, with_mesh=with_mesh, chosen_by=via,
+                               sketch_note=integral.SKETCH_NOTE if (g0 is not None or not text) else "")
+    pk = bike_pick(text, sketch, image, template, params_override=(spec_params or {}).get("bike"))
+    parsed, match, tid, how, tpl, spec = pk["parsed"], pk["match"], pk["tid"], pk["how"], pk["tpl"], pk["spec"]
+    rep["text"] = parsed
+    rep["template"] = dict(id=tid, name=tpl["name"], desc=tpl["desc"], chosen_by=how, match=match)
     P = Problem(spec)
     dens = P.initial_density()
     # 같은 명세(템플릿 + 문장 파라미터)면 성능 계산 · CAD · 도면이 같다 -> 템플릿 결과 DB

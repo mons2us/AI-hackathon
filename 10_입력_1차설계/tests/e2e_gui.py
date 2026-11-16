@@ -1,9 +1,10 @@
 """GUI end-to-end check with headless Chrome (playwright). Start app/server.py first.
    CHROME=/path/to/chrome python tests/e2e_gui.py   (screenshots -> <tmp>/formproof_e2e)
 
-확인: 4단 화면이 한 화면에 들어감(페이지 · 카드 스크롤 없음), 제품 4개(P01 · T01 · TV · AI 글래스)마다 형상 + 분포 창,
-메인 창을 돌리고 확대하면 아래 분포 창 카메라가 같은 방향 · 같은 거리로 따라감, 도면 보기,
-P01 만 성능 항목을 눌러 최적화 대상 고르기(1개 이상이면 실행 버튼 켜짐) → 역설계 재생(형상 · 예측값) → FEM 검증 · optimize_input.zip."""
+확인: 한 화면(페이지 · 카드 스크롤 없음), 제품 버튼 없음 · 로고, 예시 3개(말 + 스케치 획) → [설계 사양] 표 → 수치 고치기 →
+[확정] → [1차 설계 만들기] (확정 전 · 입력 바뀐 뒤에는 꺼짐), 고친 사양이 판정 기준으로, 말만 · 사진 입력,
+메인 창을 돌리고 확대하면 아래 분포 창 카메라가 따라감, 도면 보기, TV · 글래스도 성능 항목 고르기(최적화 입력 묶음 저장),
+P01 역설계 재생 → FEM 검증 · optimize_input.zip, 영상 모드(?video=1, 키 2 → 치고 그리기 → TV01)."""
 import json, math, os, sys, tempfile, time, urllib.request
 from playwright.sync_api import sync_playwright
 
@@ -40,42 +41,68 @@ with sync_playwright() as p:
     page.goto(URL)
     page.wait_for_timeout(1500)
     no_scroll(page)
+    assert page.locator("#prodSeg").count() == 0 and page.is_visible("header .brand-r"), "제품 버튼이 남았거나 로고가 없음"
+    assert page.is_disabled("#bConfirm") and page.is_disabled("#go"), "설계 사양 전에 확정 · 1차 설계 버튼이 켜져 있음"
+    demos = json.load(urllib.request.urlopen(URL.rstrip("/") + "/api/demos"))
+    assert [d["label"] for d in demos] == ["폰 거치대", "TV 스탠드", "AI 글래스"]
 
-    # 데모 입력(말 + 스케치) 3개 + 손 스케치 T01 + 글래스 사진: 예시 고르면 말도 채워짐, 카드가 형상보다 먼저
-    demos = {d["product"]: d for d in json.load(urllib.request.urlopen(URL.rstrip("/") + "/api/demos"))}
-    runs = [("P01", "bike", "#example", demos["bike"]["sketch"]), ("T01", "bike", "#example", "/examples/hand/hand_T01.png"),
-            ("TV", "tv", "#example", demos["tv"]["sketch"]), ("GL", "glasses", "#example", demos["glasses"]["sketch"]),
-            ("GLphoto", "glasses", "#photoEx", None)]
-    ORDER = ("() => { window.__ord = []; const add = k => { if (!__ord.includes(k)) __ord.push(k); };"
-             " new MutationObserver(() => { if (document.querySelector('#specs .sc.in')) add('cards'); })"
-             ".observe(document.querySelector('#specs'), {subtree: true, childList: true, attributes: true});"
-             " new MutationObserver(() => add('shape')).observe(document.querySelector('#tplTag'), {childList: true, characterData: true, subtree: true}); }")
-    for name, prod, sel, val in runs:
-        page.click(f"#prodSeg button[data-p={prod}]")
-        page.wait_for_timeout(300)
-        if val is None:
-            page.click("#mImage")
-            val = page.evaluate("() => [...document.querySelectorAll('#photoEx option')].map(o => o.value).filter(Boolean)[0]")
-        page.select_option(sel, val)
-        page.wait_for_timeout(1200)
-        if prod in demos and val == demos[prod]["sketch"]:
-            assert page.input_value("#text") == demos[prod]["prompt"], "예시를 골라도 말이 안 채워짐"
-        page.evaluate(ORDER)
+    def spec_then_design(name, edit=None):
         t = time.time()
+        page.click("#bSpec")
+        page.wait_for_function("() => document.querySelector('#specs').classList.contains('on') && !document.querySelector('#bConfirm').disabled",
+                               timeout=90000)
+        n = page.locator("#specBody tr").count()
+        assert page.is_disabled("#go"), "확정 전에 1차 설계 버튼이 켜짐"
+        if edit:
+            k, v = edit
+            page.fill(f"input[data-id={k}]", str(v)); page.locator(f"input[data-id={k}]").dispatch_event("change")
+            page.wait_for_timeout(400)
+        page.click("#bConfirm")
+        assert not page.is_disabled("#go")
+        info = page.inner_text("#specInfo")
         page.click("#go")
         wait_result(page)
         labs = [page.inner_text(f"#vS{i} .lab") for i in range(3)]
-        cards = page.locator("#specs .sc").all_inner_texts()
-        order = page.evaluate("() => __ord")
-        print(f"{name}: {time.time() - t:.1f} s | {page.inner_text('#tplTag')} | 분포 창: {labs} | 성능: {page.inner_text('#perfTag')}"
-              f" | 조건 카드 {len(cards)}장 {order}")
-        assert len(cards) >= (6 if name in ("P01", "TV", "GL") else 4) and order[:2] == ["cards", "shape"], (name, len(cards), order)
-        if name in ("TV", "GL"):
-            assert ("TV01" if name == "TV" else "AG-gm") in page.inner_text("#tplTag")
+        print(f"{name}: {time.time() - t:.1f} s | 사양 {n}줄 ({info}) | {page.inner_text('#tplTag')} | 분포 창: {labs} | 성능: {page.inner_text('#perfTag')}")
         no_scroll(page)
         body = page.inner_text("body")
         assert "발표" not in body and "쪽" not in body, "발표 관련 글자가 남음"
         page.screenshot(path=f"{SP}/gui_{name}.png")
+        return n
+
+    for i, (name, tid) in enumerate((("P01", "P01"), ("TV", "TV01"), ("GL", "AG-gm"))):
+        page.select_option("#example", str(i))
+        page.wait_for_timeout(600)
+        assert page.input_value("#text") == demos[i]["prompt"], "예시를 골라도 말이 안 채워짐"
+        n = spec_then_design(name, ("tilt", 8) if name == "TV" else None)
+        assert n >= 8 and tid in page.inner_text("#tplTag"), (name, n)
+        if name == "TV":                                   # 고친 사양(기울기 10 → 8°)이 1차 설계 판정 기준으로
+            assert "≥ 8 °" in page.locator("#metrics .metric").first.inner_text()
+    # 사양을 만든 뒤 말을 바꾸면 확정 · 1차 설계가 꺼짐
+    page.click("#bSpec"); page.wait_for_timeout(2500)
+    page.type("#text", " 더 가볍게"); page.wait_for_timeout(200)
+    assert page.is_disabled("#bConfirm") and page.is_disabled("#go") and page.is_visible("#specStale")
+    # 말만 (템플릿 거치대)
+    page.click("#clear"); page.fill("#text", "자전거 폰 거치대, 울퉁불퉁한 길에서도 안 흔들리게 땡볕에도 버티게")
+    spec_then_design("T01")
+    # 사진 (AI 글래스 공식 사진)
+    page.click("#mImage")
+    val = page.evaluate("() => [...document.querySelectorAll('#photoEx option')].map(o => o.value).filter(Boolean)[0]")
+    page.select_option("#photoEx", val); page.wait_for_timeout(1200); page.fill("#text", "")
+    spec_then_design("GLphoto")
+    # TV · 글래스도 성능 항목 고르기 → 최적 설계는 없이 고른 기준만 최적화 입력 묶음으로
+    blocks = page.locator("#metrics .metric")
+    blocks.nth(0).click(); blocks.nth(5).click()
+    assert page.inner_text("#optimize").endswith("(2개)") and not page.is_disabled("#optimize")
+    page.click("#optimize"); page.wait_for_timeout(1500)
+    assert "최적화 입력 묶음" in page.inner_text("#optText") and not page.is_hidden("#fOpt")
+    zhref = page.get_attribute("#fOpt", "href").split("?")[0]
+    import zipfile, io
+    zg = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(URL.rstrip("/") + zhref).read()))
+    TG = json.loads(zg.read("optimize_targets.json"))
+    assert TG["targets"] == ["mass", "skin"] and "design_spec_confirmed.json" in zg.namelist(), (TG, zg.namelist())
+    print("AI 글래스: 성능 항목 고르기 →", TG["targets"], "최적화 입력 묶음 저장 (최적 설계는 P01 만)")
+    page.click("#mSketch")
 
     # 메인 창 회전 · 확대 → 분포 창 카메라가 같은 방향 · 같은 거리
     box = page.locator("#vMain").bounding_box()
@@ -95,13 +122,9 @@ with sync_playwright() as p:
     page.screenshot(path=f"{SP}/gui_draw.png")
     page.click("#vDraw"); page.wait_for_timeout(500)
 
-    # P01 이 아닌 제품(마지막 = AI 글래스)은 1차 설계까지만: 고르기 · 최적화 버튼 없음
-    assert page.is_hidden("#optimize") and page.is_hidden("#pickHint"), "P01 이 아닌데 최적화 버튼이 보임"
-
     # P01: 성능 블록 고르기 → 물리 기반 최적화 실행 → 형상이 프레임마다 바뀌고 예측값이 움직임 → FEM 검증 값
-    page.click("#prodSeg button[data-p=bike]"); page.wait_for_timeout(300)
-    page.select_option("#example", "/examples/presentation/input_sketch.png"); page.wait_for_timeout(1200)
-    page.click("#go"); wait_result(page)
+    page.select_option("#example", "0"); page.wait_for_timeout(600)
+    spec_then_design("P01b")
     assert page.is_disabled("#optimize"), "아무것도 안 골랐는데 최적화 버튼이 켜져 있음"
     blocks = page.locator("#metrics .metric")
     blocks.nth(0).click(); blocks.nth(2).click(); blocks.nth(2).click(); blocks.nth(1).click()   # 떨림 주파수 · 폰 온도 (화면 휨은 눌렀다 해제)
@@ -131,6 +154,16 @@ with sync_playwright() as p:
     T = json.loads(z.read("optimize_targets.json"))
     assert sorted(T["targets"]) == ["Tmax", "f1"] and "opt_final.stl" in z.namelist() and "spec.json" in z.namelist(), T
     print("최적화 입력 묶음: 대상", T["targets"], "| 파일", len(z.namelist()), "개")
+    # 영상 모드: 예시 목록 숨김, '2' 키 → 말을 치고 스케치를 그려 감 → 같은 TV01 로
+    page.goto(URL.rstrip("/") + "/?video=1"); page.wait_for_timeout(1500)
+    assert page.is_hidden("#example")
+    t = time.time()
+    page.keyboard.press("2"); page.wait_for_timeout(500)
+    page.wait_for_function("() => !S.playing", timeout=90000)
+    assert page.input_value("#text") == demos[1]["prompt"]
+    spec_then_design("video_TV")
+    assert "TV01" in page.inner_text("#tplTag")
+    print(f"영상 모드: 치기 · 그리기 {time.time() - t:.0f} s 포함")
     errs = [l for l in logs if "error" in l.lower() or "PAGEERROR" in l]
     print("\n".join(errs)[:2000] or "콘솔 오류 없음")
     b.close()

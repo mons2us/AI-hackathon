@@ -198,14 +198,17 @@ def start_shape():
     return I.full_density(I.shape("base")) > 0.5
 
 
-def run(selection, on_frame=None, use_cache=True, iters=None, every=None):
-    """selection: 고른 기준 키 (KEYS 중). on_frame(frame) 을 프레임마다 부름. 반환: 결과 요약 (frames 포함)."""
+def run(selection, on_frame=None, use_cache=True, iters=None, every=None, lim_override=None):
+    """selection: 고른 기준 키 (KEYS 중). on_frame(frame) 을 프레임마다 부름. 반환: 결과 요약 (frames 포함).
+    lim_override: 확정한 설계 사양의 판정 기준 {key: (op, 값)} (사용자가 고친 값 — 없으면 기본 기준)."""
     sel = sorted(k for k in selection if k in KEYS)
     if not sel:
         raise ValueError("최적화할 항목을 하나 이상 고르세요")
     B = backend()
     lim = limits()
-    ck = memo.key("p01opt", B.id, sel, iters, every)
+    ov = {k: (str(v[0]), float(v[1])) for k, v in (lim_override or {}).items() if k in KEYS and (str(v[0]), float(v[1])) != lim[k]}
+    lim.update(ov)
+    ck = memo.key("p01opt", B.id, sel, iters, every, *([sorted(ov.items())] if ov else []))
     path = os.path.join(memo.DB, ck, "opt.json.gz")
     if use_cache and os.path.exists(path):                       # 미리 계산한 경로 → 바로 재생
         with gzip.open(path, "rt", encoding="utf-8") as fh:
@@ -255,6 +258,8 @@ def gate(res, out=None, timeout=3600):
     full = final_shape(res).astype(float)
     r = I.evaluate(full, tag="opt", timeout=timeout)
     j = I.judge(r)
+    from ..spec_table import relimit
+    j["pass_"] = relimit(j["rows"], {k: tuple(v) for k, v in res["limits"].items()})   # 확정한 설계 사양 기준으로 판정
     F = I.fields(full, tag="opt", timeout=timeout)
     g = dict(rows=j["rows"], pass_=j["pass_"], mass_g=round(float(r["mass_g"]), 2), heat=heat_payload(full > 0.5, F))
     if out:

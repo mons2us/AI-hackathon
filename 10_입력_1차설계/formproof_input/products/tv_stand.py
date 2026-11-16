@@ -383,12 +383,10 @@ def parse_height(text):
     return None
 
 
-def design(text="", sketch=None, out="out", with_mesh=False, template=None):
-    """템플릿(가로/세로 × 높이 3단) 결과 DB 에서 바로 (처음 한 번만 계산). 스케치 · 문장은 템플릿과 높이 단을 고르는 데 쓴다."""
-    import json
-    from .. import memo
-    t0 = time.time()
-    tv = tv_spec(parse_size(text))
+def pick(text="", sketch=None, template=None, size_in=None, zc=None):
+    """문장 · 스케치 → 화면 크기 · 템플릿 · 높이 단 (설계 사양 표와 1차 설계가 같은 것을 씀).
+    size_in · zc: 설계 사양 표에서 사용자가 고친 값 (화면 크기 인치, 화면 중심 높이 mm → 가까운 높이 단)."""
+    tv = tv_spec(int(round(size_in)) if size_in else parse_size(text))
     match = None
     zc_req = parse_height(text)
     zc_how = "문장" if zc_req is not None else None
@@ -410,8 +408,22 @@ def design(text="", sketch=None, out="out", with_mesh=False, template=None):
         top = match["candidates"][0] if match else {}
         zc_req = height_from_sketch(sketch, tid, tv, top.get("with_screen", True))
         zc_how = "스케치 비율" if zc_req is not None else None
+    if zc is not None:
+        zc_req, zc_how = float(zc), "설계 사양"
     orient = BY_ID[tid]["orient"]
-    level = demo["level"] if demo else snap_level(tv, orient, zc_req) if zc_req is not None else "mid"
+    level = snap_level(tv, orient, zc_req) if zc_req is not None else demo["level"] if demo else "mid"
+    return dict(tv=tv, tid=tid, how=how, match=match, zc_req=zc_req, zc_how=zc_how, demo=demo, level=level, orient=orient,
+                zc_t=level_zc(tv, orient, level))
+
+
+def design(text="", sketch=None, out="out", with_mesh=False, template=None, size_in=None, zc=None):
+    """템플릿(가로/세로 × 높이 3단) 결과 DB 에서 바로 (처음 한 번만 계산). 스케치 · 문장은 템플릿과 높이 단을 고르는 데 쓴다."""
+    import json
+    from .. import memo
+    t0 = time.time()
+    pk = pick(text, sketch, template, size_in, zc)
+    tv, tid, how, match, zc_req, zc_how, demo, level, orient = (pk[k] for k in ("tv", "tid", "how", "match", "zc_req", "zc_how", "demo",
+                                                                               "level", "orient"))
     k = memo.key("tv", tid, tv["size_in"], level, FIRST)
     rep = memo.get(k, out) if with_mesh else None
     if rep is None:

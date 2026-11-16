@@ -754,10 +754,10 @@ def matches_reference(img, thr=0.95):
     return best[1] if best[0] >= thr else None
 
 
-def geometry_from(photo=None, text="", style=None):
+def geometry_from(photo=None, text="", style=None, lens_w=None):
     """사진 · 문장 → 가장 가까운 템플릿 (형상 · 렌즈 폭). 사진에서 잰 치수는 참고로 함께 돌려줌.
     등록된 공식 제품 사진(3/4 각도) → 'gm' 템플릿, 정면 사진 → 윤곽 분석으로 가까운 형상, 사진 없음 → 'gm'."""
-    lw = parse_lens_w(text)
+    lw = float(lens_w) if lens_w else parse_lens_w(text)
     an, ref = None, None
     demo = None
     if photo is not None:
@@ -783,13 +783,13 @@ def geometry_from(photo=None, text="", style=None):
     return geo, an
 
 
-def design(text="", image=None, out="out", with_mesh=False, style=None):
+def design(text="", image=None, out="out", with_mesh=False, style=None, lens_w=None):
     """템플릿(형상 2 × 렌즈 폭 3) 결과 DB 에서 바로 (처음 한 번만 계산). 사진은 템플릿을 고르고, 분석 그림 · 치수는 매번 새로."""
     import json
     from .. import memo
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
-    geo, an = geometry_from(image, text, style)
+    geo, an = geometry_from(image, text, style, lens_w)
     k = memo.key("glasses", GM_VERSION, geo["style"], geo["lens_w_t"], TEMPLE_T, RIM_EXTRA, STYLES[geo["style"]])
     rep = memo.get(k, out) if with_mesh else None
     if rep is None:

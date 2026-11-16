@@ -825,7 +825,8 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
 
 
 # ------------------------------------------------------------------ demo routing (스케치 인식은 이후 단계: 지금은 DB)
-DEMO_SKETCHES = [os.path.join(INPUT_ROOT, "examples", "presentation", "input_sketch.png")]
+DEMO_SKETCHES = [os.path.join(INPUT_ROOT, "examples", "presentation", "input_sketch.png"),
+                 os.path.join(INPUT_ROOT, "examples", "demo", "bike_sketch.png")]      # 발표 입력 스케치 · GUI 데모 스케치(그림 위주)
 _DEMO_FP = None
 
 

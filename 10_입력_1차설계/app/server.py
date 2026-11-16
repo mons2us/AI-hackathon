@@ -110,8 +110,6 @@ class Handler(BaseHTTPRequestHandler):
                                "지금 템플릿 하나가 끝나면 이 요청을 먼저 계산합니다")
             out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
                        history=J["history"], done=J["done"], error=J["error"])
-            if J.get("cards") is not None:                      # 1차 설계: 필요 물리 조건 카드 (형상보다 먼저)
-                out["cards"] = J["cards"]
             if "frames" in J:                                   # 최적화: 아직 안 보낸 프레임만 (since = 받은 개수)
                 since = int(parse_qs(u.query).get("since", ["0"])[0] or 0)
                 out["frames"] = J["frames"][since:]
@@ -131,11 +129,13 @@ class Handler(BaseHTTPRequestHandler):
             if sid not in [s[0] for s in integral.SHAPES]:
                 return self._send(404, {"error": "unknown shape"})
             return self._send(200, integral.shape_view(sid))
-        if p == "/api/demos":                         # 제품별 데모 입력 (말 + 스케치) — 지금 1차 설계 형상을 그대로 냄
+        if p == "/api/demos":                         # 데모 입력 3개 (말 + 스케치 획) — 지금 1차 설계 형상을 그대로 냄
             from formproof_input import demo_inputs
-            return self._send(200, [dict(product=d["product"], label=d["label"], prompt=d["prompt"],
-                                         sketch="/examples/" + os.path.relpath(d["sketch"], EXAMPLES).replace(os.sep, "/"))
-                                    for d in demo_inputs.DEMOS])
+            out = []
+            for d in demo_inputs.DEMOS:
+                with open(d["strokes"], encoding="utf-8") as f:
+                    out.append(dict(product=d["product"], label=d["label"], prompt=d["prompt"], sketch=json.load(f)))
+            return self._send(200, out)
         if p == "/api/examples":
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")
@@ -181,12 +181,34 @@ class Handler(BaseHTTPRequestHandler):
             sel = [str(k) for k in req["targets"]]
         except Exception as e:                                  # noqa: BLE001
             return self._send(400, {"error": f"잘못된 요청: {e}"})
-        sel = [k for k in sel if k in OPT.KEYS]
-        if not sel:
-            return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
         out = os.path.join(RUNS, rid)
         if not re.fullmatch(r"[\w.-]+", rid) or rid.startswith(".") or not os.path.isfile(os.path.join(out, "handoff.zip")):
             return self._send(404, {"error": "이 1차 설계의 결과 폴더가 없습니다. 1차 설계를 다시 만들어 주세요."})
+        conf = {}
+        try:
+            with open(os.path.join(out, "design_spec_confirmed.json"), encoding="utf-8") as f:
+                conf = json.load(f)
+        except (OSError, ValueError):
+            pass
+        lim = {k: tuple(v) for k, v in (conf.get("limits") or {}).items()}
+        if (conf.get("template") or {}).get("id", "P01") != "P01":
+            # TV 스탠드 · AI 글래스 · 템플릿 거치대: 최적 설계는 아직 없음 → 고른 기준만 최적화 입력 묶음으로 저장
+            if not sel:
+                return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
+            with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
+                json.dump(dict(run=rid, product=conf.get("product"), template=conf.get("template"), targets=sel,
+                               limits={k: list(lim[k]) for k in sel if k in lim}, created=time.strftime("%Y-%m-%d %H:%M:%S")),
+                          f, ensure_ascii=False, indent=2)
+            with zipfile.ZipFile(os.path.join(out, "handoff.zip")) as zi, \
+                    zipfile.ZipFile(os.path.join(out, "optimize_input.zip"), "w", zipfile.ZIP_DEFLATED) as zo:
+                for it in zi.infolist():
+                    zo.writestr(it, zi.read(it.filename))
+                zo.write(os.path.join(out, "optimize_targets.json"), "optimize_targets.json")
+            return self._send(200, dict(saved=True, files={"optimize_input.zip": f"/runs/{rid}/optimize_input.zip"},
+                                        message="이 제품은 최적 설계 없이 1차 설계까지 — 고른 기준은 최적화 입력 묶음으로 저장했습니다"))
+        sel = [k for k in sel if k in OPT.KEYS]
+        if not sel:
+            return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
         jid = "opt-" + uuid.uuid4().hex[:8]
         now = time.time()
         J = JOBS[jid] = dict(stage="대기 (앞 요청 계산 중)", detail="", t0=now, ts=now, history=[], done=False, error=None, rep=None, frames=[])
@@ -203,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
                     def on_frame(fr):
                         J["frames"].append(fr)
                         J.update(stage=f"역설계 반복 {fr['it']} / {fr['iters']}", detail=f"무게 {fr['mass_g']:.1f} g · 기준 벌점 {fr['pen']:.2f}")
-                    res = OPT.run(sel, on_frame)
+                    res = OPT.run(sel, on_frame, lim_override=lim)
                     J.update(stage="FEM 검증 관문 (팀 엔진으로 마지막 형상 다시 계산)", detail="", ts=time.time())
                     g = OPT.gate(res, out=out)
                     with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
@@ -225,11 +247,35 @@ class Handler(BaseHTTPRequestHandler):
         threading.Thread(target=work, daemon=True).start()
         return self._send(200, {"job": jid})
 
+    def _spec(self):
+        """'설계 사양' 버튼: 말 + 스케치 → 설계 사양 표 (1차 설계 전에, 사용자가 고친 뒤 확정). edits 가 있으면 고친 값 반영해 다시."""
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n).decode("utf-8"))
+            sketch = pipeline.decode_image(req["sketch"]) if req.get("sketch") else None
+            image = pipeline.decode_image(req["image"]) if req.get("image") else None
+            if sketch is None and image is None and not (req.get("text") or "").strip():
+                return self._send(400, {"error": "원하는 조건을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요."})
+            from formproof_input import spec_table
+            t = time.time()
+            with LOCK:
+                sp = spec_table.preview(req.get("text", ""), sketch, image, req.get("template") or None, None, edits=req.get("edits"))
+            sp["seconds"] = round(time.time() - t, 2)
+            return self._send(200, json.loads(json.dumps(sp, ensure_ascii=False, default=float)))
+        except Exception as e:                                          # noqa: BLE001
+            traceback.print_exc()
+            msg = str(e)
+            if "no strokes" in msg:
+                msg = "스케치나 이미지에서 선을 찾지 못했습니다. 조금 더 진하게 그려 주세요."
+            return self._send(400, {"error": msg})
+
     def do_POST(self):
         if urlparse(self.path).path == "/api/optimize":
             return self._optimize()
         if urlparse(self.path).path == "/api/opt_run":                 # 간이 물리 최적화 실행 (optimize.html)
             return self._opt_run()
+        if urlparse(self.path).path == "/api/spec":
+            return self._spec()
         if urlparse(self.path).path != "/api/design":
             return self._send(404, {"error": "not found"})
         try:
@@ -256,16 +302,10 @@ class Handler(BaseHTTPRequestHandler):
                         with WAIT_LOCK:
                             WAITING[0] -= 1
                         progress.set_listener(note)
-                        note("입력 읽기 · 필요한 물리 조건 정리")
-                        try:                                              # 형상 계산 전에 조건 카드부터 (GUI 가 진행 조회로 먼저 받음)
-                            from formproof_input import spec_cards
-                            J["cards"] = spec_cards.preview(req.get("text", ""), sketch, image, req.get("template") or None,
-                                                            req.get("product") or None)[1]
-                        except Exception:                                 # noqa: BLE001
-                            traceback.print_exc()
+                        note("입력 읽기 · 확정한 설계 사양")
                         try:
                             rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
-                                                  product=req.get("product") or None)
+                                                  product=req.get("product") or None, spec=req.get("spec") or None)
                         finally:
                             note("결과 보내는 중")
                             progress.set_listener(None)
