@@ -101,7 +101,7 @@ T(s, '대표 사례 — 자전거 폰 거치대 (말 + 스케치로 요청)', { 
   T(s, c[0], { x: c[3], y: PY + 1.55, w: 2.4, h: 0.2, fontSize: 9, bold: true, color: c[2], align: 'center' }); });
 s.addImage({ path: SH + 'v30_cb.png', x: 5.55, y: PY + 0.31, w: 0.62, h: 1.24, objectName: 'legend' });
 T(s, '두 설계 같은 척도', { x: 5.5, y: PY + 1.58, w: 0.95, h: 0.3, fontSize: 6.3, color: C.accent3 });
-const KP = [['폰 흔들림', '77% 감소', '울퉁불퉁한 길 · 5.6 → 1.3배'], ['충격 부담', '80% 감소', '내부 응력 14.7 → 2.9 MPa'], ['폰 온도', '12 °C 낮게', '내비 사용 시 32.6 → 20.8 °C'], ['무게', '84 → 81 g', '출력 몸체 84.0 → 81.3 g'], ['범용 LLM 단독 3회', '3/3 불합격', '공진 2 · 온도 초과 1 · 11쪽']];
+const KP = [['폰 흔들림', '77% 감소', '울퉁불퉁한 길 · 5.6 → 1.3배'], ['충격 부담', '80% 감소', '내부 응력 14.7 → 2.9 MPa'], ['폰 온도', '12 °C 낮게', '내비 사용 시 32.6 → 20.8 °C'], ['무게', '84 → 81 g', '출력 몸체 84.0 → 81.3 g'], ['범용 LLM 단독 3회', '3/3 불합격', '공진 2 · 온도 초과 1']];
 KP.forEach((k, i) => { const x = 0.6 + i * 1.17, y = PY + 1.82, bad = i === 4;
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y, w: 1.1, h: 0.66, rectRadius: 0.06, fill: { color: bad ? 'FBECEA' : 'FFFFFF' }, line: { color: bad ? X.red : X.teal, width: 1 }, objectName: 'kpi card' });
   T(s, k[0], { x: x + 0.07, y: y + 0.04, w: 1.0, h: 0.17, fontSize: 7, bold: true, color: bad ? C.accent5 : C.text2, valign: 'middle' });
@@ -274,7 +274,7 @@ RW.forEach((r, ri) => { const y = RY0 + ri * (RH + RG), fp = ri === 4;
 const LG = 4.7;
 [[1, '도구 · AI가 자동'], [3, '사람(전문가)이 해야 함'], [4, '추측 (검증 없음)']].forEach((g, i) => { const x = SX + i * 1.75;
   cell(g[0], x, LG, 0.3, 0.16, false); T(s, g[1], { x: x + 0.36, y: LG - 0.01, w: 1.35, h: 0.18, fontSize: 6.5, color: C.accent3, valign: 'middle' }); });
-T(s, '빨간 번호 = 3쪽의 벽', { x: 7.6, y: LG - 0.01, w: 1.9, h: 0.18, fontSize: 6.5, color: C.accent3, align: 'right', valign: 'middle' });
+T(s, '빨간 번호 = 문제 정의의 벽 ①~④', { x: 7.6, y: LG - 0.01, w: 1.9, h: 0.18, fontSize: 6.5, color: C.accent3, align: 'right', valign: 'middle' });
 T(s, [{ text: '1', options: { superscript: true } }, { text: ' engineering.com · Dassault 2022 설문   ' }, { text: '2', options: { superscript: true } }, { text: ' 같은 조건 독립 3회, 같은 해석기로 판정.  난이도 = 사람이 직접 할 때 필요한 전문성(팀 판단). 범주별 일반 기능 기준(상용 제품별 비교는 확인 필요). 요구는 말 · 스케치 입력만 시연, 형상 AI는 분리형 거치대 계열로 학습 · 일체형 최종 형상은 수치 최적화, 단계 연결 자동 실행은 개발 중' }],
   { x: 0.5, y: 4.92, w: 9, h: 0.3, fontSize: 6.5, color: C.accent3 });
 }
