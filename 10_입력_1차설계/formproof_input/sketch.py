@@ -54,7 +54,10 @@ def ring_radius(params):
 
 def template_strokes(params, phone=True):
     """Side-view outline of the 1st design (+ phone) in mm; stroke 0 = ring, 1 = bar, 2 = ears.
-    Look templates: the outline traced from their CAD (look_sketch, stored)."""
+    Look templates: the outline traced from their CAD (look_sketch, stored). P01: rough side view (integral)."""
+    if params.get("integral"):
+        from .integral import side_strokes
+        return [s for _, s in side_strokes(phone=phone)]
     if params.get("look"):
         from .look_sketch import strokes_for
         return [s for _, s in strokes_for(params["look"], "outline", phone)]
@@ -80,6 +83,9 @@ def template_strokes(params, phone=True):
 def template_skeleton(params, phone=True):
     """Centre-line skeleton of the side view in mm: what a quick one-line sketch looks like.
     Returns named polylines: ring (closed), ears, arm members, pad, and optionally the phone."""
+    if params.get("integral"):
+        from .integral import side_skeleton
+        return side_skeleton(phone)
     if params.get("look"):
         from .look_sketch import strokes_for
         return strokes_for(params["look"], "skeleton", phone)

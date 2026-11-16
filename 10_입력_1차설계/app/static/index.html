@@ -226,6 +226,8 @@ function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i
 
 /* ---------- text examples ---------- */
 const EX = ['자갈길에서도 폰이 안 흔들리게, 최대한 가볍게', 'S25 울트라, 로드 바이크, 튼튼하게', '앞으로 길게 뻗어서 보강대 넣어줘', '여름 땡볕에서도 변형 없고 화면 각도는 자유롭게'];
+const PRES='울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야';
+{const b=document.createElement('button');b.className='chip';b.style.borderColor='var(--blue)';b.textContent='발표 사례 (일체형)';b.onclick=()=>{$('#text').value=PRES;};$('#chips').appendChild(b);}
 EX.forEach(t=>{const b=document.createElement('button');b.className='chip';b.textContent=t;b.onclick=()=>{const a=$('#text');a.value=a.value?a.value.replace(/\s*$/,', ')+t:t;};$('#chips').appendChild(b);});
 
 /* ---------- sketch pad ---------- */
@@ -243,7 +245,7 @@ pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.
 ['pointerup','pointercancel','pointerleave'].forEach(n=>pad.addEventListener(n,()=>{S.cur=null;}));
 $('#undo').onclick=()=>{if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();};
 $('#clear').onclick=()=>{S.strokes=[];S.bgImg=null;$('#example').value='';redraw();};
-fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent='예시 '+u.match(/hand_(.+)\.png$/)[1];$('#example').appendChild(o);}));
+fetch('/api/examples').then(r=>r.json()).then(list=>list.forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u.includes('/presentation/')?'발표 입력 스케치 (P01)':'예시 '+u.match(/hand_(.+)\.png$/)[1];$('#example').appendChild(o);}));
 $('#example').onchange=e=>{if(!e.target.value)return;const im=new Image();im.onload=()=>{S.bgImg=im;S.strokes=[];redraw();};im.src=e.target.value;};
 redraw();
 const hasSketch = () => S.strokes.length>0 || !!S.bgImg;
@@ -393,7 +395,42 @@ function payloadNote(pl){
 const QN={transmissibility_band_max:['자갈길 흔들림 증폭','배'],natural_frequency_hz:['1차 고유진동수 (참고)','Hz'],von_mises_max_mpa:['충격 최대 응력','MPa'],layer_normal_tension_mpa:['층간 인장 응력','MPa'],
   min_member_thickness_mm:['최소 부재 두께','mm'],phone_clearance_mm:['폰 회전·기울기 간격','mm'],joint_rot_stiffness_Nm_per_rad:['관절 회전 강성','N·m/rad'],
   joint_hold_torque_Nm:['관절 유지 토크','N·m'],parked_surface_temp_c:['주차 표면온도','°C']};
+function renderIntegral(rep, req){
+  const s=rep.summary, t=rep.template, j=rep.judge, ph=rep.physics;
+  $('#reqs').innerHTML=[['제품',s.product],['노면',s.road],['진동 · 충격',`${s.vib} · ${s.shock_g} g`],['폰 · 탑재 하중',`${s.phone} · ${s.point_mass_g} g 강체`],
+    ['핸들바 · 각도',`Ø${s.bar_d} mm · ${rep.design_vars.tilt_deg}°`],['목표',s.objective],['안전율',s.safety_factor],['재료',s.material],['추가 요구',s.requirements.join(' · '),'wide']]
+    .map(([k,v,w])=>`<div class="req ${w||''}"><small>${k}</small><b>${v}</b></div>`).join('');
+  $('#reqSub').textContent=`말 · 스케치에서 ${rep.text.fired.length}개 항목을 읽었습니다 (항목마다 출처)`;
+  $('#questions').innerHTML=rep.text.questions.map(q=>`<div class="q">${q}</div>`).join('');
+  $('#tplTag').className='tag blue';$('#tplTag').textContent=`${t.id} ${t.name} · ${t.chosen_by}`;
+  $('#flow').innerHTML=[`입력: ${t.chosen_by}`,`설계 명세 (출처 표시)`,`격자 ${rep.problem.grid.join('×')} · 설계 ${rep.problem.elements.design.toLocaleString()} 요소`,
+    `팀 엔진 판정`,`출력 몸체 STL ${rep.cad.mass_g} g`].map(x=>`<span class="ok">✓ ${x}</span>`).join('');
+  const cmp=rep.compare||[];
+  $('#cands').innerHTML=`<div class="note" style="grid-column:1/-1">발표 10쪽과 같은 조건 · 같은 엔진으로 판정한 비교 형상 (처음 설계 = 이 1차 설계)</div>
+    <table class="vars" style="grid-column:1/-1"><tr><td><b>형상</b></td><td>무게 g</td><td>1차 Hz</td><td>최대 흔들림</td><td>폰 온도 °C</td><td>판정</td></tr>`+
+    cmp.map(r=>`<tr><td>${r.name}<br><small style="color:var(--ink3)">${r.slide}</small></td><td>${r.mass_g}</td><td>${r.f1}</td><td>${r.shake}배 (${r.shake_dir})</td><td>+${r.Tmax}</td>
+      <td style="color:${r.pass_?'var(--green)':'var(--red)'}">${r.pass_?'통과':'불합격 — '+r.fails.join(', ')}</td></tr>`).join('')+'</table>';
+  showMount(rep);
+  $('#imgSide').src=rep.files['side_view.png'];$('#imgDraw').src=rep.files['design_1st_drawing.png'];
+  $('#kMass').textContent=`${fmt(rep.cad.mass_g)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
+  const rows=j.rows.map(r=>{const ge=r.op==='>=',ratio=ge?r.value/r.limit:r.limit/Math.max(r.value,1e-6);
+    return `<div class="metric"><div class="row"><span>${r.name}</span><b class="num" style="color:${r.ok?'var(--green)':'var(--red)'}">${r.value} ${r.unit}</b></div>
+    <div class="bar"><i class="${r.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div><div class="row" style="color:var(--ink3);font-size:11.5px"><span>기준 ${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit} · ${r.source}</span><span>${r.ok?'충족':'최적화 대상'}</span></div></div>`;}).join('');
+  $('#metrics').innerHTML=rows+frfSvg(rep.first_design_check.frf,[10,100],1.5)+
+    `<div class="note">판정 = 팀 엔진(11_구현패키지 opt_int.py, 2 mm 격자 FEM · 폰 + 부품 311 g 강체 · 감쇠비 3 % · 발열 4 W) — 발표 7·22쪽 처음 설계 수치와 같습니다. 1차 진동 ${rep.first_design_check.f.join(' · ')} Hz.</div>`;
+  $('#perfTag').className='tag '+(j.pass_?'green':'amber');$('#perfTag').textContent=j.pass_?'기준 충족':'처음 설계 · 미충족 → 최적화';
+  const dv=rep.design_vars;
+  $('#vars').innerHTML=[['핸들바 직경',`Ø${dv.bar_d} mm`],['클램프 폭',`${dv.width} mm`],['거치 각도',`${dv.tilt_deg}°`],['기둥 (보)',dv.beam],['받침판',dv.plate],
+    ['폰 고정 부품','양옆 슬라이드 집게 · 아래 걸이 · 위 슬라이드 걸이'],['탑재 하중',`${dv.payload_g} g (강체 165×80×15)`],['재료',dv.material]].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  $('#loadsSub').textContent=`하중: 노면 ${ph.road_vibration.freq_hz.join('–')} Hz 진동 (판정 ${ph.road_vibration.judge_hz.join('–')} Hz) · 충격 ${ph.shock.accel_g} g 위아래·앞뒤 · 터치 ${ph.touch.force_n} N · 발열 ${ph.thermal.heat_w} W`;
+  $('#cons').innerHTML=j.rows.map(r=>`<div class="con"><b>${r.name} ${r.op==='>='?'≥':'≤'} ${r.limit} ${r.unit}</b><small>${r.source}</small></div>`).join('')+
+    `<div class="con"><b>최적화 설정 (팀 엔진)</b><small>GRIP=2 NX=88 MSYS=0.311 TILT=35 FT=95 TLIM=21 DLIM=0.3 · 출력 방향 −z' · 필터 8 mm</small></div>`;
+  $('#assumpList').innerHTML=rep.assumptions.map(a=>`<li>${a}</li>`).join('');
+  $$('#files a').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f){a.href=f+'?dl=1';}});
+  const h=$('#handoff');h.disabled=false;h.onclick=()=>{location.href=rep.files['handoff.zip']+'?dl=1';setStep(3);};
+}
 function render(rep, req){
+  if(rep.kind==='integral') return renderIntegral(rep, req);
   const s=rep.summary, t=rep.template, c=rep.first_design_check;
   // requirements card
   const items=[['제품',s.product],['노면',s.road],['진동 · 충격',`${s.vib} · ${s.shock_g} g`],['폰 · 탑재 하중',`${s.phone} · ${s.point_mass_g} g`],

@@ -55,6 +55,21 @@ def eval_prim(prim, pts, closed):
             if p.get(ax) is not None:
                 m &= eval_prim({"box": {ax: p[ax]}}, pts, closed)
         return m
+    if kind == "rbox":
+        # box in a frame rotated about y (e.g. the handlebar/world frame of a tilted part):
+        # X = x cos t - z sin t, Z = x sin t + z cos t; keys X / Z (rotated), y (unchanged)
+        t = np.radians(p["tilt_deg"])
+        X = pts[:, 0] * np.cos(t) - pts[:, 2] * np.sin(t)
+        Z = pts[:, 0] * np.sin(t) + pts[:, 2] * np.cos(t)
+        for v, rng in ((X, p.get("X")), (Z, p.get("Z")), (pts[:, 1], p.get("y"))):
+            if rng is None:
+                continue
+            lo, hi = rng
+            if lo is not None:
+                m &= lt(lo, v)
+            if hi is not None:
+                m &= lt(v, hi)
+        return m
     if kind == "phone_sweep":
         return phone_sweep(p, pts)
     raise ValueError(f"unknown primitive '{kind}'")

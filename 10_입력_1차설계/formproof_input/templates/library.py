@@ -116,6 +116,10 @@ def _looks():
 
 
 LOOKS, LOOK_ALIASES = _looks()
-ALL = TEMPLATES + LOOKS
+# ------------------------------------------------------------------ 발표 사례 (formproof_input.integral)
+INTEGRAL = [dict(id="P01", name="일체형 거치대 (발표 사례)", kind="integral", family="integral",
+                 desc="클램프 + 20×8 mm 보 + 2 mm 판, 폰 4면 고정 부품(양옆 집게 · 아래 걸이 · 위 레일) — 발표 7·10·22쪽 처음 설계",
+                 params=dict(integral="base"))]
+ALL = TEMPLATES + LOOKS + INTEGRAL
 BY_ID = {t["id"]: t for t in ALL}
 BY_ID.update({a: BY_ID[g] for a, g in LOOK_ALIASES.items()})

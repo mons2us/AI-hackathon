@@ -8,7 +8,7 @@ from skimage import io
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from formproof_input import sketch as S
-from formproof_input.templates.library import LOOKS, TEMPLATES
+from formproof_input.templates.library import INTEGRAL, LOOKS, TEMPLATES
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -21,11 +21,11 @@ def main():
     for t in TEMPLATES:
         img = S.draw_image(S.template_strokes(t["params"], phone=False), px=420, line=3)
         io.imsave(os.path.join(out_t, f"{t['id']}.png"), (img * 255).astype(np.uint8), check_contrast=False)
-    for t in LOOKS:                                       # look templates: traced from their CAD side view
+    for t in LOOKS + INTEGRAL:                            # look templates: traced from their CAD side view; P01 rough
         img = S.draw_image(S.template_strokes(t["params"], phone=True), px=420, line=3)
         io.imsave(os.path.join(out_t, f"{t['id']}.png"), (img * 255).astype(np.uint8), check_contrast=False)
     rng = np.random.default_rng(2026)
-    for t in TEMPLATES + LOOKS:
+    for t in TEMPLATES + LOOKS + INTEGRAL:
         st = S.perturb(S.template_strokes(t["params"], phone=rng.random() < 0.5), rng, 1.0)
         img = S.draw_image(st, px=int(rng.integers(360, 640)), mirror=rng.random() < 0.5, line=int(rng.integers(2, 6)))
         io.imsave(os.path.join(out_h, f"hand_{t['id']}.png"), (img * 255).astype(np.uint8), check_contrast=False)

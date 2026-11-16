@@ -110,6 +110,15 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
     rep = dict(input=dict(text=text, sketch=sketch is not None, image=image is not None, template=template))
+    # P01 일체형 (발표 사례): 지정 · 발표 문장 · 발표 입력 스케치(데모 DB) -> 팀 엔진과 같은 문제
+    from . import integral
+    g0 = sketch if sketch is not None else image
+    via = ("지정" if template == "P01" else
+           "발표 입력 스케치 (데모 DB)" if (not template and g0 is not None and integral.matches_presentation_sketch(g0)) else
+           "텍스트 (발표 문장 · 일체형)" if (not template and g0 is None and integral.is_presentation_text(text)) else None)
+    if via:
+        return integral.design(text, out=out, with_mesh=with_mesh, chosen_by=via,
+                               sketch_note=integral.SKETCH_NOTE if (g0 is not None or not text) else "")
     parsed = text_rules.parse(text)
     rep["text"] = parsed
 

@@ -3,7 +3,7 @@ import os, sys, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import test_reproduce_opt3d, test_rigid_payload, test_fem_cantilever, test_text_rules, test_sketch_match, test_cad, test_requirements
-import test_looks
+import test_looks, test_integral
 
 CHECKS = [
     ("opt3d.py 문제 재현", test_reproduce_opt3d.test_reproduce),
@@ -28,6 +28,13 @@ CHECKS = [
     ("외형: CAD 몸체 = 해석 격자 질량 (팔 10종)", test_looks.test_cad_matches_grid),
     ("외형: 정형 스케치 자기 찾기 (1/3 표본)", test_looks.test_clean_look_sketches),
     ("외형: 합성 손그림 185장 (+ 홀더·클램프 단어)", test_looks.test_hand_drawn_looks),
+    ("P01 발표 사례: 격자 영역 = 팀 grid_meta", test_integral.test_grid_same_as_team),
+    ("P01: 1차 설계 = 발표 처음 설계 (판 + 기둥)", test_integral.test_first_design_is_presentation_base),
+    ("P01: 설계 명세 · 판정 기준 = 팀 spec", test_integral.test_conditions_same_as_team_spec),
+    ("P01: 10쪽 비교 형상 = llm2rho 출력", test_integral.test_comparison_shapes_same_as_team),
+    ("P01: 수치 · 판정 = 발표 7·10·22쪽", test_integral.test_numbers_same_as_presentation),
+    ("P01: 발표 문장 · 스케치 → P01", test_integral.test_routing),
+    ("P01: 파이프라인 출력 파일", test_integral.test_pipeline_outputs),
 ]
 
 if __name__ == "__main__":

@@ -87,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/examples":
             hand = sorted(f for f in os.listdir(os.path.join(EXAMPLES, "hand"))      # T templates + reviewed looks G01-G16
                           if f.endswith(".png") and f[5] in "TG")
-            return self._send(200, [f"/examples/hand/{f}" for f in hand])
+            return self._send(200, ["/examples/presentation/input_sketch.png"] + [f"/examples/hand/{f}" for f in hand])
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
