@@ -58,6 +58,7 @@ footer{color:var(--mute);font-size:12px;margin-top:50px}
 <tr><td>검증 관문 판정 항목</td><td><b>보강</b> — 기준값 + 연결성(떨어진 요소 0) + 중간 밀도 비율 ≤ 5 %</td><td><code>agent/pipeline.py</code> gate()</td></tr>
 <tr><td>원본 최종 형상 정확 재현</td><td><b>불가</b> — 원본 실행 뒤 고정 부품 정의 변경, 원본 실행 명령 미보존. 원본이 필요하면 <code>data/reference/rbin_int35f95g2.npy</code> 사용</td><td>8절 실패 기록</td></tr>
 </table></div>
+<p><b>범위 (발표 13쪽)</b>: 해커톤 구현 범위 = 1단계(엔진 · 검증 · 실증, 완료) + <b>2단계(대표 사례 자전거 거치대 AI 엔진 — 제출 전 반드시 완료, 장표에 완료로 표기)</b>. 3 · 4단계(입력 확대 · 사내 특허 시스템 연동 · 사업부 적용)는 계획이며 시연하지 않는다. 골격 코드: <code>agent/inputs.py</code>, <code>agent/patent.py</code>, <code>agent/report.py</code>, <code>pipeline.mfg_check()</code>.</p>
 <h3>다음 할 일 (순서대로)</h3>
 <ol>
 <li><b>GPU 학습</b>: <code>bash scripts/train_gpu.sh</code> — 형상 AI → 물리 AI → 잠재 탐색 → 검증 관문. 합격 기준: 형상 AI 재구성 IoU ≥ 0.8, 물리 AI 1차 진동수 오차 ≤ 10 %.</li>
