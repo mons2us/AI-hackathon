@@ -57,3 +57,10 @@ python3 agent/pipeline.py --spec spec/bike_mount_targets.json --run runs/r1     
 - 층간 강도 한계 10.9 MPa, 폰 발열 4 W, 감쇠비 3 %, 터치 5 N 은 가정값 — 근거 DB 에 출처 확정 필요.
 - `pypardiso` 는 x86_64 전용. 다른 CPU 는 `scipy.sparse.linalg.splu` 로 교체.
 - 학습 코드의 성능(오차 · IoU)은 GPU 학습으로 확인해야 한다. 이 패키지에서는 CPU 소규모로 끝까지 도는 것만 확인했다.
+
+## GPU 인계 (2026-11-16)
+- 학습 데이터 준비 완료: `data/shards/` — 생성기 형상 160개(gen_s1001 · gen_s1002) + 위상 최적화 이력 122개(snap_half), 형상당 스칼라 7개 + 온도 · 응력 분포. 같은 FEM 엔진(label2)으로 계산.
+- 바로 실행: `bash scripts/train_gpu.sh` (형상 AI → 물리 AI(CNN 기준선 · FNO) → 잠재 탐색 → 검증 관문).
+- CPU 시험 결과(참고): DeepSDF 2,000회(CPU 2코어 약 1.8시간)에서 학습 형상 재구성 IoU 0.50 — 합격 기준 0.8 미달, 실행 시간 제한으로 중단. `runs_cpu/stageC.log` 참조.
+- 데이터 확대가 필요하면 `scripts/gen_data.sh` 로 생성기 형상을 추가(목표 2,000개). label2 프로세스 1개 ≈ 3 GB 메모리.
+- DeepSDF 학습은 1,000회마다 중간 저장.
