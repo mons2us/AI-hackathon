@@ -16,7 +16,21 @@
 pip install -r app/requirements.txt
 python app/server.py          # 브라우저가 http://localhost:8765 로 열림 (인터넷 불필요)
 ```
-윈도우는 `app/start.bat`, 우분투는 `app/start.sh`. 결과는 `app/runs/<시각-id>/`에 남습니다.
+우분투는 `app/start.sh`. 결과는 `app/runs/<시각-id>/`에 남습니다.
+
+**윈도우 (사내 PC)**
+
+| 순서 | 할 일 |
+|---|---|
+| 1 | Python **3.11–3.13 64bit** 설치(3.12 권장, "Add python.exe to PATH" 체크). CadQuery 휠이 3.11 이상만 있음 |
+| 2 | `app\setup.bat` 더블클릭 — 이 폴더에 `.venv` 를 만들고 `app/requirements.txt` 설치(처음 한 번, 인터넷 필요, 관리자 권한 불필요) |
+| 3 | `app\start.bat` 더블클릭 → 브라우저 `http://localhost:8765` (방화벽 창이 뜨면 "개인 네트워크" 허용) |
+| 명령줄 | `.venv\Scripts\python run.py --text "울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야" --out out` · 검증 `.venv\Scripts\python tests\run_all.py` |
+
+- 저장소는 master 와 함께 받아야 합니다(P01 은 `11_구현패키지`, `03_자전거거치대/LLM단독비교` 를 씀).
+- 경로에 한글 폴더가 있어도 됩니다. 배치 파일이 `PYTHONUTF8=1` 로 실행합니다(팀 스크립트 일부가 인코딩을 지정하지 않아 cp949 로 읽는 문제 방지).
+- P01 판정은 미리 계산한 결과를 쓰므로 바로 나옵니다. 새 형상을 계산하면 팀 엔진(`pypardiso`, Intel MKL)이 1분 정도 걸립니다. ARM 윈도우는 MKL 이 없어 이 계산만 안 됩니다.
+- 사내 프록시 때문에 설치가 막히면 `set HTTPS_PROXY=http://<프록시>:<포트>` 후 `setup.bat` 을 다시 실행합니다.
 
 | 화면 | 내용 |
 |---|---|

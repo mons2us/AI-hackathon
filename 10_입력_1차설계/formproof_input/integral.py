@@ -375,11 +375,12 @@ def evaluate(rho, tag="p01", use_cache=True, timeout=1800):
         rp = os.path.join(td, "rho.npy")
         np.save(rp, np.asarray(rho, float).ravel())
         env = dict(os.environ, **{k: v for k, v in ENGINE_ENV.items() if k in ("GRIP", "NX", "MSYS", "TILT", "DLIM", "TLIM", "FT")},
-                   MODE="eval", RHO=rp, TAG=tag)
-        p = subprocess.run([sys.executable, ENGINE], cwd=td, env=env, capture_output=True, text=True, timeout=timeout)
+                   MODE="eval", RHO=rp, TAG=tag, PYTHONUTF8="1")
+        p = subprocess.run([sys.executable, ENGINE], cwd=td, env=env, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=timeout)
         if p.returncode:
             raise RuntimeError("엔진 실패: " + (p.stderr or p.stdout)[-1500:])
-        res = json.load(open(os.path.join(td, f"frfint_{tag}.json")))
+        res = json.load(open(os.path.join(td, f"frfint_{tag}.json"), encoding="utf-8"))
     res["engine"] = "11_구현패키지/FormProof_구현/engine/opt_int.py MODE=eval GRIP=2 NX=88 MSYS=0.311 TILT=35"
     cache = json.load(open(EVAL_DB, encoding="utf-8")) if os.path.exists(EVAL_DB) else {}
     cache[key] = res

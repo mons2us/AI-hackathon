@@ -97,7 +97,7 @@ def test_comparison_shapes_same_as_team():
         for n, sid in ((1, "llm_A"), (2, "llm_B"), (3, "llm_C")):
             o = os.path.join(td, f"L{n}.npy")
             subprocess.run([sys.executable, os.path.join(I.LLM_DIR, "llm2rho.py"), os.path.join(I.LLM_DIR, f"L{n}.md"), o],
-                           check=True, capture_output=True)
+                           check=True, capture_output=True, env=dict(os.environ, PYTHONUTF8="1"))   # 팀 스크립트는 인코딩 미지정(윈도우 cp949)
             assert (np.load(o) == I.shape(sid)).all(), sid
     return "LLM A·B·C 격자 일치"
 
@@ -114,7 +114,7 @@ def test_numbers_same_as_presentation():
         assert j["pass_"] == VERDICT[sid], (sid, j["fails"])
         out.append(f"{sid} {r['mass_g']} g {r['f'][0]} Hz {j['shake']}배")
     for sid, ref in (("base", "frfint_base35g3.json"), ("formproof_body", "frfint_body_v3.json")):
-        e = json.load(open(os.path.join(REF, ref)))
+        e = json.load(open(os.path.join(REF, ref), encoding="utf-8"))
         r = I.evaluate(I.full_density(I.shape(sid)), tag=sid)
         assert r["f"][:4] == e["f"][:4] and r["Tmax"] == e["Tmax"] and r["shock"] == e["shock"], sid
     return " · ".join(out)
@@ -125,7 +125,7 @@ def test_engine_reruns_same(force=None):
     if not (force or os.environ.get("RUN_ENGINE") == "1"):
         return "건너뜀 (RUN_ENGINE=1)"
     r = I.evaluate(I.full_density(I.base_design()), tag="rerun", use_cache=False)
-    e = json.load(open(os.path.join(REF, "frfint_base35g3.json")))
+    e = json.load(open(os.path.join(REF, "frfint_base35g3.json"), encoding="utf-8"))
     assert r["f"] == e["f"] and r["mass_g"] == e["mass_g"] and r["Tmax"] == e["Tmax"] and r["vert"]["T"] == e["vert"]["T"]
     return "다시 계산 = 기준 결과"
 

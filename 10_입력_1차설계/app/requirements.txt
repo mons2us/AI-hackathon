@@ -7,4 +7,5 @@ cadquery
 ezdxf
 trimesh
 manifold3d          # P01 출력 몸체 (팀 build_body 절차)
-pypardiso           # P01 판정: 팀 엔진 opt_int.py (x86_64; 캐시에 있는 형상은 없어도 됨)
+pypardiso           # P01 판정: 팀 엔진 opt_int.py (x86_64 윈도우·리눅스; 캐시에 있는 형상은 없어도 됨)
+mmapy               # 팀 엔진이 시작할 때 불러옴
