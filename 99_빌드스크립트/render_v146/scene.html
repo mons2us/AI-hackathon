@@ -15,5 +15,6 @@ fetch('meshes.json').then(r=>r.json()).then(M=>{
  G.bar=bar; // cylinder axis = y already
  [['base','_col','_c'],['body','_col','_c'],['base','_trms','_R'],['body','_trms','_R'],['base','_vm','_V'],['body','_vm','_V'],['base','_T','_T'],['body','_T','_T'],['llm_A','_trms','_R'],['llm_B','_trms','_R'],['llm_C','_trms','_R'],['formproof','_trms','_R']].forEach(([k,src,dst])=>{const g=geo(M[k]); const bin=atob(M[k+src]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(u.buffer),3)); G[k+dst]=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.0}));});
  Object.values(G).forEach(m=>sc.add(m)); window.ready=true;});
+window.proj=(pts)=>pts.map(p=>{const v=new THREE.Vector3(...p).project(cam);return [(v.x+1)/2*W,(1-v.y)/2*H];});
 window.shot=(show,pos,tgt,fov)=>{Object.entries(G).forEach(([k,m])=>m.visible=show.includes(k)); cam.fov=fov; cam.up.set(0,0,1); cam.position.set(...pos); cam.lookAt(...tgt); cam.updateProjectionMatrix(); r.render(sc,cam);};
 </script></body></html>
