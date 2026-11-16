@@ -31,7 +31,10 @@ RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
 APP_VERSION = "2026-11-16c"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
-JOBS = {}                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
+JOBS = {}
+WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
+WAIT_LOCK = threading.Lock()
+FILL = dict(active=False, i=0, n=0, name="")               # 템플릿 결과 DB 채우는 중인지 (대기 문구에 씀)                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("model/step", ".step")
 mimetypes.add_type("model/stl", ".stl")
@@ -92,6 +95,9 @@ class Handler(BaseHTTPRequestHandler):
             if not J:
                 return self._send(404, {"error": "unknown job"})
             now = time.time()
+            if J["stage"].startswith("대기") and FILL["active"]:
+                J["detail"] = (f"템플릿 결과 DB 를 처음 만드는 중 ({FILL['i']}/{FILL['n']} {FILL['name']}) — "
+                               "지금 템플릿 하나가 끝나면 이 요청을 먼저 계산합니다")
             out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
                        history=J["history"], done=J["done"], error=J["error"])
             if J["done"]:
@@ -131,6 +137,8 @@ class Handler(BaseHTTPRequestHandler):
             out = os.path.join(RUNS, rid)
             now = time.time()
             J = JOBS[rid] = dict(stage="대기 (앞 요청 계산 중)", detail="", t0=now, ts=now, history=[], done=False, error=None, rep=None)
+            with WAIT_LOCK:
+                WAITING[0] += 1
 
             def note(name, detail=""):
                 t = time.time()
@@ -141,6 +149,8 @@ class Handler(BaseHTTPRequestHandler):
             def work():
                 try:
                     with LOCK:
+                        with WAIT_LOCK:
+                            WAITING[0] -= 1
                         progress.set_listener(note)
                         note("입력 읽기 · 제품 판단")
                         try:
@@ -197,7 +207,12 @@ def fill_template_db():
     if os.path.exists(done_mark):                                    # 이미 다 채움 -> 요청을 기다리게 하지 않음
         return
     t, n = time.time(), 0
-    for name, fn in memo.jobs():
+    jobs = memo.jobs()
+    FILL.update(active=True, n=len(jobs))
+    for i, (name, fn) in enumerate(jobs, 1):
+        FILL.update(i=i, name=name)
+        while WAITING[0] > 0:                                       # 사용자 요청이 기다리면 양보
+            time.sleep(0.1)
         try:
             with LOCK:
                 t1 = time.time()
@@ -207,6 +222,7 @@ def fill_template_db():
                     n += 1
         except Exception as e:                                      # 한 항목이 실패해도 서버는 계속
             sys.stderr.write(f"[템플릿 DB] {name}: {e}\n")
+    FILL.update(active=False)
     try:
         open(done_mark, "w").close()
     except OSError:
