@@ -9,6 +9,9 @@
   bot : 판 아래 끝 (GRIP 0: 받침 턱 / 1·2: 아래 걸이)
   top : 판 위 끝   (GRIP 0·1: 위쪽 받침점 / 2: 위쪽 슬라이드 레일)
 계열(팔 구조) 7가지 — 아래 FAMILIES. 각 계열은 연속 변수(링에서 나오는 각도, 꺾이는 점, 단면 크기 등)를 가짐.
+받침판 채움 패턴 6가지 — PLATE_KINDS (판 없음 · 꽉 찬 판 · 리브 · 구멍 · 테두리+십자 · 띠) × 층 수 1–3 × 크기 변수.
+  열 해석(opt_int.thermal)은 받침판 + 폰만 계산하므로 폰 온도는 이 패턴으로만 달라짐 (팔 형상은 영향 없음).
+클램프는 볼트 링 하나로 고정 (opt_int.py 와 같음).
 
     rng = np.random.default_rng(0)
     occ, prm = sample(rng, meta, grip=2)               # 무작위 계열·변수
@@ -128,6 +131,61 @@ def _members(prm, T):
     return M
 
 
+# ------------------------------------------------------------------ 받침판 채움 패턴 (폰 뒷면 받침판 z' 24–30, 3층)
+# 열: 폰(발열) -> 판(전도) -> 판 아랫면 대류 / 판이 빈 곳은 폰 뒷면이 공기에 바로 닿음 (opt_int.thermal)
+# 그래서 판을 어디를 얼마나 채우는지가 폰 온도를 바꿈. 판 아래 몸체(팔)는 열 모델에 없음.
+PLATE_KINDS = ('none', 'full', 'ribs', 'holes', 'frame', 'band')
+PLATE_KO = {'none': '판 없음(고정 부품만)', 'full': '꽉 찬 판', 'ribs': '리브 줄무늬', 'holes': '구멍 뚫린 판',
+            'frame': '테두리 + 십자', 'band': '띠(발열부 아래)'}
+PLATE_P = (0.12, 0.14, 0.20, 0.20, 0.17, 0.17)
+PLATE_Z = (29.0, 27.0, 25.0)                     # 층 중심 z' (위 = 폰 닿는 면)
+
+
+def draw_plate(rng):
+    k = str(rng.choice(PLATE_KINDS, p=PLATE_P))
+    p = dict(kind=k, layers=int(rng.integers(1, 4)))
+    if k == 'ribs':
+        p.update(dir=str(rng.choice(['x', 'y'])), width=float(rng.uniform(3, 10)), pitch=float(rng.uniform(10, 30)))
+    elif k == 'holes':
+        p.update(d=float(rng.uniform(6, 20)), pitch=float(rng.uniform(14, 34)))
+    elif k == 'frame':
+        p.update(border=float(rng.uniform(4, 14)), cross=bool(rng.random() < 0.6), cross_w=float(rng.uniform(4, 12)))
+    elif k == 'band':
+        c = float(rng.uniform(60, 125))
+        p.update(x0=c - float(rng.uniform(10, 40)), x1=c + float(rng.uniform(10, 40)), half=float(rng.uniform(8, 39)))
+    return p
+
+
+def plate_mask(p, xc, yc, zc, plate):
+    """판 패턴 -> 판 영역 안 점유 (절반 모델: y 0–40 = 폰 폭 80 mm 의 절반)"""
+    k = p['kind']
+    if k == 'none':
+        return np.zeros(len(xc), bool)
+    lay = np.zeros(len(xc), bool)
+    for z in PLATE_Z[:p['layers']]:
+        lay |= np.abs(zc - z) < 0.5
+    m = plate & lay
+    if k == 'full':
+        return m
+    xl = xc + 10.0                                                  # 판 아래 끝(x' = -10)에서 잰 길이
+    if k == 'ribs':
+        u = xl if p['dir'] == 'x' else yc
+        return m & ((u % p['pitch']) < p['width'])
+    if k == 'holes':
+        pp = p['pitch']
+        dx = (xl % pp) - pp / 2
+        dy = ((yc + pp / 2) % pp) - pp / 2                          # y=0 대칭면에 구멍 중심이 오도록
+        return m & (np.hypot(dx, dy) > p['d'] / 2)
+    if k == 'frame':
+        b = p['border']
+        edge = (xl < b) | (xl > 150 - b) | (yc > 40 - b)
+        cross = (np.abs(xl - 75) < p['cross_w'] / 2) | (yc < p['cross_w'] / 2) if p['cross'] else False
+        return m & (edge | cross)
+    if k == 'band':
+        return m & (xc > p['x0']) & (xc < p['x1']) & (yc < p['half'])
+    raise ValueError(k)
+
+
 # ------------------------------------------------------------------ 계열별 변수 범위 (균일 샘플)
 RANGES = {
     'common': dict(t=(5.0, 12.0), w=(5.0, 14.0), sub=(0.55, 1.0)),
@@ -148,6 +206,7 @@ def draw(rng, family=None, n_web_max=2):
     c = {k: float(rng.uniform(*r)) for k, r in RANGES['common'].items()}
     nw = int(rng.integers(0, n_web_max + 1))
     return dict(family=str(f), v=v, t=c['t'], w=c['w'], sub=c['sub'], section=str(rng.choice(SECTIONS)),
+                plate=draw_plate(rng),
                 n_web=nw, webs=[[int(rng.integers(0, 6)), int(rng.integers(0, 6)), float(rng.uniform(.2, .8)),
                                  float(rng.uniform(.2, .8))] for _ in range(nw)])
 
@@ -190,6 +249,8 @@ def build(prm, meta, grip=None):
     occ = np.zeros(len(xc), bool)
     for path, scale in _members(prm, T):
         occ |= _member_mask(P, yc, path, prm['t'] * (scale ** 0.5), prm['w'] * scale, prm['section'])
+    if prm.get('plate') and 'plate' in meta:
+        occ |= plate_mask(prm['plate'], xc, yc, zc, meta['plate'].astype(bool))
     occ &= design
     nz, ny, nx = int(meta['nz']), int(meta['ny']), int(meta['nx'])
     lab, n = ndimage.label((occ | solid).reshape(nz, ny, nx))
