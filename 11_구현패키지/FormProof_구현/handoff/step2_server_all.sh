@@ -14,6 +14,7 @@
 #   NA          A 구조 데이터: 프레임 생성기 형상 수 (기본 5000) + 위상 최적화 기록 245개
 #   NB          B 열 데이터: 받침판 패턴 뽑기 수 (기본 20000, 중복 약 1/3 은 건너뜀)
 #   SDF_STEPS   형상 AI 학습 스텝 (기본 30000)     PHYS_STEPS  물리 AI 학습 스텝 (기본 20000)
+#   GPUS=0,2,3  학습에 쓸 GPU 직접 지정 (기본: nvidia-smi 로 여유 메모리 GPU_MIN_FREE_MB=6000 이상인 것을 자동 선택)
 #   TINY=1      시험 실행 (데이터 몇 개 · 학습 수십 스텝, CPU 가능, 약 10분) — 처음에 한 번 돌려 볼 것
 # =====================================================================================================
 set -e
@@ -82,9 +83,6 @@ assert n>0, 'A 데이터 0개 — data/shards_frame/*.log 확인 (Killed 면 J �
 }
 stage s2_data "학습 데이터 A(구조+열 ${NA}+기록) · B(열 ${NB}) — 오래 걸림 (J=${J})" data
 
-stage s3_sdf "형상 AI (DeepSDF) 학습 ${SDF_STEPS} 스텝" \
-  python3 -m ai.deepsdf train --meta $M --data "$DA" --out runs/sdf.pt --steps $SDF_STEPS $SDF_X
-
 sdf_fit() {   # 기준 구조 = 위상 최적화 기록 int35f95g2 마지막(119) — 원래 파일(rbin_int35f95g2.npy)은 저장소에 없음(.gitignore *.npy)
   python3 - <<'EOF'
 import numpy as np
@@ -94,14 +92,35 @@ r = np.unpackbits(d['r'], axis=1)[i, :ne].astype(np.float32); np.save('runs/ref_
 EOF
   python3 -m ai.deepsdf fit --meta $M --ckpt runs/sdf.pt --target runs/ref_int35f95g2.npy --save runs/ref_sdf_recon.npy $FIT_X | tee /dev/stderr | tail -1 > runs/sdf_fit.json
 }
-stage s4_sdf_fit "형상 AI 표현력 확인 (기준 구조 복원 IoU, 통과 0.8)" sdf_fit
+# ---------------- GPU 고르기: 여유 메모리 많은 순으로, GPU_MIN_FREE_MB(기본 6000) 이상 빈 것만
+pick_gpus() {
+  if [ -n "$GPUS" ]; then echo "$GPUS" | tr ',' ' '; return; fi                       # 직접 지정: GPUS=0,2,3
+  if [ -n "$CUDA_VISIBLE_DEVICES" ]; then echo "$CUDA_VISIBLE_DEVICES" | tr ',' ' '; return; fi
+  command -v nvidia-smi >/dev/null || return 0
+  nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits 2>/dev/null \
+    | awk -F', *' -v m=${GPU_MIN_FREE_MB:-6000} '$2>=m{print $2, $1}' | sort -rn | awk '{printf "%s ", $2}'
+}
+G=($(pick_gpus)); NG=${#G[@]}
+say "학습용 GPU ${NG}장: ${G[*]:-없음}  (형상 AI · CNN · FNO 는 서로 독립이라 GPU 가 3장 이상이면 동시에 학습)"
+on() { local g=$1; shift; if [ -n "$g" ]; then CUDA_VISIBLE_DEVICES=$g "$@"; else "$@"; fi; }
+run_sdf() { on "$1" stage s3_sdf "형상 AI (DeepSDF) 학습 ${SDF_STEPS} 스텝 [GPU ${1:--}]" \
+              python3 -m ai.deepsdf train --meta $M --data "$DA" --out runs/sdf.pt --steps $SDF_STEPS $SDF_X
+            on "$1" stage s4_sdf_fit "형상 AI 표현력 확인 (기준 구조 복원 IoU, 통과 0.8) [GPU ${1:--}]" sdf_fit; }
+run_cnn() { on "$1" stage s5_cnn "물리 AI 기준선 CNN ${PHYS_STEPS} 스텝 [GPU ${1:--}]" \
+              python3 -m ai.surrogate --meta $M --data "$DA" --model cnn --out runs/cnn.pt --steps $PHYS_STEPS $PHYS_X; }
+run_fno() { on "$1" stage s6_fno "물리 AI FNO (값 + 온도·응력 분포) ${PHYS_STEPS} 스텝 [GPU ${1:--}]" \
+              python3 -m ai.surrogate --meta $M --data "$DA" --model fno --out runs/fno.pt --steps $PHYS_STEPS $PHYS_X; }
+if [ $NG -ge 3 ]; then         # 3갈래 동시: 가장 긴 것 하나만큼만 걸림
+  run_sdf ${G[0]} & P1=$!; run_fno ${G[1]} & P2=$!; run_cnn ${G[2]} & P3=$!
+  F=0; for p in $P1 $P2 $P3; do wait $p || F=1; done; [ $F = 0 ] || { say "학습 실패 (위 기록 확인). 같은 명령으로 다시 실행하면 끝난 것은 건너뜀"; exit 1; }
+elif [ $NG -eq 2 ]; then       # 형상 AI 한 장, CNN → FNO 한 장
+  run_sdf ${G[0]} & P1=$!; ( run_cnn ${G[1]} && run_fno ${G[1]} ) & P2=$!
+  F=0; for p in $P1 $P2; do wait $p || F=1; done; [ $F = 0 ] || { say "학습 실패 (위 기록 확인)"; exit 1; }
+else                           # 1장 또는 없음: 차례로
+  run_sdf "${G[0]}"; run_cnn "${G[0]}"; run_fno "${G[0]}"
+fi
 
-stage s5_cnn "물리 AI 기준선 CNN ${PHYS_STEPS} 스텝" \
-  python3 -m ai.surrogate --meta $M --data "$DA" --model cnn --out runs/cnn.pt --steps $PHYS_STEPS $PHYS_X
-stage s6_fno "물리 AI FNO (값 + 온도·응력 분포) ${PHYS_STEPS} 스텝" \
-  python3 -m ai.surrogate --meta $M --data "$DA" --model fno --out runs/fno.pt --steps $PHYS_STEPS $PHYS_X
-
-stage s7_latent "최적화: 형상 AI 잠재 공간 × 물리 AI (후보 ${LK}개)" \
+on "${G[0]}" stage s7_latent "최적화: 형상 AI 잠재 공간 × 물리 AI (후보 ${LK}개)" \
   python3 -m ai.latent_search --meta $M --sdf runs/sdf.pt --phys runs/fno.pt --data "$DA" --spec $SPEC --out runs/latent --k $LK --iters $LIT
 
 gate() {    # 후보를 FEM 으로 다시 계산 (물리 AI 예측을 믿지 않고 확인)
