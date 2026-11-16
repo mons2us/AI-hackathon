@@ -11,7 +11,7 @@
 import argparse, json, os, subprocess, sys, time, shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BASE_ENV = dict(GRIP='2', NX='88', MSYS='0.311', AM='1', RF='8', ETAE='0.7', TILT='35', ITERS='120',
+BASE_ENV = dict(GRIP='2', NX='88', AM='1', RF='5', ETAE='0.6', TILT='35', ITERS='120',
                 SCHED='{"0":1,"20":2,"40":4,"60":8,"80":16,"100":32}')
 MAX_LOOP = 3
 
@@ -21,12 +21,24 @@ def sh(cmd, cwd, env=None, log=None):
     if p.returncode: raise RuntimeError(f'실패({p.returncode}): {cmd}  로그: {log}')
     return round(time.time() - t0, 1)
 
-def gate(ev, tg):
-    """③ 검증 관문: 출력 형상 재계산 결과를 기준과 비교 → (합격 여부, 미달 항목)"""
+def connectivity(rho_path):
+    """출력 형상 연결성: 면(face)으로 이어진 덩어리 수와 본체에서 떨어진 요소 수.
+    모서리 · 꼭짓점으로만 닿은 요소는 FEM에서는 강성을 갖는 것처럼 계산되지만 실제 출력물에서는 끊긴 부재다."""
+    import numpy as np
+    from scipy import ndimage
+    M = np.load(os.path.join(ROOT, 'data', 'grid_meta.npz')); nx, ny, nz = int(M['nx']), int(M['ny']), int(M['nz'])
+    rv = np.load(rho_path); r = rv.reshape(nz, ny, nx) > 0.5; lab, n = ndimage.label(r); sz = np.bincount(lab.ravel())[1:]
+    gray = float(((rv > 0.05) & (rv < 0.95)).sum() / max((rv > 0.5).sum(), 1))   # 중간 밀도 비율: 0/1로 수렴하지 않은 정도
+    return dict(components=int(n), detached_cells=int(sz.sum() - sz.max()) if n else 0, gray_ratio=round(gray, 3))
+
+def gate(ev, tg, rho_path=None):
+    """C 검증 관문: 출력 형상 재계산 결과를 기준과 비교 → (합격 여부, 판정표, 미달 항목). rho_path 가 있으면 연결성도 판정"""
     chk = {'f1_hz': (ev['f'][0], '>=', tg['f1_min_hz']), 'phone_Tmax_rise_c': (ev['Tmax'], '<=', tg['phone_Tmax_rise_max_c']),
            'touch_mm': (max(ev['touch_mm']), '<=', tg['touch_max_mm']),
            'shock_vm_mpa': (max(ev['shock']['vert']['vm999'], ev['shock']['fore']['vm999']), '<=', tg['shock_vm_max_mpa']),
            'shock_interlayer_mpa': (max(ev['shock']['vert']['interlayer999'], ev['shock']['fore']['interlayer999']), '<=', tg['shock_interlayer_max_mpa'])}
+    if rho_path:
+        c = connectivity(rho_path); chk['detached_cells'] = (c['detached_cells'], '<=', 0); chk['gray_ratio'] = (c['gray_ratio'], '<=', 0.05)
     fails = {k: v for k, v in chk.items() if not (v[0] >= v[2] if v[1] == '>=' else v[0] <= v[2])}
     return not fails, chk, fails
 
@@ -41,7 +53,7 @@ def run(a):
         rec['t_cad'] = sh(f'python3 build_body.py {tag} {run}/{tag}_body', cad, None, f'{run}/{tag}_cad.log')   # CAD 결합
         rec['t_vox'] = sh(f'python3 vox.py {run}/{tag}_body_phoneframe.stl {run}/{tag}_rho.npy 88', cad, None, f'{run}/{tag}_vox.log')
         rec['t_eval'] = sh('python3 opt_int.py', eng, dict(BASE_ENV, MODE='eval', RHO=f'{run}/{tag}_rho.npy', TAG=tag), f'{run}/{tag}_eval.log')  # ③
-        ev = json.load(open(os.path.join(eng, f'frfint_{tag}.json'))); ok, chk, fails = gate(ev, tg)
+        ev = json.load(open(os.path.join(eng, f'frfint_{tag}.json'))); ok, chk, fails = gate(ev, tg, f'{run}/{tag}_rho.npy')
         rec.update(passed=ok, checks=chk, fails=fails, mass_g=ev['mass_g']); st['loops'].append(rec); json.dump(st, open(f'{run}/state.json', 'w'), ensure_ascii=False, indent=1)
         print(json.dumps(dict(loop=loop, passed=ok, fails=fails, mass_g=ev['mass_g'])), flush=True)
         if ok: break

@@ -181,6 +181,9 @@ if MODE=='label2':  # 학습 데이터 v2: 형상 → 스칼라 7개 + 분포 2�
     elif SR: src=[(os.path.basename(f),np.load(f).ravel()) for f in sorted(glob.glob(SR))]
     N=len(src) if src else int(env('NS','40'))
     O=[];L=[];FT_T=[];FT_V=[];NAMES=[]
+    def _save():
+        np.savez_compressed(env('OUT'),occ=np.array(O),lab=np.array(L),T=np.array(FT_T),vm=np.array(FT_V),names=np.array(NAMES),
+            lab_names=np.array(['mass_g','f1_hz','f2_hz','phone_Tmax_rise_c','touch_top_mm','touch_bottom_mm','shock_vm999_mpa']))
     for i in range(N):
         if src: nm,_r=src[i]; occ=(np.asarray(_r).ravel()>0.5)&design
         else: occ=gen_int.sample(rng,xc,yc,zc,design,solid,contact,(nz,ny,nx)); nm='gen_%d_%d'%(int(env('SEED','0')),i)
@@ -200,9 +203,8 @@ if MODE=='label2':  # 학습 데이터 v2: 형상 → 스칼라 7개 + 분포 2�
         vmc=vm[rr[on]>19]; L.append([massg(r),f[0],f[1],float(T[phn].max()),tch[0],tch[1],float(np.percentile(vmc,99.9)) if len(vmc) else 0.])
         O.append(np.packbits(occ[didx])); FT_T.append(np.asarray(T)[en].mean(1).astype(np.float16)); FT_V.append(ve.astype(np.float16)); NAMES.append(nm)
         print(json.dumps(dict(i=i,name=nm,lab=[round(v,3) for v in L[-1]],t=round(time.time()-t0))),flush=True)
-    np.savez_compressed(env('OUT'),occ=np.array(O),lab=np.array(L),T=np.array(FT_T),vm=np.array(FT_V),names=np.array(NAMES),
-        lab_names=np.array(['mass_g','f1_hz','f2_hz','phone_Tmax_rise_c','touch_top_mm','touch_bottom_mm','shock_vm999_mpa']))
-    print('done',len(O),round(time.time()-t0),flush=True); sys.exit()
+        if len(O)%10==0: _save()   # 중간 저장: 프로세스가 중단돼도 그때까지의 라벨 보존
+    _save(); print('done',len(O),round(time.time()-t0),flush=True); sys.exit()
 if MODE=='label':   # 형상 AI · 물리 AI 학습 데이터: 생성 형상 N개 -> 무게 · 1차 진동수 · 폰 온도 · 터치 처짐
     import gen_int; rng=np.random.default_rng(int(env('SEED','0'))); N=int(env('NS','40')); O=[]; L=[]; t0=time.time()
     for i in range(N):

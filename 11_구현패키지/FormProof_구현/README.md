@@ -35,7 +35,7 @@ RUN_SLOW=1 pytest -q tests                 # 기준 결과와 숫자 비교 (FEM
 | `meta` | 학습 코드용 격자 정보 | `OUT` | `grid_meta.npz` |
 | `label2` | 학습 데이터: 형상 → 스칼라 7개 + 분포 2개 | `NS SEED` 또는 `SRC(I0,I1)` · `OUT` | 샤드 `.npz` |
 
-기준 결과(해커톤 최종): `scripts/run_reference.sh` — 설정은 `FT=95 TLIM=21 DLIM=0.3 ITERS=120 RF=5 ETAE=0.6 SCHED={0:1,20:2,40:4,60:8,80:16,100:32}` (MSYS 기본값). 결과 80.0 g · f1 94.7 Hz, 원본 형상과 IoU 0.69 — 정확 재현은 아님(아래 '알려진 차이').
+기준 결과(해커톤 최종): `scripts/run_reference.sh` — 설정은 `FT=95 TLIM=21 DLIM=0.3 ITERS=120 RF=5 ETAE=0.6 SCHED={0:1,20:2,40:4,60:8,80:16,100:32}` (MSYS 기본값). 결과는 실패 사례: 최적화 값은 80.0 g · f1 94.7 Hz였지만 중간 밀도가 강성을 대신해, 0.5로 자른 실제 형상은 끊겨 있고 재계산 f1 25.9 Hz로 불합격(아래 '알려진 차이'). 검증 관문에 연결성 · 중간 밀도 비율 판정을 추가함.
 
 ## 4. 학습 (GPU)
 ```bash
@@ -53,7 +53,7 @@ python3 agent/pipeline.py --spec spec/bike_mount_targets.json --run runs/r1     
 ```
 
 ## 6. 알려진 한계 · 확인 필요
-- 해커톤 최종 형상(`data/reference/rbin_int35f95g2.npy`)을 만든 실행과 지금 코드는 고정 부품 정의가 조금 달라 첫 반복 무게가 다르다(559.4 → 550.9 g). RF=8 · ETAE=0.7 설정은 118.4 g · f1 43.3 Hz(IoU 0.565)로 발산했고, RF=5 · ETAE=0.6은 80.0 g · 94.7 Hz(IoU 0.69)이지만 위상이 다르고 얇은 돌출 부재가 남는다. 원본 형상이 필요하면 `data/reference/` 파일을 그대로 쓴다.
+- 해커톤 최종 형상(`data/reference/rbin_int35f95g2.npy`)을 만든 실행과 지금 코드는 고정 부품 정의가 조금 달라 첫 반복 무게가 다르다(559.4 → 550.9 g). RF=8 · ETAE=0.7 설정은 118.4 g · f1 43.3 Hz(IoU 0.565)로 발산했고, RF=5 · ETAE=0.6은 최적화 값 80.0 g · 94.7 Hz였으나 중간 밀도 요소 2,614개가 남아 실제 형상(0.5 기준)은 끊기고 재계산 f1 25.9 Hz · 터치 1.54 mm로 불합격했다. 원본 형상이 필요하면 `data/reference/` 파일을 그대로 쓴다.
 - 층간 강도 한계 10.9 MPa, 폰 발열 4 W, 감쇠비 3 %, 터치 5 N 은 가정값 — 근거 DB 에 출처 확정 필요.
 - `pypardiso` 는 x86_64 전용. 다른 CPU 는 `scipy.sparse.linalg.splu` 로 교체.
 - 학습 코드의 성능(오차 · IoU)은 GPU 학습으로 확인해야 한다. 이 패키지에서는 CPU 소규모로 끝까지 도는 것만 확인했다.
