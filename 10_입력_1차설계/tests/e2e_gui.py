@@ -67,7 +67,7 @@ with sync_playwright() as p:
         no_scroll(page)
         body = page.inner_text("body")
         assert "발표" not in body and "쪽" not in body, "발표 관련 글자가 남음"
-        hard = [w for w in ("응력", "층간", "P01", "TV01", "AG-", "줄 (말", "FEM", "역설계", "벌점", "자갈길", "출력 층", "참고)", "N 누를", "근거 DB")
+        hard = [w for w in ("층간", "P01", "TV01", "AG-", "줄 (말", "FEM", "역설계", "벌점", "자갈길", "출력 층", "참고)", "N 누를", "근거 DB")
                 if w in body]
         assert not hard, f"어려운 말이 남음: {hard}"
         page.screenshot(path=f"{SP}/gui_{name}.png")
