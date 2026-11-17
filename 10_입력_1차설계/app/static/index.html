@@ -857,8 +857,8 @@ function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#
 function hybridSteps(on){$('#stpR').hidden=!on;$('#stp2').textContent=on?'③ 검증':'② 정밀 계산';}
 function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${iters}`;$('#roM').textContent=m==null?'–':`${fmt(m)} g`;
   const sh=S.rows.filter(x=>!x.ref);$('#roOk').textContent=sh.length?`${sh.filter(x=>x.ok).length}/${sh.length}`:'–';}
-// 최적화 연출 시간: AI 탐색 50 s, 정밀 계산 60 s (주소에 ?optfast=1 이면 1/10 — 시험용)
-const OPT_SCALE=new URLSearchParams(location.search).has('optfast')?0.1:1,OPT_AI_MS=50000*OPT_SCALE,OPT_FEM_MS=60000*OPT_SCALE;
+// 최적화 연출 시간: AI 탐색 50 s, 정밀 계산 60 s (주소에 ?optfast=1 이면 1/10 — 시험용, ?optscale=0.3 처럼 배율 지정 가능 — 영상용)
+const OPT_SCALE=new URLSearchParams(location.search).has('optfast')?0.1:(+new URLSearchParams(location.search).get('optscale')||1),OPT_AI_MS=50000*OPT_SCALE,OPT_FEM_MS=60000*OPT_SCALE;
 async function finishOpt(r){
   const g=r.gate,O=S.opt,rows=optRows(),n=rows.length;
   optStage(2);setPhase('정밀 계산 중','정밀 계산');O.fem=true;O.femDone=false;O.gauge=0;O.fin={};
@@ -953,7 +953,7 @@ const judgeRows=j=>j.rows.filter(r=>!HIDE.has(r.key)&&!r.ref).map(r=>({key:r.key
 function renderIntegral(rep){          // P01 (일체형 거치대)
   const j=rep.judge;
   showMount(rep);
-  setCommon(rep, rep.cad.print_total_g||rep.cad.mass_g);
+  setCommon(rep, rep.cad.grid_mass_g||rep.cad.mass_g);   // 최적화 화면과 같은 기준(해석 격자 무게)
   showMetrics(judgeRows(j),true);              // 학습 모델(역설계)은 P01 에만
   setPerfTag();
 }
