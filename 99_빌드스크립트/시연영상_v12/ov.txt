@@ -1,0 +1,13 @@
+file of1.png
+duration 1.7
+file of2.png
+duration 1.7
+file of3.png
+duration 1.7
+file of4.png
+duration 1.7
+file of5.png
+duration 1.7
+file of6.png
+duration 2.8
+file of6.png
