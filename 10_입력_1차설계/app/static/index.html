@@ -6,6 +6,7 @@
 <title>FormProof · 1차 설계</title>
 <script src="/static/vendor/three.min.js"></script>
 <script src="/static/vendor/OrbitControls.js"></script>
+<link rel="stylesheet" href="/static/pro.css">   <!-- ?ui=pro 일 때만 적용 (body.pro) -->
 <style>
 :root{
   --bg:#eef1f5; --card:#fff; --ink:#111827; --ink2:#4b5563; --ink3:#9aa3ae; --line:#e3e7ee; --soft:#f4f6f9;
@@ -476,7 +477,7 @@ function drawNav(){
   camN.fov=cam.fov;camN.quaternion.copy(cam.quaternion);camN.position.copy(c).addScaledVector(fwd,-dist);camN.far=dist+rad*4;
   // 반투명 바탕(메인 장면이 비쳐 보임) 위에 장면 전체를 그림
   const {R}=V3,r=rectIn(el),yy=r.H-r.y-r.h;if(r.w<2||r.h<2)return;
-  if(!V3.navBg){V3.navBg=new THREE.Scene();V3.navBg.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55,depthTest:false,depthWrite:false})));V3.navOrtho=new THREE.OrthographicCamera(-1,1,1,-1,0,1);}
+  if(!V3.navBg){V3.navBg=new THREE.Scene();V3.navBg.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:window.NAV_BG??0xffffff,transparent:true,opacity:window.NAV_BG!=null?.85:.55,depthTest:false,depthWrite:false})));V3.navOrtho=new THREE.OrthographicCamera(-1,1,1,-1,0,1);}
   R.setViewport(r.x,yy,r.w,r.h);R.setScissor(r.x,yy,r.w,r.h);R.autoClear=false;
   R.render(V3.navBg,V3.navOrtho);R.clearDepth();
   const gv=V3.ground.visible;V3.ground.visible=false;camN.aspect=r.w/r.h;camN.updateProjectionMatrix();R.render(V3.scene,camN);V3.ground.visible=gv;
@@ -491,7 +492,7 @@ function drawNav(){
   g.fillStyle='rgba(13,20,34,.08)';g.beginPath();g.rect(0,0,W,H);P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.fill('evenodd');
   g.strokeStyle='#2563eb';g.lineWidth=2;g.beginPath();P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.stroke();
   g.strokeStyle='rgba(120,134,156,.7)';g.lineWidth=1;g.beginPath();g.roundRect?g.roundRect(.5,.5,W-1,H-1,9):g.rect(.5,.5,W-1,H-1);g.stroke();
-  g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#334155';g.textBaseline='top';g.fillText('전체 보기',7,6);
+  g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle=window.NAV_INK||'#334155';g.textBaseline='top';g.fillText('전체 보기',7,6);
 }
 function view(kind){
   const {cam,ctl}=V3, close=kind==='close';
@@ -1092,5 +1093,6 @@ guide(...GUIDE[0]);
 document.addEventListener('keydown',e=>{if(!QS.has('video')||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
   const i='123'.indexOf(e.key);if(i>=0)playDemo(i);});
 </script>
+<script src="/static/pro.js"></script>   <!-- 툴형 화면 (?ui=pro) -->
 </body>
 </html>

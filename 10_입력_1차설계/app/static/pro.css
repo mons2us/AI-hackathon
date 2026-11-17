@@ -1,0 +1,186 @@
+/* FormProof 툴형 화면 (?ui=pro) — 다크 작업 공간 · 단계별 배치 · 분포 크게 · 결과 띠 · 계산 기록 · 상태 표시줄
+   기능은 index.html 그대로 (pro.js 가 배치 · 표시만 바꿈). 모든 규칙은 body.pro 아래에서만 적용. */
+body.pro{
+  --bg:#0e131b; --card:#151c27; --ink:#eef2f8; --ink2:#a3b0c2; --ink3:#6b778a; --line:#273244; --soft:#1c2533;
+  --nav:#151c27; --blue:#3b82f6; --blue-d:#2563eb; --blue-s:rgba(59,130,246,.18); --green:#2bd197; --green-s:rgba(43,209,151,.16);
+  --red:#ff6b78; --red-s:rgba(255,107,120,.14); --amber:#ffc04d; --amber-s:rgba(255,192,77,.14); --dark:#0b1018;
+  --vpbg:radial-gradient(ellipse at 50% 42%,#26344a 0%,#121a26 78%); --fvbg:radial-gradient(ellipse at 50% 45%,#3a475b 0%,#232d3c 85%);
+  background:var(--bg);color:var(--ink);font-size:15px;color-scheme:dark}
+body.pro .mono,body.pro .metric .row b,body.pro .kpi b{font-family:"DejaVu Sans Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- 틀: 머리줄 | (입력 패널) + 작업 영역 | 상태 표시줄 */
+body.pro .wrap{padding:0;gap:0}
+body.pro header.top{border-radius:0;height:56px;padding:0 18px;border-bottom:1px solid var(--line);gap:18px}
+body.pro .brand b{font-size:18px}
+body.pro .logo{width:28px;height:28px;border-radius:7px}
+body.pro .guide{display:none}
+body.pro .steps{margin-left:14px;gap:4px}
+body.pro .step{border:0;background:transparent;color:var(--ink3);font-weight:700;font-size:15px;padding:7px 13px;border-radius:9px}
+body.pro .step i{width:22px;height:22px;border-width:2px;font-size:12px;font-weight:700;margin-right:8px}
+body.pro .step.done{color:var(--ink2)}
+body.pro .step.done i{background:var(--green);border-color:var(--green);color:#0e131b}
+body.pro .step.on{color:#fff;background:rgba(59,130,246,.2);box-shadow:inset 0 0 0 1px rgba(59,130,246,.6)}
+body.pro .step.on i{background:var(--blue);border-color:var(--blue)}
+body.pro .hbtn{margin-left:auto;border:1px solid var(--line);background:transparent;color:var(--ink2);border-radius:8px;padding:6px 12px;font-size:13.5px;font-weight:700}
+body.pro .hbtn.on{color:#fff;border-color:var(--blue)}
+body.pro .hbtn+.brand-r{margin-left:6px}
+body.pro .brand-r{filter:brightness(0) invert(1);height:15px}
+body.pro .sbar{display:flex}
+.sbar{display:none;height:28px;align-items:center;gap:18px;padding:0 16px;background:#1c2533;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2);flex:none}
+.sbar .sdot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.sbar .sdot.run{background:var(--blue);animation:sb 1s ease-in-out infinite alternate}@keyframes sb{to{opacity:.3}}
+.sbar #sbMsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sbar #sbMsg b{color:var(--ink);margin-right:6px}
+.sbar .sr{margin-left:auto;white-space:nowrap}
+
+body.pro .grid{gap:0;grid-template-columns:var(--lw,560px) minmax(0,1fr)}
+body.pro .grid>section{gap:0;border-right:1px solid var(--line)}
+body.pro.st-design,body.pro.st-opt,body.pro.st-done{--lw:0px}
+body.pro.st-design .grid>section,body.pro.st-opt .grid>section,body.pro.st-done .grid>section{display:none}
+body.pro.showleft{--lw:380px !important}
+body.pro.showleft .grid>section{display:flex !important}
+
+/* ---------- 카드 · 글자 */
+body.pro .card{background:var(--card);border:0;border-radius:0;padding:14px 16px}
+body.pro .card h2{font-size:17px}
+body.pro .tag{background:var(--soft);color:var(--ink2)}
+body.pro .tag.green{background:var(--green-s);color:var(--green)}body.pro .tag.amber{background:var(--amber-s);color:var(--amber)}body.pro .tag.blue{background:var(--blue-s);color:#8fb3ff}
+body.pro textarea{background:var(--soft);color:var(--ink);border-color:var(--line);font-size:15.5px;line-height:1.6}
+body.pro .seg{background:var(--soft)}body.pro .seg button{color:var(--ink2)}body.pro .seg button.on{background:#2a3546;color:var(--ink)}
+body.pro .pad{border-color:var(--line)}
+body.pro .btn{background:var(--soft);border-color:var(--line);color:var(--ink)}
+body.pro .ico button{background:#fff;color:#334155}
+body.pro .drop{background:var(--soft);border-color:#3a475b;color:var(--ink2)}
+body.pro .specw{background:var(--soft);border-color:var(--line)}
+body.pro .specw .sh{background:#202a39;border-color:var(--line);font-size:15.5px}
+body.pro .specw .sh small{color:var(--ink2)}
+body.pro table.st{font-size:15px}
+body.pro table.st th{background:#202a39;color:var(--ink2);border-color:var(--line);font-size:13px}
+body.pro table.st td{border-color:var(--line);padding:6px 10px}
+body.pro table.st td.v input{background:#0f1520;color:var(--ink);border-color:#3a475b}
+body.pro table.st tr.ed td.v input{background:#3a2f12;border-color:var(--amber)}
+body.pro table.st td.v .lk,body.pro table.st td.v small,body.pro table.st td.v .tx{color:var(--ink)}
+body.pro table.st em.k0{background:var(--green-s);color:var(--green)}body.pro table.st em.k1{background:rgba(160,120,255,.18);color:#c4a8ff}
+body.pro table.st em.k2{background:var(--blue-s);color:#8fb3ff}body.pro table.st em.k3{background:var(--amber-s);color:var(--amber)}body.pro table.st em.k4{background:var(--red-s);color:var(--red)}
+body.pro .acts .btn{padding:13px 4px;font-size:16px}
+body.pro .acts .btn:disabled{background:#2a3444 !important;color:#6b778a}
+body.pro .acts .btn.done{background:#1f2b3b !important;color:var(--ink2)}
+body.pro .has-spec .pad canvas{height:min(20vh,220px)}
+
+/* ---------- 작업 영역 (#views): 형상 | 분포 | 성능, 아래 = 과정 그래프 */
+body.pro:not(.layout-a) .views{gap:1px;background:var(--line);grid-template-columns:minmax(0,1fr) 380px 400px;grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:"main f0 perf" "main f1 perf" "main f2 perf"}
+body.pro .views .cgrp{display:none !important}
+body.pro .views .csim,body.pro .views .vrow{display:contents}
+body.pro .views .csim>h2,body.pro .views .csim:before{display:none}
+body.pro:not(.layout-a) .views .c3d{grid-area:main;padding:0;background:transparent}
+body.pro .views .c3d>h2{display:none}
+body.pro:not(.layout-a) .views .cperf{grid-area:perf;overflow:auto}
+body.pro #vS0{grid-area:f0}body.pro #vS1{grid-area:f1}body.pro #vS2{grid-area:f2}body.pro #vS3{grid-area:gr}
+body.pro .vp{border:0;border-radius:0;background:var(--fvbg)}
+body.pro .vmain{background:var(--vpbg)}
+body.pro .vp.gt{background:#0d1422}
+body.pro .views .vp[hidden]{display:none}
+/* 단계별 배치 */
+body.pro.st-input:not(.layout-a) .views,body.pro.st-spec:not(.layout-a) .views{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"main"}
+body.pro.st-input .views .cperf,body.pro.st-spec .views .cperf,body.pro.st-input .views .vrow>.vp,body.pro.st-spec .views .vrow>.vp{display:none}
+body.pro.st-design .views #vS3,body.pro.st-done .views #vS3{display:none}
+body.pro.st-opt:not(.layout-a) .views{grid-template-rows:minmax(0,1fr) minmax(0,1fr) 280px;grid-template-areas:"main f0 perf" "main f2 perf" "gr gr perf"}
+body.pro.st-opt .views #vS1{display:none}
+body.pro.st-done.cmpon:not(.layout-a) .views{grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:minmax(0,1fr);grid-template-areas:"main perf"}
+body.pro.st-done.cmpon .views .vrow>.vp{display:none}
+
+/* 3D 창 위 도구 */
+body.pro .vp .ovl{background:rgba(21,28,39,.85);color:var(--ink2);top:auto;bottom:12px;left:14px}
+body.pro .vp .vt{top:12px;right:14px}
+body.pro .vp .vt button{background:rgba(21,28,39,.88);border-color:var(--line);color:var(--ink2);font-size:14px;padding:5px 11px;font-weight:600}
+body.pro .vp .vt button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+body.pro .vmain .nav,body.pro .vmain .navov{left:auto;right:14px;bottom:14px;width:220px}
+body.pro .empty{color:var(--ink2);font-size:17px}
+body.pro .busy{background:rgba(14,19,27,.88)}body.pro .busy .stage{color:var(--ink2);font-size:17px}body.pro .busy .stage b{color:var(--ink)}
+/* 분포 창 */
+body.pro .vp .lab{background:transparent;color:var(--ink);font-size:16px;font-weight:800;left:12px;top:9px;padding:0}
+body.pro .vp .ftag{position:absolute;left:12px;top:34px;z-index:3;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--blue-s);color:#8fb3ff}
+body.pro .vp .ftag:empty{display:none}
+body.pro .vp .ftag.fem{background:var(--green-s);color:var(--green)}body.pro .vp .ftag.wait{background:var(--amber-s);color:var(--amber)}
+body.pro .vp .leg{background:transparent;color:var(--ink2);font-size:13px;left:12px;right:12px;bottom:8px;padding:0}
+body.pro .vp .leg .ends span:first-child,body.pro .vp .leg .ends span:last-child{display:inline !important}
+body.pro .vp .leg .ends{justify-content:space-between !important}
+body.pro .vp .leg b{color:var(--ink);font-size:14px}
+body.pro .vp .leg .bar{height:8px}
+body.pro .gt .gtn{color:var(--ink3)}
+/* 과정 그래프 */
+body.pro .optinfo{padding:12px 18px 10px;font-size:14px}
+body.pro .optinfo .gh b{font-size:16px}
+body.pro .optinfo .stp{font-size:12.5px;padding:2px 10px}
+body.pro .optinfo .gh{flex-wrap:nowrap}body.pro .optinfo .gh b{flex-basis:auto;margin-right:12px}
+body.pro .optinfo .lg{font-size:13px;gap:4px 12px}body.pro .optinfo .ro{font-size:14px}body.pro .optinfo .ro b{font-size:16px}
+body.pro .optinfo .st{font-size:13.5px}
+
+/* 성능 패널 */
+body.pro .cperf h2{font-size:18px}
+body.pro .kpi{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:9px 12px}body.pro .kpi small{color:var(--ink2);font-size:13px}body.pro .kpi b{font-size:24px}
+body.pro .pick{color:var(--ink2);font-size:14px}
+body.pro .mbox{border:0;padding:0;background:transparent;flex:0 1 auto}
+body.pro .metric{background:var(--soft);border-color:var(--line);padding:9px 12px}
+body.pro .metric:hover{background:#222c3c;border-color:#34425a}
+body.pro .metric.sel{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.55)}
+body.pro .metric .row{font-size:15.5px}body.pro .metric .row b{font-size:17px}
+body.pro .metric .sub{color:var(--ink2);font-size:13.5px}
+body.pro .metric .src{color:#8fb3ff}body.pro .metric .v0{color:var(--ink3)}
+body.pro .bar{background:#263142}
+body.pro .metric .ck{border-color:#4a5a72}
+body.pro .btn.opt{background:var(--blue);font-size:17px;padding:13px}body.pro .btn.opt:disabled{background:#2a3444;color:#8090a6}
+body.pro .files a{background:var(--soft);border-color:var(--line);color:var(--ink);font-size:14px;padding:9px 4px}
+body.pro .files a.off{color:#566275}
+body.pro .files a#fOpt{background:var(--blue);border-color:var(--blue);color:#fff}
+.plog{margin:12px 0 4px;border-top:1px solid var(--line);padding-top:10px}
+.plog .plh{font-size:14.5px;font-weight:800;margin-bottom:6px}
+.plog #plogB div{display:flex;gap:8px;font-size:13.5px;color:var(--ink2);padding:2.5px 0;line-height:1.45}
+.plog #plogB i{font-style:normal;color:var(--green);flex:none;width:14px}
+.plog #plogB div.run i{color:#8fb3ff}
+.plog #plogB b{color:var(--ink)}.plog #plogB em{font-style:normal;color:var(--amber)}
+
+/* 3D 창 위 띠: 최적화 진행 · 결과 */
+.pban{position:absolute;left:16px;top:14px;z-index:4;display:flex;align-items:center;gap:14px;background:rgba(14,19,27,.88);border:1px solid rgba(59,130,246,.6);border-radius:12px;padding:10px 18px;pointer-events:none;max-width:calc(100% - 330px)}
+.pban .big{font:800 26px "DejaVu Sans Mono",ui-monospace,monospace;color:#8fb3ff;white-space:nowrap}
+.pban .t{font-size:17px;font-weight:700;color:var(--ink)}.pban .t small{display:block;font-size:13.5px;font-weight:500;color:var(--ink2)}.pban em{font-style:normal;color:var(--amber);font-size:13.5px;margin-left:6px}
+.resbar{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:18px;padding:10px 18px;background:linear-gradient(90deg,rgba(43,209,151,.22),rgba(14,19,27,.92) 70%);border-bottom:1px solid rgba(43,209,151,.45);pointer-events:none}
+.resbar .big{font:800 30px "DejaVu Sans Mono",ui-monospace,monospace;color:var(--green)}
+.resbar .t{font-size:20px;font-weight:700;color:var(--ink)}.resbar .t s{color:var(--ink3);font-weight:500}.resbar .t em{font-style:normal;color:var(--green)}
+.resbar .tg{margin-left:auto;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--green-s);color:var(--green);white-space:nowrap}
+.resbar.bad{background:linear-gradient(90deg,rgba(255,107,120,.2),rgba(14,19,27,.92) 70%);border-color:rgba(255,107,120,.45)}.resbar.bad .big,.resbar.bad .t em{color:var(--red)}
+body.pro.st-done .vmain .vt{top:72px}
+
+/* 1차 ↔ 최적 비교 (결과 단계 기본) */
+body.pro .cmpov{padding:126px 14px 14px;gap:10px}
+body.pro .cmpov .ch{background:var(--card);border-color:var(--line);color:var(--ink);font-size:17px}
+body.pro .cmpov .ch small{color:var(--ink2)}
+body.pro .cmpov .ch.b{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.55);color:#cfe0ff}
+body.pro .cmpov .cc{border-color:var(--line);background:rgba(58,71,91,.35)}
+body.pro .cmpov .cc .lab{background:transparent;color:var(--ink);font-size:15px}
+body.pro .cmpov .cc .leg{background:transparent;color:var(--ink2);font-size:13px}
+body.pro .cmpov .cc .leg b{color:var(--ink);font-size:14.5px}
+
+/* 설계 사양 단계: AI 가 읽은 요구 → 물리 조건 */
+.reqmap{position:absolute;inset:0;z-index:3;overflow:auto;padding:46px 40px;background:var(--vpbg)}
+.reqmap .mh{font-size:21px;font-weight:800;margin:0 auto 6px;max-width:900px;color:var(--ink)}
+.reqmap .ms{font-size:14.5px;color:var(--ink2);margin:0 auto 18px;max-width:900px}
+.reqmap .mr{max-width:900px;margin:0 auto 10px;display:grid;grid-template-columns:230px 26px minmax(0,1fr) auto;align-items:center;gap:10px;padding:13px 18px;border:1px solid var(--line);border-radius:12px;background:rgba(21,28,39,.8)}
+.reqmap .mr q{font-size:17px;color:#ffd7a0;quotes:"“" "”"}.reqmap .mr q small{display:block;font-size:12px;color:var(--ink3);margin-top:2px}
+.reqmap .mr .ar{color:var(--ink3);font-size:18px}
+.reqmap .mr b{font-size:16px;color:var(--ink);font-weight:700}.reqmap .mr .src{display:block;font-size:12.5px;color:var(--ink3);font-weight:400;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reqmap .mr em{font-style:normal;font-size:12.5px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.reqmap em.k0{background:var(--green-s);color:var(--green)}.reqmap em.k1{background:rgba(160,120,255,.18);color:#c4a8ff}.reqmap em.k2{background:var(--blue-s);color:#8fb3ff}
+.reqmap em.k3{background:var(--amber-s);color:var(--amber)}.reqmap em.k4{background:var(--red-s);color:var(--red)}
+.reqmap .mr.in{animation:rin .35s ease both}@keyframes rin{from{opacity:0;transform:translateY(6px)}}
+.pban[hidden],.resbar[hidden],.reqmap[hidden],.hbtn[hidden]{display:none !important}
+body.pro .grid>.views{grid-column:2;grid-row:1}
+body.pro.st-design .grid,body.pro.st-opt .grid,body.pro.st-done .grid{grid-template-columns:0 minmax(0,1fr)}
+body.pro.showleft .grid{grid-template-columns:380px minmax(0,1fr) !important}
+.reqmap .mr .qt{display:flex;flex-direction:column;gap:2px}.reqmap .mr .qt small{font-size:12px;color:var(--ink3)}
+body.pro .mbox{flex:none}
+body.pro .cperf{display:flex;flex-direction:column}
+body.pro .plog{flex:1 1 auto;min-height:90px;overflow:auto}
+body.pro .hproj{color:var(--ink2);font-size:14px;white-space:nowrap}body.pro .hproj b{color:var(--ink)}
+body.pro.drawing .resbar{display:none !important}
