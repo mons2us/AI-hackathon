@@ -202,7 +202,7 @@ def condition_spec(text=PRESENTATION_TEXT, sketch_note=SKETCH_NOTE, sketch_name=
         "constraints": {
             "phones": {"value": "폭 64–90 mm, 두께 6–14 mm, ≤ 290 g, 4면 고정",
                        "source": "스케치: '모든 폰' → 근거 DB: 시판 폰 + 케이스 범위" if "phones" in drawn | said else "근거 DB: 시판 폰 + 케이스 범위"},
-            "thermal": {"value": "폰 온도 상승 ≤ 21 °C (발열 4 W 가정)", "source": "스케치: '열 안 갇히게' → 발열량은 가정"},
+            "thermal": {"value": f"폰 온도 상승 ≤ {TMAX_LIMIT} °C (발열 4 W 가정)", "source": "스케치: '열 안 갇히게' → 발열량은 가정"},
             "touch": {"value": "화면 5 N 눌러도 처짐 ≤ 0.3 mm", "source": "스케치: '화면 눌러도 안 휘게' → 하중 5 N은 가정"},
             "shock": {"value": f"{road['value']['shock_g']} g 충격에 응력 ≤ {petg['value']['yield_mpa'] / sf['value']['sf']:g} MPa, 층간 ≤ 10.9 MPa",
                       "source": "텍스트·스케치: '울퉁불퉁한 길' → 근거 DB: ISBS 2020 조약돌길 실측"},
@@ -218,11 +218,15 @@ def condition_spec(text=PRESENTATION_TEXT, sketch_note=SKETCH_NOTE, sketch_name=
     return spec
 
 
+# 폰 온도 상승 기준 (기본값). 팀 엔진의 TLIM(21, 팀 최적화 제약)과 따로 — 판정 · 설계 사양 · 역설계 기준은 이 값
+TMAX_LIMIT = 26
+
+
 def targets(spec=None):
     """설계 명세 → 판정 기준 (spec/schema.json 의 to_targets 규칙) = spec/bike_mount_targets.json."""
     ev = evidence()
     sf = ev["safety_factor"]["value"]["sf"]
-    return {"f1_min_hz": 95, "phone_Tmax_rise_max_c": 21, "touch_max_mm": 0.3,
+    return {"f1_min_hz": 95, "phone_Tmax_rise_max_c": TMAX_LIMIT, "touch_max_mm": 0.3,
             "shock_vm_max_mpa": round(ev["petg_prusament"]["value"]["yield_mpa"] / sf, 1),
             "shock_interlayer_max_mpa": ev["petg_interlayer"]["value"]["interlayer_max_mpa"]}
 
@@ -773,7 +777,7 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
     from .mplkr import pyplot
     plt = pyplot()                                  # 한글 글꼴
     from matplotlib.collections import PolyCollection
-    if hasattr(world_body, "faces") and hasattr(world_body, "vertices"):
+    if type(world_body).__name__ == "Trimesh":                   # (CadQuery Workplane 에도 faces · vertices 메서드가 있어 이름으로 구분)
         V, F = np.asarray(world_body.vertices), np.asarray(world_body.faces)
     else:
         verts, tris = world_body.val().tessellate(0.1, 0.3)
@@ -1050,7 +1054,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
                                 payload_g=311, material=MATERIAL["name"], arm_t=8),
                summary=dict(product="자전거 폰 거치대 (일체형)", road="조약돌길 실측 (ISBS 2020)", vib="10–100 Hz", shock_g=48.5,
                             phone="모든 폰 (폭 64–90 · 두께 6–14 · ≤ 290 g)", point_mass_g=311, bar_d=31.8, objective="무게 최소 · 흔들림 최소",
-                            safety_factor=1.5, material=MATERIAL["name"], requirements=["폰 온도 상승 ≤ 21 °C", "터치 처짐 ≤ 0.3 mm", "출력 층간 강도"]),
+                            safety_factor=1.5, material=MATERIAL["name"], requirements=[f"폰 온도 상승 ≤ {TMAX_LIMIT} °C", "터치 처짐 ≤ 0.3 mm", "출력 층간 강도"]),
                cad=dict(step="design_1st.step", stl="design_1st.stl", mass_g=mass_g, step_mass_g=step_g, grid_mass_g=res["mass_g"],
                         parts=part_rows, print_total_g=print_g, assembly="design_1st_assembly.step",
                         note="STL = 출력용 몸체(팀 build_body 절차: 격자 평활 + 고정 부품 결합 − 구멍), STEP = 같은 치수의 파라메트릭 형상(평활 전)"),

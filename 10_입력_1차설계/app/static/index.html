@@ -814,16 +814,19 @@ function spark(){
     g.strokeStyle=col;g.lineWidth=S.sel&&S.sel.has(S.rows.indexOf(m))?2.4:1.5;g.stroke();
     const q=pts[pts.length-1],x0=X(q.it),y0=Y(q.v[m.key]);g.fillStyle=col;g.beginPath();g.arc(x0,y0,2.6,0,7);g.fill();
   });
-  // ② 정밀 계산: 항목마다 한 줄 — 차례로 계산 막대가 차고, 끝나면 ✓(충족) / ✗(미충족)
-  const x1=xN+6,x2=L+pw-5,lane=(ph-6)/Math.max(nk,1);
-  rows.forEach((m,k)=>{const col=PAL[k%PAL.length],yc=T+6+lane*(k+.5),pr=(O.prog||{})[m.key]||0,done=fin[m.key]!=null;
-    g.font='10.5px "Malgun Gothic","Noto Sans KR",sans-serif';g.textAlign='left';g.textBaseline='middle';
-    g.fillStyle=O.cur===m.key||done?'#e6ecf7':'#6f7d99';g.fillText(SHORT[m.key]||m.label,x1,yc-6);
-    const bw=x2-x1-14,by=yc+3;g.fillStyle='#1f2a42';g.fillRect(x1,by,bw,4);
-    if(pr>0){g.fillStyle=col;g.fillRect(x1,by,bw*Math.min(1,pr),4);}
-    if(done){g.textAlign='right';g.font='700 12px sans-serif';g.fillStyle=m.ok?'#5fd3a6':'#ff8a96';g.fillText(m.ok?'✓':'✗',x2,yc+4);}
-    else if(O.cur===m.key){g.strokeStyle='#fff';g.lineWidth=1.5;const a=performance.now()/150;g.beginPath();g.arc(x2-5,yc+4,4,a,a+4.2);g.stroke();}
-  });
+  // ② 정밀 계산: 계산 중 = 구간 전체가 게이지처럼 왼쪽부터 참 · 끝나면 항목마다 정밀 계산 전(AI 예측) → 후(정밀 계산) 값
+  const rx0=xN,rw=L+pw-xN,cx=rx0+rw/2;
+  if(O.fem&&!O.femDone){const pr=Math.min(1,O.gauge||0);
+    g.fillStyle='rgba(31,191,138,.28)';g.fillRect(rx0,T,rw*pr,ph);
+    g.fillStyle='#5fd3a6';g.fillRect(rx0,T+ph-3,rw*pr,3);
+    g.textAlign='center';g.fillStyle='#fff';g.font='700 16px ui-monospace,Consolas,monospace';g.fillText(Math.round(pr*100)+'%',cx,T+ph/2-6);
+    g.font='11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#c9d2e3';g.fillText('정밀 계산 중',cx,T+ph/2+12);}
+  else if(O.femDone){const lane=(ph-4)/Math.max(nk,1),f3=v=>v==null?'–':(Math.abs(v)>=100?v.toFixed(0):Math.abs(v)<1?+v.toPrecision(2):+v.toPrecision(3));
+    rows.forEach((m,k)=>{const yc=T+4+lane*(k+.5),b=(O.before||{})[m.key],a=(O.after||{})[m.key];
+      g.textAlign='left';g.font='10px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle=PAL[k%PAL.length];g.fillText(SHORT[m.key]||m.label,rx0+5,yc-6);
+      g.font='10.5px ui-monospace,Consolas,monospace';g.fillStyle='#8e9ab2';const t1=`${f3(b)} → `;g.fillText(t1,rx0+5,yc+6);
+      const w1=g.measureText(t1).width;g.fillStyle='#fff';g.fillText(f3(a),rx0+5+w1,yc+6);
+      g.textAlign='right';g.font='700 12px sans-serif';g.fillStyle=m.ok?'#5fd3a6':'#ff8a96';g.fillText(m.ok?'✓':'✗',L+pw-4,yc);});}
   const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
@@ -832,16 +835,16 @@ function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${ite
   const sh=S.rows.filter(x=>!x.ref);$('#roOk').textContent=sh.length?`${sh.filter(x=>x.ok).length}/${sh.length}`:'–';}
 async function finishOpt(r){
   const g=r.gate,O=S.opt,rows=optRows(),n=rows.length;
-  optStage(2);setPhase('정밀 계산 중','정밀 계산');O.fem=true;O.fin={};
+  optStage(2);setPhase('정밀 계산 중','정밀 계산');O.fem=true;O.femDone=false;O.gauge=0;O.fin={};
+  O.before={};rows.forEach(m=>O.before[m.key]=m.value);
   $('#optBar').style.width='0';
-  const tick=setInterval(spark,50);              // 계산 막대 · 도는 표시
-  for(let k=0;k<n;k++){
-    const m=rows[k];O.cur=m.key;O.prog=O.prog||{};$('#optText').textContent=`정밀 계산 ${k+1}/${n} · ${SHORT[m.key]||m.label} 확인 중`;
-    const t0=performance.now();while(performance.now()-t0<800){O.prog[m.key]=(performance.now()-t0)/800;await sleep(40);}O.prog[m.key]=1;
-    const x=g.rows.find(x=>x.key===m.key);if(x){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}
-    O.fin[m.key]=ratioOf(m,m.value);$('#optBar').style.width=`${100*(k+1)/n}%`;drawMetrics();readouts(O.iters,O.iters,g.mass_g);
-  }
-  clearInterval(tick);O.cur=null;spark();
+  const D=3200,t0=performance.now();                 // 정밀 계산: 게이지 하나가 0 → 100 %
+  while(performance.now()-t0<D){O.gauge=(performance.now()-t0)/D;$('#optText').textContent=`정밀 계산 중 · ${Math.round(O.gauge*100)} %`;
+    $('#optBar').style.width=`${O.gauge*100}%`;spark();await sleep(40);}
+  O.gauge=1;O.after={};
+  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
+  rows.forEach(m=>{O.after[m.key]=m.value;O.fin[m.key]=ratioOf(m,m.value);});
+  O.femDone=true;
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m&&m.src!=='정밀 계산'){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
   drawMetrics();applyHeat(g.heat);
   $('#optPhase').textContent='';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';

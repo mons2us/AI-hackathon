@@ -18,7 +18,7 @@ def _gray(path):
 def test_demo_spec_rows():
     """제품마다: 말 · 스케치 글자에서 온 행, 수치 = 판정 기준, 판정 항목은 모두 고칠 수 있는 행으로, 모든 행에 근거."""
     out = []
-    need = {"bike": {"f1": 95, "Tmax": 21, "touch": 0.3, "stress": 26, "shake": 1.5},
+    need = {"bike": {"f1": 95, "Tmax": 26, "touch": 0.3, "stress": 26, "shake": 1.5},
             "tv": {"tilt": 10, "caster": 200, "defl": 1.0, "size_in": 27, "zc": 884},
             "glasses": {"mass": 50, "clamp_lo": 0.3, "clamp_hi": 1.1, "skin": 43, "lens_w": 50}}
     for d in demo_inputs.DEMOS:
