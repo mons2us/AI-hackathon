@@ -74,6 +74,14 @@ select.btn{width:100%;margin-top:8px}
 .vmain{flex:1;min-height:0}
 .vrow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:10px}   /* 최적화 과정 창은 조금 넓게 */
 .vrow .vp{min-width:0}
+/* 배치 B (기본): 입력 | 3D 설계(위아래 끝까지) | 물리 시뮬레이션 세로(응력 · 흔들림 · 온도 · 최적화 과정) | 성능(좁게)
+   배치 A (이전): 주소 끝에 ?layout=a — 3D 설계 | 성능 위, 물리 시뮬레이션 아래 가로 */
+body:not(.layout-a) .views{grid-template-columns:minmax(0,1fr) clamp(220px,15vw,300px) clamp(290px,19vw,380px);grid-template-rows:minmax(0,1fr)}
+body:not(.layout-a) .views .c3d{grid-column:1;grid-row:1}
+body:not(.layout-a) .views .csim{grid-column:2;grid-row:1}
+body:not(.layout-a) .views .cperf{grid-column:3;grid-row:1}
+body:not(.layout-a) .vrow{grid-template-columns:1fr;grid-template-rows:1fr 1fr 1fr 1.5fr}
+body:not(.layout-a) .vp .leg .ends span:first-child,body:not(.layout-a) .vp .leg .ends span:last-child{display:none}body:not(.layout-a) .vp .leg .ends{justify-content:center}
 .vp>*{z-index:2}
 .vp .ovl{position:absolute;left:10px;top:9px;background:rgba(255,255,255,.88);border-radius:8px;padding:3px 8px;font-size:14px;color:var(--ink2)}
 .vp .vt{position:absolute;right:10px;top:9px;display:flex;gap:5px;z-index:4}
@@ -189,6 +197,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
 </style>
 </head>
 <body>
+<script>if(new URLSearchParams(location.search).get('layout')==='a')document.body.classList.add('layout-a');   // ?layout=a = 이전 배치</script>
 <div class="wrap">
   <header class="top">
     <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>

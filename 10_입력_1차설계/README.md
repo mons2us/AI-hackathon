@@ -26,6 +26,7 @@ python app/server.py          # 브라우저가 http://localhost:8765 로 열림
 | 2 | `app\setup.bat` 더블클릭 — 이 폴더에 `.venv` 를 만들고 `app/requirements.txt` 설치(처음 한 번, 인터넷 필요, 관리자 권한 불필요) |
 | 3 | `app\start.bat` 더블클릭 → 브라우저 `http://localhost:8765` (방화벽 창이 뜨면 "개인 네트워크" 허용) |
 | 공유 | 다른 PC(소스 · 설치 없음)에서 쓰려면 이 PC 에서 `app\start_share.bat` 더블클릭 → 검은 창에 나오는 `http://<이 PC IP>:8765` 를 다른 PC 의 Chrome · Edge 주소창에 입력 (아래 "사내 다른 PC 에서 접속") |
+| 배치 | 기본 = 입력 · 3D 설계(위아래 끝까지) · 물리 시뮬레이션(응력 · 흔들림 · 온도 · 최적화 과정, 세로) · 성능. 이전 배치(3D 설계 | 성능 위, 물리 시뮬레이션 아래 가로)는 주소 끝에 `?layout=a` (예: `http://localhost:8765/?layout=a`). 코드로 되돌리려면 커밋 7b7ec85 |
 | 명령줄 | `.venv\Scripts\python run.py --text "울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야" --out out` · 검증 `.venv\Scripts\python tests\run_all.py` |
 
 **사내 다른 PC 에서 접속** — 계산은 모두 서버 PC 에서 하고, 다른 PC 는 브라우저만 있으면 됨 (설계 사양 · 1차 설계 · 최적화 · 파일 내려받기 · 영상 모드 `?video=1` 모두 같음)
