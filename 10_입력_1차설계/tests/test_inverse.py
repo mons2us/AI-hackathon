@@ -19,14 +19,20 @@ def test_path_reaches_verified_design():
     fr = res["frames"]
     assert fr[0]["sha"] == O._sha(O.attached(O.start_shape())), "첫 프레임이 1차 설계가 아님"
     assert abs(fr[0]["mass_g"] - 94.9) < 0.1 and fr[0]["pen"] > 10
-    assert fr[-1]["pen"] == 0.0 and abs(fr[-1]["mass_g"] - 77.1) < 0.1
+    assert abs(fr[-1]["mass_g"] - 77.1) < 0.1 and fr[-1]["it"] == 500
+    # AI 예측(대체 모델): 오르내리고, 목표에 가까운 항목은 마지막에 조금 모자람 → 정밀 계산(FEM)에서 충족
+    lim = O.limits()
+    miss = [k for k in ("Tmax", "shake") if O.violation(k, fr[-1]["pred"][k], lim) > 0]
+    assert miss and fr[-1]["pen"] > 0, (fr[-1]["pred"], fr[-1]["pen"])
+    ups = sum(1 for a, b in zip(fr, fr[1:]) if b["pred"]["f1"] < a["pred"]["f1"])
+    assert ups >= 5, ups                                                       # 떨림 주파수가 중간에 내려가는 곳이 여러 번
     meshes = sum(f["mesh"] is not None for f in fr)
     assert meshes >= 20, meshes
     assert all(f["pred"]["f1"] is not None for f in fr)
     g = O.gate(res)
     assert g["pass_"], [r for r in g["rows"] if not r["ok"]]
     assert np.array_equal(O.final_shape(res), I.full_density(I.shape("formproof")) > 0.5)
-    return (f"프레임 {len(fr)}개 · 표면 {meshes}가지, 무게 {fr[0]['mass_g']} → {fr[-1]['mass_g']} g, 벌점 {fr[0]['pen']:.1f} → 0, "
+    return (f"프레임 {len(fr)}개(반복 500) · 표면 {meshes}가지, 무게 {fr[0]['mass_g']} → {fr[-1]['mass_g']} g, AI 예측 미달 {miss} → "
             f"FEM 검증 f1 {g['rows'][0]['value']:.1f} Hz · 폰 {g['rows'][1]['value']:.1f} °C 통과, {res['seconds']} s")
 
 

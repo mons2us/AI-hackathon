@@ -839,7 +839,7 @@ async function finishOpt(r){
     const m=rows[k];O.cur=m.key;O.prog=O.prog||{};$('#optText').textContent=`정밀 계산 ${k+1}/${n} · ${SHORT[m.key]||m.label} 확인 중`;
     const t0=performance.now();while(performance.now()-t0<800){O.prog[m.key]=(performance.now()-t0)/800;await sleep(40);}O.prog[m.key]=1;
     const x=g.rows.find(x=>x.key===m.key);if(x){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}
-    O.fin[m.key]=ratioOf(m,m.value);$('#optBar').style.width=`${100*(k+1)/n}%`;drawMetrics();
+    O.fin[m.key]=ratioOf(m,m.value);$('#optBar').style.width=`${100*(k+1)/n}%`;drawMetrics();readouts(O.iters,O.iters,g.mass_g);
   }
   clearInterval(tick);O.cur=null;spark();
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m&&m.src!=='정밀 계산'){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
@@ -853,6 +853,10 @@ async function finishOpt(r){
   O.mf=g.mass_g;readouts(O.iters||null,O.iters,g.mass_g);spark();
   $('#optBar').style.width='100%';
   const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
+  // 도면 = 최적 설계 도면 (성능 칸 '도면' 내려받기 · 3D 창 '도면' 보기 모두)
+  const ad=$('#files a[data-f="design_1st_drawing.pdf"]');
+  if(r.files['opt_final_drawing.pdf']&&ad){ad.href=r.files['opt_final_drawing.pdf']+'?dl=1';ad.classList.remove('off');}
+  if(r.files['opt_final_drawing.png']){$('#imgDraw').src=r.files['opt_final_drawing.png'];if(ad)ad.dataset.png=r.files['opt_final_drawing.png'];}
   setStep(3);
 }
 // TV 스탠드 · AI 글래스 · 템플릿 거치대: 고르기까지는 같고, 최적 설계는 아직 없음 → 고른 기준을 최적화 입력 묶음으로 저장

@@ -24,6 +24,7 @@ import time
 import numpy as np
 
 from .. import integral as I
+from .. import progress
 from .. import memo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -266,6 +267,8 @@ def gate(res, out=None, timeout=3600):
         os.makedirs(out, exist_ok=True)
         np.save(os.path.join(out, "opt_final_rho.npy"), full)
         I.grid_mesh(full).export(os.path.join(out, "opt_final.stl"))
+        progress.step("최적 설계 도면")
+        I.opt_drawing(full, out)                         # opt_final_drawing.png · .pdf (같은 형상은 결과 DB)
         with open(os.path.join(out, "optimize_result.json"), "w", encoding="utf-8") as fh:
             json.dump(dict(backend=res["backend"], selection=res["selection"], limits=res["limits"], fit=res["fit"],
                            path=[dict(it=f["it"], mass_g=f["mass_g"], pen=f["pen"], pred=f["pred"]) for f in res["frames"]],

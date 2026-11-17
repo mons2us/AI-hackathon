@@ -2,8 +2,8 @@
 
   fit  : 1차 설계에 z 를 맞춤 (디코더 고정, 무작위 16,384 점 BCE, Adam 5e-3, FP11_FIT_STEPS 회 = 기본 1500).
          한 번 맞춘 z0 는 models/fp11/z0_<형상 해시>.npy 에 저장 (CPU 에서 오래 걸림)
-  trace: 목적 = 무게(정확식) + w·(Σ 고른 기준 정규화 위반 × 10)² + 1e-3‖z‖², Adam lr 0.02, FP11_ITERS 회(기본 200),
-         FP11_EVERY 회(기본 5)마다 형상(디코더 sharp 2, 0.5 기준) · 예측값 · 분포를 프레임으로.
+  trace: 목적 = 무게(정확식) + w·(Σ 고른 기준 정규화 위반 × 10)² + 1e-3‖z‖², Adam lr 0.02, FP11_ITERS 회(기본 500),
+         FP11_EVERY 회(기본 10)마다 형상(디코더 sharp 2, 0.5 기준) · 예측값 · 분포를 프레임으로.
 물리 AI 출력: 스칼라 7개 [무게, f1, f2, 폰 온도, 터치 위, 터치 아래, 충격 응력(위아래)] (+ --ext 로 학습했으면 11개:
   f3, f4, 노면 대역 흔들림 위아래/앞뒤, 80 Hz 까지 최대 흔들림 위아래/앞뒤, RMS 위아래/앞뒤, 충격 응력 앞뒤, 층간 위아래/앞뒤).
   화면 키: f1, Tmax, touch = max(터치 위 · 아래), stress = max(충격 위아래 · 앞뒤), interlayer · shake(80 Hz 까지 최대) 는 ext 가 있을 때만.
@@ -104,8 +104,8 @@ class TorchBackend:
     def trace(self, z0, sel, lim, iters=None, every=None, lr=0.02, w=3.0):
         torch = self.torch
         from . import violation
-        iters = int(iters or os.environ.get("FP11_ITERS", 200))
-        every = int(every or os.environ.get("FP11_EVERY", 5))
+        iters = int(iters or os.environ.get("FP11_ITERS", 500))
+        every = int(every or os.environ.get("FP11_EVERY", 10))
         z = torch.as_tensor(np.asarray(z0, np.float32), device=self.S.dev).reshape(1, -1).clone().requires_grad_(True)
         opt = torch.optim.Adam([z], lr=lr)
         relu = torch.relu
