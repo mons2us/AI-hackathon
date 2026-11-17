@@ -4,3 +4,5 @@ __pycache__/
 runs/*.log
 runs/**/*.pt
 runs/**/*.npy
+data/al/
+data/shards/al_*.npz
