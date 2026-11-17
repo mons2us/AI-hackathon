@@ -42,6 +42,7 @@ class TorchBackend:
         st = torch.load(phys_path, map_location="cpu", weights_only=False)
         self.field_scale = st.get("field_scale")
         self.n_out = int(st["cfg"].get("n_out", 7))
+        self.trace_keys = ("f1", "Tmax", "touch", "stress") + (("interlayer", "shake") if self.n_out >= 18 else ())   # 탐색 벌점에 쓰는 기준
         self.id = f"fp11-{_sha_file(sdf_path)}-{_sha_file(phys_path)}"
         self.dir = os.path.dirname(os.path.dirname(sdf_path))
 

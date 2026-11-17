@@ -199,6 +199,29 @@ def start_shape():
     return I.full_density(I.shape("base")) > 0.5
 
 
+_HYB = {}
+
+
+def hybrid_pack(sel, B=None):
+    """models/hybrid_p01.json.gz (13_AI학습_일체형/make_hybrid_pack.py 로 만듦) — 고른 기준과 학습 모델이 같을 때만 사용.
+    경로: ① AI 탐색 (형상 AI × 물리 AI) → 탐색 형상 정밀 계산 · 통과 후보 선택 → ② 정밀 최적화 (구조 최적화 + FEM) → 최종 형상.
+    FP_OPT_HYBRID=0 이면 쓰지 않음."""
+    path = os.path.join(MODELS, "hybrid_p01.json.gz")
+    if os.environ.get("FP_OPT_HYBRID", "1") == "0" or not os.path.exists(path):
+        return None
+    st = os.path.getmtime(path)
+    if _HYB.get("mtime") != st:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            _HYB.update(mtime=st, pack=json.load(fh))
+    p = _HYB["pack"]
+    B = B or backend()
+    # 탐색 벌점에 실제로 들어가는 기준만 비교 (물리 AI 가 예측하지 않는 항목 — 층간 · 흔들림 — 은 탐색 경로를 바꾸지 않음)
+    eff = set(getattr(B, "trace_keys", ("f1", "Tmax", "touch", "stress")))
+    if set(sel) & eff != set(p["selection"]) & eff or B.id != p["backend"]:
+        return None
+    return p
+
+
 def run(selection, on_frame=None, use_cache=True, iters=None, every=None, lim_override=None):
     """selection: 고른 기준 키 (KEYS 중). on_frame(frame) 을 프레임마다 부름. 반환: 결과 요약 (frames 포함).
     lim_override: 확정한 설계 사양의 판정 기준 {key: (op, 값)} (사용자가 고친 값 — 없으면 기본 기준)."""
@@ -209,6 +232,15 @@ def run(selection, on_frame=None, use_cache=True, iters=None, every=None, lim_ov
     lim = limits()
     ov = {k: (str(v[0]), float(v[1])) for k, v in (lim_override or {}).items() if k in KEYS and (str(v[0]), float(v[1])) != lim[k]}
     lim.update(ov)
+    hp = hybrid_pack(sel, B)
+    if hp is not None and use_cache:                             # AI 탐색 → 후보 정밀 계산 → 정밀 최적화 경로 (미리 계산)
+        for fr in hp["frames"]:
+            if on_frame:
+                on_frame(fr)
+        res = {k: v for k, v in hp.items() if k != "frames"}
+        res.update(frames=hp["frames"], backend_name=B.name, limits={k: list(v) for k, v in lim.items()}, seconds=0.0,
+                   cached=True, hybrid=True)
+        return res
     ck = memo.key("p01opt", B.id, sel, iters, every, *([sorted(ov.items())] if ov else []))
     path = os.path.join(memo.DB, ck, "opt.json.gz")
     if use_cache and os.path.exists(path):                       # 미리 계산한 경로 → 바로 재생
@@ -271,7 +303,9 @@ def gate(res, out=None, timeout=3600):
         I.opt_drawing(full, out)                         # opt_final_drawing.png · .pdf (같은 형상은 결과 DB)
         with open(os.path.join(out, "optimize_result.json"), "w", encoding="utf-8") as fh:
             json.dump(dict(backend=res["backend"], selection=res["selection"], limits=res["limits"], fit=res["fit"],
-                           path=[dict(it=f["it"], mass_g=f["mass_g"], pen=f["pen"], pred=f["pred"]) for f in res["frames"]],
+                           path=[dict(it=f["it"], stage=f.get("stage", "ai"), mass_g=f["mass_g"], pen=f.get("pen"), pred=f.get("pred"),
+                                      **({"fem": f["fem"]} if f.get("fem") else {})) for f in res["frames"]],
+                           hybrid=dict(candidates=res.get("candidates"), pick_it=res.get("pick_it"), source=res.get("source")) if res.get("hybrid") else None,
                            fem=dict(rows=j["rows"], pass_=j["pass_"], mass_g=r["mass_g"])), fh, ensure_ascii=False, indent=1, default=float)
     return g
 
@@ -282,7 +316,10 @@ DEFAULT_SELECTIONS = (("f1", "Tmax", "touch", "interlayer", "shake"), KEYS)   # 
 def precompute(log=print):
     B = backend()
     log(f"모델: {B.name} ({B.id}){' — ' + B.reason if getattr(B, 'reason', '') else ''}")
-    for sel in DEFAULT_SELECTIONS:
+    sels = DEFAULT_SELECTIONS
+    if hybrid_pack(DEFAULT_SELECTIONS[0], B) is not None and os.environ.get("FP_OPT_PRECOMPUTE_ALL") != "1":
+        sels = DEFAULT_SELECTIONS[:1]          # 하이브리드 경로가 있는 기본 선택만 (다른 선택은 누를 때 학습 모델로 탐색 — CPU 수 분)
+    for sel in sels:
         t = time.time()
         res = run(sel)
         g = gate(res)

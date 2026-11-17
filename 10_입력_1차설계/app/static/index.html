@@ -279,7 +279,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
             <div class="vp" id="vS2"><span class="lab"></span><div class="leg" hidden></div></div>
             <div class="vp gt" id="vS3">   <!-- 최적화 과정 (수렴 그래프) — 분포 창 3개와 같은 크기 -->
               <div class="optinfo" id="optInfo" hidden>
-                <div class="gh"><b>최적화 과정</b><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stp2">② 정밀 계산</span></div>
+                <div class="gh"><b>최적화 과정</b><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stpR" hidden>② 최적화</span><span class="stp" id="stp2">② 정밀 계산</span></div>
                 <canvas id="optSpark"></canvas>
                 <div class="lg" id="optLg"></div>
                 <div class="pb"><i id="optBar"></i></div>
@@ -764,6 +764,7 @@ async function applyHeat(heat){
     const leg=$(SMALL[i]).querySelector('.leg b');if(leg)leg.textContent=`${f.max}${f.unit?' '+f.unit:''}`;});
 }
 function applyFrame(f){
+  if(f.stage==='pick'||f.stage==='refine')return applyRefine(f);
   if(f.mesh){const g=q16mesh(f.mesh);V3.mount.geometry.dispose();V3.mount.geometry=g;
     const bb=new THREE.Box3().setFromObject(V3.mount);if(!V3.optBox||!V3.optBox.containsBox(bb)){V3.optBox=(V3.optBox||bb.clone()).union(bb);V3.box=V3.optBox.clone();V3.mc=V3.box.getCenter(new THREE.Vector3());fitSmall();}}
   if(f.heat)applyHeat(f.heat);
@@ -776,6 +777,23 @@ function applyFrame(f){
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   readouts(f.it,f.iters,f.mass_g);
   if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen,v:histPoint(f.it)});spark();}
+}
+// 정밀 최적화 프레임 (후보 선택 · 구조 최적화 + FEM): 값은 정밀 계산 결과, 표면만 바꿈 (분포는 마지막 검증에서)
+function applyRefine(f){
+  const O=S.opt;if(O&&!O.aiN){O.aiN=f.it;hybridSteps(true);}
+  if(f.mesh){const g=q16mesh(f.mesh);V3.mount.geometry.dispose();V3.mount.geometry=g;
+    const bb=new THREE.Box3().setFromObject(V3.mount);if(!V3.optBox||!V3.optBox.containsBox(bb)){V3.optBox=(V3.optBox||bb.clone()).union(bb);V3.box=V3.optBox.clone();V3.mc=V3.box.getCenter(new THREE.Vector3());fitSmall();}}
+  const fe=f.fem||{};
+  S.rows.forEach(m=>{if(!m.key||fe[m.key]==null)return;m.value=fe[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='정밀 계산';});
+  drawMetrics();optStage(1.5);
+  setPhase(f.stage==='pick'?'AI 후보 선택':'정밀 최적화 중','정밀 계산');$('#pTitle').textContent='성능 · 정밀 계산';$('#optPhase').textContent='② 정밀 최적화 ·';
+  const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`정밀 최적화 · ${nf?'미충족 '+nf+'개':'계산 충족'}`;
+  $('#kMass').textContent=`${fmt(f.mass_g)} g`;
+  $('#optText').textContent=f.note||'정밀 최적화 중';
+  $('#optBar').style.width=`${100*f.it/f.iters}%`;
+  readouts(f.it,f.iters,f.mass_g);
+  if(O&&O.hist){O.iters=f.iters;O.hist.push({it:f.it,m:f.mass_g,p:0,v:histPoint(f.it)});spark();}
 }
 // 최적화 과정 그래프: x = 반복, 왼쪽 y = 무게(g, 하늘색), 오른쪽 y = 목표와의 차이(주황, 0 = 모든 목표 충족)
 // 격자 · 축 눈금 · 범례 · 현재 점 · 정밀 계산 결과 점(초록 다이아몬드)
@@ -804,7 +822,11 @@ function spark(){
   for(const v of niceTicks(0,N,W<260?3:4)){if(v<=0||v>=N)continue;const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();}
   g.strokeStyle='#33405c';g.strokeRect(L+.5,T+.5,pw,ph);
   g.strokeStyle='#3b4a6b';g.beginPath();g.moveTo(Math.round(xN)+.5,T);g.lineTo(Math.round(xN)+.5,T+ph);g.stroke();
-  g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText('① AI 탐색',(L+xN)/2,T+ph+8);g.fillStyle=O.fem?'#5fd3a6':'#7f8aa3';g.fillText('② 정밀 계산',(xN+L+pw)/2,T+ph+8);
+  const xA=O.aiN?X(O.aiN):xN;
+  if(O.aiN){g.fillStyle='rgba(255,179,107,.07)';g.fillRect(xA,T,xN-xA,ph);g.strokeStyle='#3b4a6b';g.beginPath();g.moveTo(Math.round(xA)+.5,T);g.lineTo(Math.round(xA)+.5,T+ph);g.stroke();}
+  g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText('① AI 탐색',(L+xA)/2,T+ph+8);
+  if(O.aiN){g.fillStyle='#ffb36b';g.fillText('② 최적화',(xA+xN)/2,T+ph+8);}
+  g.fillStyle=O.fem?'#5fd3a6':'#7f8aa3';g.fillText(O.aiN?'③ 검증':'② 정밀 계산',(xN+L+pw)/2,T+ph+8);
   // 목표 달성 (맨 위)
   g.setLineDash([4,3]);g.strokeStyle='rgba(95,211,166,.9)';g.beginPath();g.moveTo(L,T+.5);g.lineTo(L+pw,T+.5);g.stroke();g.setLineDash([]);
   g.textAlign='left';g.fillStyle='#5fd3a6';g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillText('목표 달성',L+2,T-8);
@@ -830,7 +852,9 @@ function spark(){
   const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
-function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
+function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stpR').className='stp '+(n===1.5?'on':n>1.5?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
+// 하이브리드 경로(AI 탐색 → 후보 정밀 계산 → 정밀 최적화)일 때 단계 이름: ① AI 탐색 ② 정밀 최적화 ③ 최종 검증
+function hybridSteps(on){$('#stpR').hidden=!on;$('#stp2').textContent=on?'③ 검증':'② 정밀 계산';}
 function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${iters}`;$('#roM').textContent=m==null?'–':`${fmt(m)} g`;
   const sh=S.rows.filter(x=>!x.ref);$('#roOk').textContent=sh.length?`${sh.filter(x=>x.ok).length}/${sh.length}`:'–';}
 // 최적화 연출 시간: AI 탐색 50 s, 정밀 계산 60 s (주소에 ?optfast=1 이면 1/10 — 시험용)
@@ -880,7 +904,7 @@ $('#optimize').onclick=async()=>{
   const run=(rep.files['handoff.zip']||'').split('/')[2];
   const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
   if(rep.template.id!=='P01')return saveTargets(run,targets);
-  S.opt=S.optLast={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
+  S.opt=S.optLast={n:0,queue:[],done:false,res:null,m0:null,aiN:null};hybridSteps(false);updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
   S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
   V3.optBox=null;
