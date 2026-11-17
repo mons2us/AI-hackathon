@@ -229,7 +229,7 @@ GUI 왼쪽 입력: 만들 제품과 조건을 **말로**(제품 버튼 없음 �
 
 - 스케치 = 그림판(800 × 600) 획 `examples/demo/{bike,tv,glasses}.json` (+ 같은 획을 그린 `_sketch.png`), `python examples/demo/make_demo_sketches.py` 로 다시 만듦. 스케치 인식(트랙 2) 전까지는 그림 지문(잉크 썸네일 상관 ≥ 0.85)으로 등록 → 정해 둔 템플릿. 발표 입력 스케치(`examples/presentation/input_sketch.png`)도 그대로 P01.
 - **영상 모드**: `http://localhost:8765/?video=1` — 예시 목록을 숨기고 키 `1` · `2` · `3`(폰 거치대 · TV · 글래스)을 누르면 말을 한 글자씩 치고 스케치를 한 획씩 그림. `&auto=1` 이면 이어서 설계 사양 → 확정 → 1차 설계까지 자동. 콘솔에서 `playDemo(1)` 도 됨.
-- 오른쪽 위 로고: `app/static/brand/samsung_research.png` (남색 바탕 · 흰 글자, `make_logo.py` 로 만든 글자 표시). 공식 로고 파일이 있으면 같은 이름으로 바꿔 넣으면 됨(높이 30 px 표시).
+- 오른쪽 위 로고: `app/static/brand/samsung_research.png` = research.samsung.com 헤더 로고(`logo-sr.png`, 250 × 26)를 글자만 흰색 · 바탕 투명으로 바꾼 것 (`make_logo.py <logo-sr.png>`), 원본 크기로 표시.
 - 시험: `tests/test_spec_table.py` (사양 수치 = 판정 기준, 데모 → 기존 1차 설계 그대로, 고친 값 → 기준 · 템플릿), `tests/e2e_gui.py`.
 
 ## 데모 제품 시나리오 — TV 스탠드 (스케치) · AI 글래스 (사진) (`formproof_input/products/`)
