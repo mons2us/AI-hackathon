@@ -2,4 +2,3 @@ runs/*.pt
 runs/*.json
 __pycache__/
 runs/*.log
-data/shards/path.npz
