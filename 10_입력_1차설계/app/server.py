@@ -454,12 +454,33 @@ def fill_template_db():
         print(f"[템플릿 DB] 새로 계산한 템플릿 {n}개 ({time.time() - t:.0f}s) — 이제 모두 4 s 안에 나옵니다", flush=True)
 
 
+def lan_ips():
+    """이 PC 의 사내망 IPv4 주소 (다른 PC 가 접속할 주소). 인터넷에 실제로 보내는 것은 없음 (UDP connect 는 경로만 고름)."""
+    import socket
+    ips = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))
+        ips.append(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        ips += socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        pass
+    return [ip for ip in dict.fromkeys(ips) if not ip.startswith("127.")]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--no-browser", action="store_true")
+    ap.add_argument("--share", action="store_true", help="사내 다른 PC 에서도 접속 (--host 0.0.0.0 과 같음)")
     a = ap.parse_args()
+    if a.share:
+        a.host = "0.0.0.0"
     os.makedirs(RUNS, exist_ok=True)
     t = time.time()
     pipeline.matcher()                                     # warm up: template references for sketch matching
@@ -472,6 +493,12 @@ def main():
               f"\n(다른 포트: start.bat --port 8766)\n", flush=True)
         sys.exit(1)
     threading.Thread(target=fill_template_db, daemon=True).start()
+    if a.host in ("0.0.0.0", ""):
+        ips = lan_ips()
+        print("\n다른 PC 에서 접속 (같은 사내망, 브라우저 주소창에 입력):", flush=True)
+        for ip in ips or ["(이 PC 의 IP 를 찾지 못함 — 명령 프롬프트에서 ipconfig 로 IPv4 주소 확인)"]:
+            print(f"    http://{ip}:{a.port}" if ips else f"    {ip}", flush=True)
+        print("  안 열리면: 이 PC 의 Windows 방화벽에서 Python(또는 포트 %d) 들어오는 연결 허용\n" % a.port, flush=True)
     if not a.no_browser:
         threading.Timer(0.5, lambda: webbrowser.open(f"http://localhost:{a.port}")).start()
     try:

@@ -25,7 +25,18 @@ python app/server.py          # 브라우저가 http://localhost:8765 로 열림
 | 1 | Python **3.11–3.13 64bit** 설치(3.12 권장, "Add python.exe to PATH" 체크). CadQuery 휠이 3.11 이상만 있음 |
 | 2 | `app\setup.bat` 더블클릭 — 이 폴더에 `.venv` 를 만들고 `app/requirements.txt` 설치(처음 한 번, 인터넷 필요, 관리자 권한 불필요) |
 | 3 | `app\start.bat` 더블클릭 → 브라우저 `http://localhost:8765` (방화벽 창이 뜨면 "개인 네트워크" 허용) |
+| 공유 | 다른 PC(소스 · 설치 없음)에서 쓰려면 이 PC 에서 `app\start_share.bat` 더블클릭 → 검은 창에 나오는 `http://<이 PC IP>:8765` 를 다른 PC 의 Chrome · Edge 주소창에 입력 (아래 "사내 다른 PC 에서 접속") |
 | 명령줄 | `.venv\Scripts\python run.py --text "울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야" --out out` · 검증 `.venv\Scripts\python tests\run_all.py` |
+
+**사내 다른 PC 에서 접속** — 계산은 모두 서버 PC 에서 하고, 다른 PC 는 브라우저만 있으면 됨 (설계 사양 · 1차 설계 · 최적화 · 파일 내려받기 · 영상 모드 `?video=1` 모두 같음)
+
+| 확인 | 내용 |
+|---|---|
+| 서버 PC | `app\start_share.bat` (= `server.py --share`, 0.0.0.0 에서 대기). 창에 접속 주소가 나옴. 창을 닫으면 끝 |
+| 방화벽 | 처음 실행 때 Windows 방화벽 창 → **허용**. `start_share.bat` 은 TCP 8765 허용 규칙도 넣어 봄(관리자로 실행했을 때만 됨). 회사 정책으로 막혀 있으면 IT 에 "TCP 8765 들어오는 연결 허용" 요청 |
+| 접속 PC | Chrome · Edge (3D 화면에 WebGL 필요), 같은 사내망 · 같은 VPN |
+| 여러 명 | 각자 따로 작업 가능(결과 폴더가 요청마다 다름). 1차 설계 · 최적화 계산은 서버에서 한 번에 하나씩 차례로 |
+| 주의 | 로그인 없음 — 주소를 아는 사내망 누구나 접속 가능. 데모 때만 켜 두기 |
 
 - 저장소는 master 와 함께 받아야 합니다(P01 은 `11_구현패키지`, `03_자전거거치대/LLM단독비교` 를 씀).
 - 경로에 한글 폴더가 있어도 됩니다. 배치 파일이 `PYTHONUTF8=1` 로 실행합니다(팀 스크립트 일부가 인코딩을 지정하지 않아 cp949 로 읽는 문제 방지).
