@@ -74,10 +74,18 @@ select.btn{width:100%;margin-top:8px}
 .vmain{flex:1;min-height:0}
 .vrow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:10px}   /* 최적화 과정 창은 조금 넓게 */
 .vrow .vp{min-width:0}
+/* 네비게이션 (3D 설계 왼쪽 아래): 전체 장면 + 지금 보는 곳 */
+.vmain .nav{position:absolute;left:10px;bottom:10px;width:clamp(150px,22%,230px);aspect-ratio:3/2;border-radius:9px;background:#fff;border:1px solid #c9d1dd;box-shadow:0 2px 8px rgba(20,30,50,.12);z-index:0}
+.vmain .navov{position:absolute;left:10px;bottom:10px;width:clamp(150px,22%,230px);aspect-ratio:3/2;border-radius:9px;z-index:3;pointer-events:none}
 /* 배치 B (기본): 입력 | 3D 설계(위아래 끝까지) | 물리 시뮬레이션 세로(응력 · 흔들림 · 온도 · 최적화 과정) | 성능(좁게)
    배치 A (이전): 주소 끝에 ?layout=a — 3D 설계 | 성능 위, 물리 시뮬레이션 아래 가로 */
 body:not(.layout-a) .views{grid-template-columns:minmax(0,1fr) clamp(220px,15vw,300px) clamp(290px,19vw,380px);grid-template-rows:minmax(0,1fr)}
 body:not(.layout-a) .views .c3d{grid-column:1;grid-row:1}
+.views .cgrp{display:none}
+body:not(.layout-a) .views .cgrp{display:block;grid-column:1/3;grid-row:1;background:var(--card);border:1px solid #e6e9ef;border-radius:14px}
+body:not(.layout-a) .views .c3d,body:not(.layout-a) .views .csim{background:transparent;border:0;position:relative}
+body:not(.layout-a) .views .c3d{padding-right:4px}body:not(.layout-a) .views .csim{padding-left:4px}
+body:not(.layout-a) .views .csim:before{content:"";position:absolute;left:-6px;top:14px;bottom:14px;border-left:1px solid var(--line)}
 body:not(.layout-a) .views .csim{grid-column:2;grid-row:1}
 body:not(.layout-a) .views .cperf{grid-column:3;grid-row:1}
 body:not(.layout-a) .vrow{grid-template-columns:1fr;grid-template-rows:1fr 1fr 1fr 1.5fr}
@@ -238,10 +246,12 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
 
     <!-- 2 · 3. 오른쪽 영역 (캔버스 하나로 3D 창 · 분포 창을 그림): 위 = 3D 설계 | 성능, 아래 = 물리 시뮬레이션 (두 칸 너비) -->
     <div class="views" id="views">
+      <div class="cgrp"></div>   <!-- 배치 B: 3D 설계 + 물리 시뮬레이션을 한 틀로 -->
       <div class="card fill c3d" style="overflow:hidden">
         <h2>3D 설계 <span class="tag" id="vTitle" hidden></span> <span class="tag" id="tplTag">대기 중</span></h2>
         <div class="vp vmain" id="vMain">
             <span class="ovl" id="ovl3d">마우스로 돌리고 휠로 확대</span>
+            <div class="nav" id="vNav" hidden></div><canvas class="navov" id="navOv" hidden></canvas>   <!-- 전체 보기: 지금 보는 곳 = 파란 네모 -->
             <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
             <img class="draw" id="imgDraw" alt="">
             <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 1차 설계 만들기</div>
@@ -411,6 +421,7 @@ function renderAll(){
   R.shadowMap.needsUpdate=true;
   if(!V3.drawing)drawInto($("#vMain"));   // 도면일 때는 메인 칸을 투명하게 두어 캔버스 아래 도면이 보임 (캔버스를 다른 요소로 덮지 않음)
   if(!V3.mount)return;
+  drawNav();
   // 분포 창: 부품만, 같은 카메라
   const vis=[V3.bike,V3.ground,V3.handlebar,V3.holder,...V3.aux].filter(Boolean).map(o=>[o,o.visible]);
   vis.forEach(([o])=>o.visible=false);R.shadowMap.autoUpdate=false;
@@ -421,6 +432,35 @@ function renderAll(){
   cam2.fov=2*Math.atan(Math.tan(cam.fov*Math.PI/360)*V3.k)*180/Math.PI;
   V3.small.forEach((s,i)=>{if(!s.mat)return;V3.mount.material=s.mat;drawInto($(SMALL[i]),cam2);});
   V3.mount.material=V3.baseMat;R.shadowMap.autoUpdate=true;vis.forEach(([o,v])=>o.visible=v);
+}
+// ---------- 네비게이션: 메인과 같은 방향, 장면 전체(자전거 · 제품)가 들어가게 멀리서 본 그림 + 지금 메인 창에 보이는 곳(파란 네모)
+function navBox(){
+  if(V3.navB)return V3.navB;
+  const b=new THREE.Box3();[V3.bike,V3.handlebar,V3.mount,V3.holder,...V3.aux].filter(o=>o&&o.visible).forEach(o=>b.expandByObject(o));
+  return V3.navB=b.isEmpty()?null:b;
+}
+function drawNav(){
+  const el=$('#vNav'),ov=$('#navOv'),show=!V3.drawing&&!!V3.mount;el.hidden=ov.hidden=!show;if(!show)return;
+  const b=navBox();if(!b)return;
+  const {cam,ctl}=V3,camN=V3.camN||(V3.camN=new THREE.PerspectiveCamera(25,1.5,5,40000));
+  const c=b.getCenter(new THREE.Vector3()),rad=b.getSize(new THREE.Vector3()).length()/2,an=el.clientWidth/Math.max(el.clientHeight,1);
+  // 지금 방향에서 상자 모서리 8개가 꽉 차게 (위 '전체 보기' 글자 몫 조금 남김)
+  const qi=cam.quaternion.clone().invert(),tv=Math.tan(cam.fov*Math.PI/360);let dist=1;
+  for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){
+    const v=new THREE.Vector3(x,y,z).sub(c).applyQuaternion(qi);dist=Math.max(dist,v.z+Math.max(Math.abs(v.y)/(tv*0.8),Math.abs(v.x)/(tv*an*0.9)));}
+  const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion);
+  camN.fov=cam.fov;camN.quaternion.copy(cam.quaternion);camN.position.copy(c).addScaledVector(fwd,-dist);camN.far=dist+rad*4;
+  const gv=V3.ground.visible;V3.ground.visible=false;drawInto(el,camN);V3.ground.visible=gv;
+  // 메인 창에 보이는 곳: 초점 거리에서의 화면 네 귀퉁이 → 전체 보기 위치
+  const m=$('#vMain'),am=m.clientWidth/Math.max(m.clientHeight,1),d=cam.position.distanceTo(ctl.target),hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*am;
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(cam.quaternion),rt=new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion);
+  const W=ov.clientWidth,H=ov.clientHeight,dpr=window.devicePixelRatio||1;
+  if(ov.width!==Math.round(W*dpr)){ov.width=Math.round(W*dpr);ov.height=Math.round(H*dpr);}
+  const g=ov.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const P=[[-1,1],[1,1],[1,-1],[-1,-1]].map(([sx,sy])=>{const p=ctl.target.clone().addScaledVector(rt,sx*hw).addScaledVector(up,sy*hh).project(camN);return [(p.x+1)/2*W,(1-p.y)/2*H];});
+  g.fillStyle='rgba(13,20,34,.16)';g.beginPath();g.rect(0,0,W,H);P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.fill('evenodd');
+  g.strokeStyle='#2563eb';g.lineWidth=2;g.beginPath();P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.stroke();
+  g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#334155';g.textBaseline='top';g.fillText('전체 보기',7,6);
 }
 function view(kind){
   const {cam,ctl}=V3, close=kind==='close';
@@ -554,7 +594,7 @@ function showMount(rep){
   setupHeat(rep);
   view('close');
 }
-$('#vBike').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);V3.bike.visible=on;V3.ground.visible=on;};
+$('#vBike').onclick=e=>{V3.navB=null;const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);V3.bike.visible=on;V3.ground.visible=on;};
 $('#vPhone').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);if(V3.holder)V3.holder.visible=on;};
 $('#vClose').onclick=()=>view(V3.kind==='close'?'full':'close');
 $('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
@@ -862,6 +902,7 @@ function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 
   $('#specRows').innerHTML=h;box.hidden=false;
 }
 function render(rep){
+  V3.navB=null;
   $('#vMain .vt').hidden=false;
   // 설계 사양 행(spec_rows)과 같은 내용을 스케치 아래 설계 사양 표(spec_table, 확정 전에 고침)로 보여 주므로 #specBox 는 숨김 (한 화면 유지)
   if(rep.kind==='product') return renderProduct(rep);
