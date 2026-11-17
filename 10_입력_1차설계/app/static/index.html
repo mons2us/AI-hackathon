@@ -25,7 +25,7 @@ header.top{background:var(--nav);color:#fff;border-radius:14px;padding:9px 16px;
 .step{border:1px solid #2c3850;background:#1f2a40;color:#c3cbd8;border-radius:999px;padding:4px 11px;font-size:14.5px;white-space:nowrap}
 .step i{font-style:normal;display:inline-grid;place-items:center;width:17px;height:17px;border:1px solid currentColor;border-radius:50%;font-size:12.5px;margin-right:5px}
 .step.done{color:#fff;border-color:#3b4a66}.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:clamp(340px,25vw,480px) minmax(0,1fr) clamp(280px,18vw,330px);gap:12px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:clamp(340px,25vw,480px) minmax(0,1fr) clamp(340px,25vw,480px);gap:12px}
 .grid>section{min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px}
 .card{background:var(--card);border-radius:14px;border:1px solid #e6e9ef;padding:14px;min-height:0}
 .card.fill{flex:1;display:flex;flex-direction:column;overflow:auto}
@@ -186,7 +186,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
     <section>
       <div class="card fill">
         <h2>입력</h2>
-        <textarea id="text" placeholder="만들 제품과 원하는 조건을 적어 주세요 (예: 27인치 TV 스탠드, 아이가 밀어도 안 넘어지게)" style="min-height:78px"></textarea>
+        <textarea id="text" placeholder="만들 제품과 원하는 조건을 적어 주세요 (예: 27인치 TV 스탠드, 아이가 밀어도 안 넘어지게)" style="min-height:100px;overflow:hidden;flex:none"></textarea>
         <div class="seg" style="margin-top:10px"><button id="mSketch" class="on">스케치</button><button id="mImage">사진</button></div>
         <div id="sketchBox">
           <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
@@ -545,7 +545,11 @@ function inputReq(){
   if(S.mode==='image'&&S.image)req.image=S.image;
   return req;
 }
-function inputChanged(){          // 말 · 스케치 · 사진이 바뀌면 만든 사양은 옛것 → 다시 만들어야 확정 · 1차 설계
+// 조건 입력 칸은 글 길이에 맞춰 늘어남 (칸 안 스크롤 없음)
+function fitText(){const t=$('#text');t.style.height='auto';t.style.height=Math.max(100,t.scrollHeight+2)+'px';}
+window.addEventListener('resize',fitText);
+function inputChanged(){
+  fitText();          // 말 · 스케치 · 사진이 바뀌면 만든 사양은 옛것 → 다시 만들어야 확정 · 1차 설계
   if(!S.spec||S.spec.stale)return;
   S.spec.stale=true;S.spec.confirmed=false;$('#specStale').hidden=false;$('#specStale').textContent='입력이 바뀌었습니다 — 설계 사양을 다시 만드세요';
   updateActs();
