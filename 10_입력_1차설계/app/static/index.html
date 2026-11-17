@@ -75,8 +75,8 @@ select.btn{width:100%;margin-top:8px}
 .vrow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:10px}   /* 최적화 과정 창은 조금 넓게 */
 .vrow .vp{min-width:0}
 /* 네비게이션 (3D 설계 왼쪽 아래): 전체 장면 + 지금 보는 곳 */
-.vmain .nav{position:absolute;left:10px;bottom:10px;width:clamp(150px,22%,230px);aspect-ratio:3/2;border-radius:9px;background:#fff;border:1px solid #c9d1dd;box-shadow:0 2px 8px rgba(20,30,50,.12);z-index:0}
-.vmain .navov{position:absolute;left:10px;bottom:10px;width:clamp(150px,22%,230px);aspect-ratio:3/2;border-radius:9px;z-index:3;pointer-events:none}
+.vmain .nav{position:absolute;left:10px;bottom:10px;width:clamp(180px,27%,280px);aspect-ratio:3/2;border-radius:9px;background:transparent;z-index:0}
+.vmain .navov{position:absolute;left:10px;bottom:10px;width:clamp(180px,27%,280px);aspect-ratio:3/2;border-radius:9px;z-index:3;pointer-events:none}
 /* 배치 B (기본): 입력 | 3D 설계(위아래 끝까지) | 물리 시뮬레이션 세로(응력 · 흔들림 · 온도 · 최적화 과정) | 성능(좁게)
    배치 A (이전): 주소 끝에 ?layout=a — 3D 설계 | 성능 위, 물리 시뮬레이션 아래 가로 */
 body:not(.layout-a) .views{grid-template-columns:minmax(0,1fr) clamp(220px,15vw,300px) clamp(290px,19vw,380px);grid-template-rows:minmax(0,1fr)}
@@ -450,7 +450,13 @@ function drawNav(){
     const v=new THREE.Vector3(x,y,z).sub(c).applyQuaternion(qi);dist=Math.max(dist,v.z+Math.max(Math.abs(v.y)/(tv*0.8),Math.abs(v.x)/(tv*an*0.9)));}
   const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion);
   camN.fov=cam.fov;camN.quaternion.copy(cam.quaternion);camN.position.copy(c).addScaledVector(fwd,-dist);camN.far=dist+rad*4;
-  const gv=V3.ground.visible;V3.ground.visible=false;drawInto(el,camN);V3.ground.visible=gv;
+  // 반투명 바탕(메인 장면이 비쳐 보임) 위에 장면 전체를 그림
+  const {R}=V3,r=rectIn(el),yy=r.H-r.y-r.h;if(r.w<2||r.h<2)return;
+  if(!V3.navBg){V3.navBg=new THREE.Scene();V3.navBg.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.55,depthTest:false,depthWrite:false})));V3.navOrtho=new THREE.OrthographicCamera(-1,1,1,-1,0,1);}
+  R.setViewport(r.x,yy,r.w,r.h);R.setScissor(r.x,yy,r.w,r.h);R.autoClear=false;
+  R.render(V3.navBg,V3.navOrtho);R.clearDepth();
+  const gv=V3.ground.visible;V3.ground.visible=false;camN.aspect=r.w/r.h;camN.updateProjectionMatrix();R.render(V3.scene,camN);V3.ground.visible=gv;
+  R.autoClear=true;
   // 메인 창에 보이는 곳: 초점 거리에서의 화면 네 귀퉁이 → 전체 보기 위치
   const m=$('#vMain'),am=m.clientWidth/Math.max(m.clientHeight,1),d=cam.position.distanceTo(ctl.target),hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*am;
   const up=new THREE.Vector3(0,1,0).applyQuaternion(cam.quaternion),rt=new THREE.Vector3(1,0,0).applyQuaternion(cam.quaternion);
@@ -458,8 +464,9 @@ function drawNav(){
   if(ov.width!==Math.round(W*dpr)){ov.width=Math.round(W*dpr);ov.height=Math.round(H*dpr);}
   const g=ov.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const P=[[-1,1],[1,1],[1,-1],[-1,-1]].map(([sx,sy])=>{const p=ctl.target.clone().addScaledVector(rt,sx*hw).addScaledVector(up,sy*hh).project(camN);return [(p.x+1)/2*W,(1-p.y)/2*H];});
-  g.fillStyle='rgba(13,20,34,.16)';g.beginPath();g.rect(0,0,W,H);P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.fill('evenodd');
+  g.fillStyle='rgba(13,20,34,.08)';g.beginPath();g.rect(0,0,W,H);P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.fill('evenodd');
   g.strokeStyle='#2563eb';g.lineWidth=2;g.beginPath();P.forEach((q,i)=>i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]));g.closePath();g.stroke();
+  g.strokeStyle='rgba(120,134,156,.7)';g.lineWidth=1;g.beginPath();g.roundRect?g.roundRect(.5,.5,W-1,H-1,9):g.rect(.5,.5,W-1,H-1);g.stroke();
   g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#334155';g.textBaseline='top';g.fillText('전체 보기',7,6);
 }
 function view(kind){
