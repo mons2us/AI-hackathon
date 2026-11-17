@@ -302,7 +302,13 @@ def gate(res, out=None, timeout=3600):
         np.save(os.path.join(out, "opt_final_rho.npy"), full)
         I.grid_mesh(full).export(os.path.join(out, "opt_final.stl"))
         progress.step("최적 설계 도면")
-        I.opt_drawing(full, out)                         # opt_final_drawing.png · .pdf (같은 형상은 결과 DB)
+        hd = os.path.join(MODELS, "hybrid_p01_drawing") if res.get("hybrid") else None
+        if hd and all(os.path.exists(hd + e) for e in (".png", ".pdf")):   # 하이브리드 최종 형상: 출력용 몸체 A3 제작 도면 (3각법 3면도 · 구멍 표 · 표제란)
+            import shutil
+            for e in (".png", ".pdf"):
+                shutil.copy(hd + e, os.path.join(out, "opt_final_drawing" + e))
+        else:
+            I.opt_drawing(full, out)                     # opt_final_drawing.png · .pdf (같은 형상은 결과 DB)
         with open(os.path.join(out, "optimize_result.json"), "w", encoding="utf-8") as fh:
             json.dump(dict(backend=res["backend"], selection=res["selection"], limits=res["limits"], fit=res["fit"],
                            path=[dict(it=f["it"], stage=f.get("stage", "ai"), mass_g=f["mass_g"], pen=f.get("pen"), pred=f.get("pred"),
