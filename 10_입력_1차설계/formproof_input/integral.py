@@ -863,6 +863,34 @@ def opt_drawing(rho_full, out, name="opt_final_drawing"):
     return [os.path.join(out, f) for f in files]
 
 
+def opt_drawing_a3(rho_full, out, name="opt_final_drawing"):
+    """최적 설계 A3 제작 도면 (drawing_a3): 출력용 몸체(print_body) → 3면도 · 등각도 · 구멍 표 · 표제란 + 출력용 몸체 STL.
+    같은 형상은 결과 DB 에서 바로. Returns dict(files, mass_g, seconds, cached)."""
+    import hashlib
+    import shutil
+    import time as _t
+    from . import memo, drawing_a3
+    full = np.asarray(rho_full, float) > 0.5
+    k = "optdrawA3_" + hashlib.sha1(np.packbits(full).tobytes()).hexdigest()[:16] + f"_v{memo.VERSION}"
+    d = os.path.join(memo.DB, k)
+    names = ("drawing.png", "drawing.pdf", "body.stl", "info.json")
+    cached = all(os.path.exists(os.path.join(d, f)) for f in names)
+    if not cached:
+        t0 = _t.time()
+        os.makedirs(d, exist_ok=True)
+        _, pw_phone = print_body(full.astype(float))
+        mass_g = round(pw_phone.volume * MATERIAL["density_g_cm3"] * 1e-3, 1)
+        pw_phone.export(os.path.join(d, "body.stl"))
+        iso = drawing_a3.iso_png(os.path.join(d, "body.stl"), os.path.join(d, "iso.png"))
+        drawing_a3.draw(pw_phone, iso, os.path.join(d, "drawing"), mass_g, "opt_final_body.stl")
+        with open(os.path.join(d, "info.json"), "w", encoding="utf-8") as fh:
+            json.dump(dict(mass_g=mass_g, seconds=round(_t.time() - t0, 1), iso=bool(iso)), fh)
+    info = json.load(open(os.path.join(d, "info.json"), encoding="utf-8"))
+    for src, dst in (("drawing.png", name + ".png"), ("drawing.pdf", name + ".pdf"), ("body.stl", "opt_final_body.stl")):
+        shutil.copy2(os.path.join(d, src), os.path.join(out, dst))
+    return dict(mass_g=info["mass_g"], seconds=info["seconds"], cached=cached)
+
+
 # ------------------------------------------------------------------ demo routing (스케치 인식은 이후 단계: 지금은 DB)
 DEMO_SKETCHES = [os.path.join(INPUT_ROOT, "examples", "presentation", "input_sketch.png"),
                  os.path.join(INPUT_ROOT, "examples", "demo", "bike_sketch.png")]      # 발표 입력 스케치 · GUI 데모 스케치(그림 위주)

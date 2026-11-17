@@ -632,7 +632,7 @@ $('#vClose').onclick=()=>view(V3.kind==='close'?'full':'close');
 $('#files a[data-f="design_1st_drawing.pdf"]').addEventListener('click',e=>{const a=e.currentTarget;if(a.classList.contains('off'))return;
   if(!V3.drawing&&a.dataset.png)$('#vDraw').onclick();});
 $('#vCmp').onclick=()=>{if(V3.drawing)$('#vDraw').onclick();cmpToggle(!(V3.cmp&&V3.cmp.on));};
-$('#vDraw').onclick=()=>{if(V3.cmp&&V3.cmp.on)cmpToggle(false);V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
+$('#vDraw').onclick=()=>{if(V3.cmp&&V3.cmp.on)cmpToggle(false);V3.drawing=!V3.drawing;{const dw=S.optLast&&S.optLast.dw;if(V3.drawing&&dw&&dw.mass_g)guide('제작 도면',`A3 · 3면도 · 구멍 표 · 표제란 — 출력용 몸체 ${fmt(dw.mass_g)} g · 자동 생성 ${dw.seconds} 초${dw.cached?' (같은 형상은 저장된 도면)':''}`);}$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
 // 메인 창 위 버튼 · 도면을 누를 때 회전 조작이 포인터를 가져가지 않게
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
@@ -906,7 +906,9 @@ async function finishOpt(r){
   $('#optText').textContent=`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
   O.mf=g.mass_g;readouts(O.iters||null,O.iters,g.mass_g);spark();
   $('#optBar').style.width='100%';
-  const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
+  const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=(r.files['opt_final_body.stl']||r.files['opt_final.stl'])+'?dl=1';
+  const ap=$('#files a[data-f="design_1st.stl"]');if(ap&&r.files['opt_final_body.stl'])ap.href=r.files['opt_final_body.stl']+'?dl=1';
+  O.dw=g.drawing||null;
   // 도면 = 최적 설계 도면 (성능 칸 '도면' 내려받기 · 3D 창 '도면' 보기 모두)
   const ad=$('#files a[data-f="design_1st_drawing.pdf"]');
   if(r.files['opt_final_drawing.pdf']&&ad){ad.href=r.files['opt_final_drawing.pdf']+'?dl=1';ad.classList.remove('off');}

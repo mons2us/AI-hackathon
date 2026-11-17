@@ -8,5 +8,3 @@ models/*
 !models/results_fp11.zip
 !models/grid_meta.npz
 !models/hybrid_p01.json.gz
-!models/hybrid_p01_drawing.png
-!models/hybrid_p01_drawing.pdf

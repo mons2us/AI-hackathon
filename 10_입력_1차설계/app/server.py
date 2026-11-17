@@ -254,7 +254,7 @@ class Handler(BaseHTTPRequestHandler):
                         for f in ("optimize_targets.json", "optimize_result.json", "opt_final.stl", "opt_final_rho.npy"):
                             if os.path.exists(os.path.join(out, f)):
                                 zo.write(os.path.join(out, f), f)
-                files = {f: f"/runs/{rid}/{f}" for f in ("opt_final.stl", "optimize_result.json", "optimize_input.zip",
+                files = {f: f"/runs/{rid}/{f}" for f in ("opt_final.stl", "opt_final_body.stl", "optimize_result.json", "optimize_input.zip",
                                                          "opt_final_drawing.png", "opt_final_drawing.pdf") if os.path.exists(os.path.join(out, f))}
                 J.update(rep=json.loads(json.dumps(dict(gate=g, files=files, fit=res["fit"], seconds=res["seconds"], cached=res["cached"],
                                                         selection=sel), ensure_ascii=False, default=float)), done=True)
