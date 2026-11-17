@@ -1,0 +1,3 @@
+runs/*.pt
+runs/*.json
+__pycache__/
