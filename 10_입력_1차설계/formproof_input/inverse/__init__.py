@@ -295,6 +295,8 @@ def gate(res, out=None, timeout=3600):
     j["pass_"] = relimit(j["rows"], {k: tuple(v) for k, v in res["limits"].items()})   # 확정한 설계 사양 기준으로 판정
     F = I.fields(full, tag="opt", timeout=timeout)
     g = dict(rows=j["rows"], pass_=j["pass_"], mass_g=round(float(r["mass_g"]), 2), heat=heat_payload(full > 0.5, F))
+    if res.get("hybrid"):                               # 화면: 미리 계산한 경로임을 표시 · AI 효과(탐색 횟수 · 정밀 계산 후보 수)
+        g["hybrid"] = dict(candidates=res.get("candidates"), ai_iters=res.get("ai_iters"), pick_it=res.get("pick_it"))
     if out:
         os.makedirs(out, exist_ok=True)
         np.save(os.path.join(out, "opt_final_rho.npy"), full)

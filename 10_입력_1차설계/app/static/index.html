@@ -193,8 +193,8 @@ table.st td.b em{font-style:normal;font-size:12px;font-weight:700;border-radius:
 table.st em.k0{background:var(--green-s);color:var(--green)}table.st em.k1{background:#f1ebfb;color:#7146b8}table.st em.k2{background:var(--blue-s);color:var(--blue)}
 table.st em.k3{background:var(--amber-s);color:#b8601d}table.st em.k4{background:#fde8ea;color:var(--red)}
 table.st tbody tr{opacity:0;transition:opacity .25s}table.st tbody tr.in{opacity:1}
-.has-spec .pad canvas{width:auto;height:min(24vh,280px);margin:0 auto}
-@media (max-height:820px){.has-spec .pad canvas{height:19vh}}
+.has-spec .pad canvas{width:auto;height:min(16vh,190px);margin:0 auto}
+@media (max-height:820px){.has-spec .pad canvas{height:14vh}}
 .acts{display:flex;gap:6px;margin-top:10px;flex:none}
 .acts .btn{flex:1;width:auto;margin:0;padding:11px 4px;border-radius:11px;font-weight:700;font-size:15.5px;border:0;color:#fff;white-space:nowrap}
 .acts #bSpec{background:var(--blue)}.acts #bConfirm{background:var(--green)}.acts #go{background:var(--dark)}
@@ -206,6 +206,8 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
 .guide b{color:#fff;font-weight:700;margin-right:8px}
 .steps{flex:none}
 #pTitle{white-space:nowrap}.card h2 .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
+body.opting:not(.layout-a) .vrow{grid-template-rows:.75fr .75fr .75fr 2.3fr}
+.optinfo .rp{font-size:10.5px;font-weight:700;color:#ffd166;border:1px solid #5c4a1e;border-radius:999px;padding:1px 7px;margin-left:4px}
 .optinfo .gh{flex-wrap:wrap;row-gap:3px}.optinfo .gh b{flex-basis:100%}
 /* 1차 ↔ 최적 비교: 3D 창을 3 줄(흔들림 · 충격 · 온도) × 2 칸(1차 · 최적)으로, 같은 색 척도 */
 .cmpov{position:absolute;inset:0;z-index:3;pointer-events:none;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto repeat(3,minmax(0,1fr));gap:8px;padding:46px 12px 12px;background:transparent}
@@ -296,7 +298,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
             <div class="vp" id="vS2"><span class="lab"></span><div class="leg" hidden></div></div>
             <div class="vp gt" id="vS3">   <!-- 최적화 과정 (수렴 그래프) — 분포 창 3개와 같은 크기 -->
               <div class="optinfo" id="optInfo" hidden>
-                <div class="gh"><b>최적화 과정</b><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stpR" hidden>② 최적화</span><span class="stp" id="stp2">② 정밀 계산</span></div>
+                <div class="gh"><b>최적화 과정<span class="rp" id="optRp" hidden>계산 기록 재생</span></b><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stpR" hidden>② 최적화</span><span class="stp" id="stp2">② 정밀 계산</span></div>
                 <canvas id="optSpark"></canvas>
                 <div class="lg" id="optLg"></div>
                 <div class="pb"><i id="optBar"></i></div>
@@ -796,7 +798,8 @@ function applyFrame(f){
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'예측 충족';
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
-  $('#optText').textContent='형태를 바꿔 가며 계산 중';
+  if(f.stage==='ai'){$('#optRp').hidden=false;if(S.opt)S.opt.aiMax=f.it;}   // 미리 계산한 하이브리드 경로를 재생하는 중
+  $('#optText').textContent=f.stage==='ai'?'AI가 형태를 바꿔 가며 성능 예측 (계산 기록 재생)':'형태를 바꿔 가며 계산 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   readouts(f.it,f.iters,f.mass_g);
   if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen,v:histPoint(f.it)});spark();}
@@ -836,7 +839,7 @@ function spark(){
   const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const O=S.opt||S.optLast||{},h=O.hist||[],N=O.iters||120,NX=N*1.75,L=8,Rr=8,T=18,B=14,pw=W-L-Rr,ph=H-T-B,rows=optRows();
   const X=i=>L+i/NX*pw,Y=r=>T+(1-Math.min(1,Math.max(0,r)))*ph,xN=X(N);
-  g.font='10.5px "Malgun Gothic","Noto Sans KR",sans-serif';g.textBaseline='middle';
+  const FS=H>230?12.5:10.5;g.font=FS+'px "Malgun Gothic","Noto Sans KR",sans-serif';g.textBaseline='middle';
   // 영역: ① AI 탐색 | ② 정밀 계산
   g.fillStyle='rgba(77,141,255,.05)';g.fillRect(L,T,xN-L,ph);
   g.fillStyle=O.fem?'rgba(31,191,138,.10)':'rgba(255,255,255,.03)';g.fillRect(xN,T,L+pw-xN,ph);
@@ -884,8 +887,10 @@ async function finishOpt(r){
   optStage(2);setPhase('정밀 계산 중','정밀 계산');guide('4 물리 최적화','최종 형상을 정밀 시뮬레이션으로 다시 판정합니다');O.fem=true;O.femDone=false;O.gauge=0;O.fin={};
   O.before={};rows.forEach(m=>O.before[m.key]=m.value);
   $('#optBar').style.width='0';
-  const D=OPT_FEM_MS,t0=performance.now();           // 정밀 계산: 게이지 하나가 0 → 100 % (60 s)
-  while(performance.now()-t0<D){O.gauge=(performance.now()-t0)/D;$('#optText').textContent=`정밀 계산 중 · ${Math.round(O.gauge*100)} % · 남은 시간 ${Math.ceil((D-(performance.now()-t0))/1000)} 초`;
+  const hy=(g&&g.hybrid)||r.hybrid||null;O.hy=hy;
+  // 하이브리드 경로: 최종 형상 정밀 계산 결과는 미리 계산해 둔 것 → 기다리는 연출 없이 짧게 보여 줌
+  const D=hy?Math.max(1500,OPT_FEM_MS*0.05):OPT_FEM_MS,t0=performance.now();
+  while(performance.now()-t0<D){O.gauge=(performance.now()-t0)/D;$('#optText').textContent=hy?'최종 형상 정밀 시뮬레이션 결과 (미리 계산해 둔 결과)':`정밀 계산 중 · ${Math.round(O.gauge*100)} % · 남은 시간 ${Math.ceil((D-(performance.now()-t0))/1000)} 초`;
     $('#optBar').style.width=`${O.gauge*100}%`;spark();await sleep(100);}
   O.gauge=1;O.after={};
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
@@ -906,7 +911,9 @@ async function finishOpt(r){
   const ad=$('#files a[data-f="design_1st_drawing.pdf"]');
   if(r.files['opt_final_drawing.pdf']&&ad){ad.href=r.files['opt_final_drawing.pdf']+'?dl=1';ad.classList.remove('off');}
   if(r.files['opt_final_drawing.png']){$('#imgDraw').src=r.files['opt_final_drawing.png'];if(ad)ad.dataset.png=r.files['opt_final_drawing.png'];}
-  setStep(3);guide('4 물리 최적화 완료',`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`);
+  const ck=hy&&hy.candidates&&hy.candidates.checked;
+  const eff=ck&&O.aiMax?` · AI가 형상 ${O.aiMax}회 탐색, 정밀 계산은 후보 ${ck}개만`:'';
+  setStep(3);guide('4 물리 최적화 완료',`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}${eff}`);
   if(V3.firstGeo&&S.rep&&S.rep.heat&&g.heat){await Promise.all(Object.values(g.heat.fields).map(decodeField));
     V3.cmp={geoA:V3.firstGeo,geoB:V3.mount.geometry,heatA:S.rep.heat,heatB:g.heat,mA:O.m0,mB:g.mass_g,on:false,mats:null};$('#vCmp').hidden=false;}
 }
@@ -956,6 +963,7 @@ $('#optimize').onclick=async()=>{
   S.opt=S.optLast={n:0,queue:[],done:false,res:null,m0:null,aiN:null};hybridSteps(false);updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
   S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='AI 예측 성능';setStep(3);
+  document.body.classList.add('opting');requestAnimationFrame(()=>spark());
   V3.optBox=null;if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;V3.firstGeo=V3.mount.geometry.clone();
   // 물리 AI 는 흔들림 분포를 예측하지 않음 → 탐색 · 정밀 최적화 동안 흔들림 창은 회색 (마지막 검증에서 정밀 계산 분포로 채움)
   V3.small.forEach((s,i)=>{if(s.key!=='shake')return;if(s.mat&&s.mat!==V3.grayMat){s.mat.userData.tex.dispose();s.mat.dispose();}
@@ -996,7 +1004,7 @@ function setCommon(rep, massG){
   $$('#files a[data-f]').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
   const ad=$('#files a[data-f="design_1st_drawing.pdf"]');if(ad)ad.dataset.png=rep.files['design_1st_drawing.png']||'';
   $('#fOpt').hidden=true;$('#optInfo').hidden=true;
-  if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;
+  if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;document.body.classList.remove('opting');$('#optRp').hidden=true;
 }
 // 가운데 칸 머리: 3D 설계 · 물리 시뮬레이션 옆에 지금 단계
 function setPhase(a,b){$('#vTitle').textContent=a;$('#simTag').textContent=b;$('#vTitle').hidden=$('#simTag').hidden=false;}
