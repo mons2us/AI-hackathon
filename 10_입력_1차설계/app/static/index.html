@@ -83,6 +83,7 @@ select.btn{width:100%;margin-top:8px}
 .vp .leg{position:absolute;left:8px;right:8px;bottom:7px;font-size:13px;color:var(--ink2);background:rgba(255,255,255,.88);border-radius:7px;padding:3px 7px}
 .vp .leg .bar{height:7px;border-radius:4px;margin:2px 0;background:linear-gradient(90deg,#30123b,#4662d7,#36aaf9,#1ae4b6,#72fe5e,#c8ef34,#faba39,#f66b19,#ca2a04,#7a0403)}
 .vp .leg .ends{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+@media (max-width:1700px){.vp .leg .ends span:first-child,.vp .leg .ends span:last-child{display:none}.vp .leg .ends{justify-content:center}.vp .leg{font-size:12px}}   /* 창이 좁으면 '최대' 만 */
 .vp .none{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink3);font-size:14.5px}
 .vp>.draw{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;display:none;z-index:0}   /* 캔버스 아래 — 도면일 때 메인 칸을 비워 보이게 */
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink3);font-size:16px;pointer-events:none}
@@ -107,12 +108,25 @@ select.btn{width:100%;margin-top:8px}
 .nopick .metric{cursor:default}.nopick .metric:hover{background:#f8f9fb;border-color:#eef0f4}.nopick .ck{display:none}
 .metric .src{font-size:12.5px;color:var(--blue);margin-left:6px;font-weight:600;white-space:nowrap}
 .metric .row>span{min-width:0}.metric .v0{color:var(--ink3);font-weight:500}.metric .v0 s{text-decoration:line-through}
-.optinfo .ph{font-size:13px;font-weight:700;letter-spacing:.3px;opacity:.85;margin-bottom:2px}.optinfo canvas{display:block;width:100%;height:40px;margin:6px auto 0}
-.optinfo{background:rgba(20,28,44,.94);color:#fff;border-radius:10px;padding:8px 12px;font-size:14.5px;text-align:center;margin:0 0 8px;flex:none}
+/* 최적화 과정 창: 계측기처럼 어두운 바탕 · 격자 · 축 눈금 · 고정폭 숫자 */
+.vp.gt{background:#0d1422;border-color:#1d2840}
+.gt .gtn{color:#7f8aa3;text-align:center;line-height:1.5}
+.gt #optInfo:not([hidden]) ~ .gtn{display:none}
+.optinfo{position:absolute;inset:0;display:flex;flex-direction:column;padding:8px 10px 7px;color:#dfe6f3;font-size:13px}
 .optinfo[hidden]{display:none}
+.optinfo .gh{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;white-space:nowrap}.optinfo .gh b{font-size:14px;margin-right:auto;color:#fff}
+.optinfo .gh .it{font:600 13px ui-monospace,Consolas,monospace;color:#9cc2ff}
+.optinfo .sts{display:flex;gap:4px;margin-bottom:4px}
+.optinfo .lg{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:#c9d2e3;margin-top:2px}.optinfo .lg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.optinfo .stp{font-size:11.5px;font-weight:700;border:1px solid #2c3a57;color:#6f7d99;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.optinfo .stp.on{border-color:#4d8dff;color:#9cc2ff;background:rgba(77,141,255,.14)}.optinfo .stp.done{border-color:#1f9d74;color:#5fd3a6}
+.optinfo .ro{display:flex;justify-content:space-between;gap:6px;margin-top:4px;font-size:12px;color:#8e9ab2;white-space:nowrap}
+.optinfo .ro b{font:600 14px ui-monospace,"Consolas","SFMono-Regular",monospace;color:#fff;font-variant-numeric:tabular-nums}
+.optinfo canvas{flex:1;min-height:0;width:100%;display:block}
+.optinfo .st{font-size:11.5px;color:#a9b4c9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .mbox{flex:1;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff}
-.optinfo .pb{height:4px;background:rgba(255,255,255,.2);border-radius:3px;margin-top:5px;overflow:hidden}.optinfo .pb i{display:block;height:100%;background:#5b9cff;width:0}
-.optinfo.ok{background:rgba(15,159,110,.92)}.optinfo.bad{background:rgba(211,58,75,.92)}
+.optinfo .pb{height:3px;background:#1f2a42;border-radius:2px;margin-top:4px;overflow:hidden}.optinfo .pb i{display:block;height:100%;background:#4d8dff;width:0}
+.optinfo.ok .pb i{background:#1fbf8a}.optinfo.ok .st{color:#5fd3a6}.optinfo.bad .st{color:#ff8a96}
 #metrics{min-height:0;overflow:auto}
 .drop img{max-height:min(34vh,420px)}
 @media (max-height:820px){            /* 노트북 화면: 블록 · 요약 칸을 줄여 한 화면에 */
@@ -230,6 +244,18 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
             <div class="vp" id="vS0"><span class="lab"></span><div class="leg" hidden></div></div>
             <div class="vp" id="vS1"><span class="lab"></span><div class="leg" hidden></div></div>
             <div class="vp" id="vS2"><span class="lab"></span><div class="leg" hidden></div></div>
+            <div class="vp gt" id="vS3">   <!-- 최적화 과정 (수렴 그래프) — 분포 창 3개와 같은 크기 -->
+              <div class="optinfo" id="optInfo" hidden>
+                <div class="gh"><b>최적화 과정</b><span class="it" id="roIt">–</span></div>
+                <div class="sts"><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stp2">② 정밀 계산</span></div>
+                <canvas id="optSpark"></canvas>
+                <div class="lg"><span><i style="background:#6fc3ff"></i>무게</span><span><i style="background:#ffb36b"></i>목표와의 차이</span><span id="lgF" hidden><i style="background:#1fbf8a"></i>정밀 계산</span></div>
+                <div class="pb"><i id="optBar"></i></div>
+                <div class="ro"><span>무게 <b id="roM">–</b></span><span>충족 <b id="roOk">–</b></span></div>
+                <div class="st"><span id="optPhase" hidden></span><span id="optText"></span></div>
+              </div>
+              <div class="none gtn">최적화를 실행하면<br>과정이 여기에 나옵니다</div>
+            </div>
           </div>
         </div>
       </div>
@@ -242,12 +268,12 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
         <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>목표 충족</small><b id="kTime">–</b></div></div>
         <p class="pick" id="pickHint" hidden>더 좋게 만들 항목을 눌러 고르세요</p>
         <div class="mbox"><div class="metrics" id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div></div>
+        <button class="btn opt" id="optimize" disabled>물리 기반 최적화 실행</button>
         <div class="files" id="files">
           <a class="off" data-f="design_1st.step" title="STEP">3D 모델</a><a class="off" data-f="design_1st_drawing.pdf" title="PDF">도면</a><a class="off" data-f="design_1st.stl" title="STL">3D 프린트</a>
           <a id="fOpt" hidden>최적 설계 파일</a>
         </div>
-        <div class="optinfo" id="optInfo" hidden><div class="ph" id="optPhase"></div><span id="optText"></span><div class="pb"><i id="optBar"></i></div><canvas id="optSpark" width="560" height="64"></canvas></div>
-        <button class="btn opt" id="optimize" disabled>물리 기반 최적화 실행</button>
+
       </div>
     </section>
   </div>
@@ -691,37 +717,65 @@ function applyFrame(f){
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`최적화 중 · ${nf?'미충족 '+nf+'개':'예측 충족'}`;
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
-  $('#optText').textContent=`${f.it} / ${f.iters} 단계 · 무게 ${fmt(f.mass_g)} g`;
+  $('#optText').textContent='형태를 바꿔 가며 계산 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
-  if(S.opt&&S.opt.hist){S.opt.hist.push({m:f.mass_g,p:f.pen});spark();}
+  readouts(f.it,f.iters,f.mass_g);
+  if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen});spark();}
 }
-// 반복마다 무게(흰 선) · 기준 벌점(주황 선) — 형상이 바뀌며 둘 다 내려가는 것이 보이게
-function spark(){const c=$('#optSpark');if(!c)return;const g=c.getContext('2d'),W=c.width,H=c.height,h=(S.opt&&S.opt.hist)||[];g.clearRect(0,0,W,H);
-  if(h.length<2)return;const line=(k,col)=>{const v=h.map(x=>x[k]),lo=Math.min(...v),hi=Math.max(...v),r=hi-lo||1;g.beginPath();
-    v.forEach((y,i)=>{const X=i/(h.length-1)*(W-8)+4,Y=H-6-(y-lo)/r*(H-12);i?g.lineTo(X,Y):g.moveTo(X,Y);});g.strokeStyle=col;g.lineWidth=3;g.stroke();};
-  line('p','#ffb36b');line('m','#ffffff');}
+// 최적화 과정 그래프: x = 반복, 왼쪽 y = 무게(g, 하늘색), 오른쪽 y = 목표와의 차이(주황, 0 = 모든 목표 충족)
+// 격자 · 축 눈금 · 범례 · 현재 점 · 정밀 계산 결과 점(초록 다이아몬드)
+function niceTicks(lo,hi,n){const r=hi-lo||1,st=Math.pow(10,Math.floor(Math.log10(r/n))),k=[1,2,2.5,5,10].find(k=>r/(st*k)<=n)*st;
+  const a=Math.floor(lo/k)*k,o=[];for(let v=a;v<=hi+k*1e-6;v+=k)o.push(+v.toFixed(6));return o;}
+function spark(){
+  const c=$('#optSpark');if(!c||!c.clientWidth)return;const dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
+  if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);}
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+  const h=(S.opt&&S.opt.hist)||[],N=(S.opt&&S.opt.iters)||120,L=34,Rr=8,T=6,B=14,pw=W-L-Rr,ph=H-T-B;
+  const mono='10.5px ui-monospace,Consolas,monospace';g.font=mono;g.textBaseline='middle';
+  const ms=h.map(x=>x.m).concat(S.opt&&S.opt.mf!=null?[S.opt.mf]:[]),ps=h.map(x=>x.p);
+  let mlo=ms.length?Math.min(...ms):0,mhi=ms.length?Math.max(...ms):1;const pad=(mhi-mlo)*.12||1;mlo-=pad;mhi+=pad;
+  const phi=Math.max(1e-6,...(ps.length?ps:[1]))*1.1;
+  const X=i=>L+i/Math.max(1,N)*pw,Ym=v=>T+(1-(v-mlo)/(mhi-mlo))*ph,Yp=v=>T+(1-v/phi)*ph;
+  // 격자 + 눈금
+  g.strokeStyle='#1c2740';g.lineWidth=1;g.fillStyle='#7f8aa3';
+  for(const v of niceTicks(mlo,mhi,4)){if(v<mlo||v>mhi)continue;const y=Math.round(Ym(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();g.textAlign='right';g.fillStyle='#6fc3ff';g.fillText(String(+v.toFixed(1)),L-4,y);}
+  for(const v of niceTicks(0,N,W<260?3:5)){const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText(v,x,T+ph+9);}
+  g.strokeStyle='#33405c';g.strokeRect(L+.5,T+.5,pw,ph);
+  // 0 선 (모든 목표 충족)
+  g.setLineDash([3,3]);g.strokeStyle='rgba(255,179,107,.45)';g.beginPath();g.moveTo(L,Yp(0));g.lineTo(L+pw,Yp(0));g.stroke();g.setLineDash([]);
+  const line=(k,Y,col)=>{if(h.length<1)return;g.beginPath();h.forEach((x,i)=>{const px=X(x.it),py=Y(x[k]);i?g.lineTo(px,py):g.moveTo(px,py);});
+    g.strokeStyle=col;g.lineWidth=1.8;g.stroke();const q=h[h.length-1];g.fillStyle=col;g.beginPath();g.arc(X(q.it),Y(q[k]),2.8,0,7);g.fill();};
+  line('p',Yp,'#ffb36b');line('m',Ym,'#6fc3ff');
+  if(S.opt&&S.opt.mf!=null){const x=X(N),y=Ym(S.opt.mf);g.fillStyle='#1fbf8a';g.beginPath();g.moveTo(x,y-5);g.lineTo(x+5,y);g.lineTo(x,y+5);g.lineTo(x-5,y);g.closePath();g.fill();}
+  $('#lgF').hidden=!(S.opt&&S.opt.mf!=null);
+}
+new ResizeObserver(()=>spark()).observe($('#vS3'));
+function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
+function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${iters}`;$('#roM').textContent=m==null?'–':`${fmt(m)} g`;
+  const sh=S.rows.filter(x=>!x.ref);$('#roOk').textContent=sh.length?`${sh.filter(x=>x.ok).length}/${sh.length}`:'–';}
 function finishOpt(r){
   const g=r.gate;
-  $('#optPhase').textContent='② 찾은 형태를 정밀 계산으로 확인';setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';
+  $('#optPhase').textContent='② 정밀 계산으로 확인 ·';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
   drawMetrics();applyHeat(g.heat);
   $('#kMass').textContent=`${fmt(g.mass_g)} g`;
   const nf=S.rows.filter(m=>!m.ref&&!m.ok).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`최적 설계 · 미충족 ${nf}개`:'최적 설계 · 목표 모두 충족';
   const box=$('#optInfo');box.classList.add(nf?'bad':'ok');
-  $('#optText').textContent=`최적 설계 완료 · 무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
+  $('#optText').textContent=`무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
+  S.opt.mf=g.mass_g;readouts(S.opt.iters||null,S.opt.iters,g.mass_g);spark();
   $('#optBar').style.width='100%';
   const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
   setStep(3);
 }
 // TV 스탠드 · AI 글래스 · 템플릿 거치대: 고르기까지는 같고, 최적 설계는 아직 없음 → 고른 기준을 최적화 입력 묶음으로 저장
 async function saveTargets(run,targets){
-  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optBar').style.width='0';
+  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optBar').style.width='0';$('#optPhase').textContent='';optStage(0);readouts(null);S.opt0hist=null;
   try{
     const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
     const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
     box.classList.add('ok');$('#optBar').style.width='100%';
-    $('#optText').textContent=`이 제품의 최적 설계는 준비 중입니다 — 고른 ${targets.length}개 항목을 요청 파일로 저장했습니다`;
+    $('#optText').textContent=`최적 설계 준비 중 — ${targets.length}개 항목 요청 파일 저장`;
     const a=$('#fOpt');a.hidden=false;a.textContent='최적화 요청 파일';a.href=j.files['optimize_input.zip']+'?dl=1';
   }catch(e){toast(e.message);box.hidden=true;}
 }
@@ -731,8 +785,8 @@ $('#optimize').onclick=async()=>{
   const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
   if(rep.template.id!=='P01')return saveTargets(run,targets);
   S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
-  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='역설계 준비 (형상 AI · 물리 AI)';$('#optBar').style.width='0';
-  S.opt.hist=[];spark();$('#optPhase').textContent='① AI가 형태를 바꿔 가며 더 좋은 설계를 찾는 중';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
+  const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
+  S.opt.hist=[];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
   V3.optBox=null;
   if(V3.kind!=='close')view('close');
   try{
@@ -748,7 +802,7 @@ $('#optimize').onclick=async()=>{
       if(!rq.ok)throw new Error(STALE+(q.error?` (${q.error})`:''));
       if(q.error)throw new Error(q.error);
       if(q.frames){S.opt.queue.push(...q.frames);S.opt.n+=q.frames.length;}
-      if(!q.frames||!q.frames.length)$('#optText').textContent=q.stage+(q.detail?' · '+q.detail:'');
+      if(!q.frames||!q.frames.length)$('#optText').textContent='준비 중';
       if(q.done){S.opt.res=q.result;S.opt.done=true;}
     }
     await play;
