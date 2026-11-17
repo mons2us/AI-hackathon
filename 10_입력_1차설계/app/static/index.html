@@ -202,6 +202,21 @@ table.st tbody tr{opacity:0;transition:opacity .25s}table.st tbody tr.in{opacity
 .acts .btn.done{background:#e8edf3 !important;color:var(--ink2)}
 .vt[hidden]{display:none}
 header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 크기: 대문자 높이 ≈ 왼쪽 FormProof(17px 굵게)와 같음 */
+.guide{flex:1;min-width:0;margin-left:18px;font-size:15px;color:#c9d4e6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.guide b{color:#fff;font-weight:700;margin-right:8px}
+.steps{flex:none}
+#pTitle{white-space:nowrap}.card h2 .tag{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.optinfo .gh{flex-wrap:wrap;row-gap:3px}.optinfo .gh b{flex-basis:100%}
+/* 1차 ↔ 최적 비교: 3D 창을 3 줄(흔들림 · 충격 · 온도) × 2 칸(1차 · 최적)으로, 같은 색 척도 */
+.cmpov{position:absolute;inset:0;z-index:3;pointer-events:none;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto repeat(3,minmax(0,1fr));gap:8px;padding:46px 12px 12px;background:transparent}
+.cmpov[hidden]{display:none}
+.cmpov .ch{font-size:16px;font-weight:700;text-align:center;padding:4px 0;border-radius:9px;background:#fff;border:1px solid var(--line)}
+.cmpov .ch small{font-weight:600;color:var(--ink2);margin-left:6px;font-size:14px}.cmpov .ch.b{color:var(--blue);border-color:#b9cdf8;background:var(--blue-s)}
+.cmpov .cc{position:relative;border:1px solid var(--line);border-radius:10px;background:transparent}
+.cmpov .cc .lab{position:absolute;left:8px;top:6px;font-size:14px;font-weight:700;background:rgba(255,255,255,.9);border-radius:7px;padding:2px 7px}
+.cmpov .cc .leg{position:absolute;left:8px;right:8px;bottom:6px;font-size:13px;color:var(--ink2);background:rgba(255,255,255,.9);border-radius:7px;padding:3px 7px}
+.cmpov .cc .leg .bar{height:7px;border-radius:4px;margin:2px 0;background:linear-gradient(90deg,#30123b,#4662d7,#36aaf9,#1ae4b6,#72fe5e,#c8ef34,#faba39,#f66b19,#ca2a04,#7a0403)}
+.cmpov .cc .leg .ends{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b1720;color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;display:none;z-index:20;max-width:80vw}
 </style>
 </head>
@@ -211,6 +226,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
   <header class="top">
     <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
     <div class="brand"><b>FormProof</b></div>
+    <div class="guide" id="guide"></div>
     <nav class="steps" id="steps"><span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>설계 사양</span><span class="step"><i>3</i>1차 설계</span><span class="step"><i>4</i>물리 최적화</span></nav>
     <img class="brand-r" src="/static/brand/samsung_research.png" alt="Samsung Research">
   </header>
@@ -253,7 +269,8 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
         <div class="vp vmain" id="vMain">
             <span class="ovl" id="ovl3d">마우스로 돌리고 휠로 확대</span>
             <div class="nav" id="vNav" hidden></div><canvas class="navov" id="navOv" hidden></canvas>   <!-- 전체 보기: 지금 보는 곳 = 파란 네모 -->
-            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
+            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button><button id="vCmp" hidden>1차 비교</button></div>
+            <div class="cmpov" id="cmpOv" hidden></div>
             <img class="draw" id="imgDraw" alt="">
             <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 1차 설계 만들기</div>
             <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">1차 설계를 만드는 중</div><div class="hist" id="stageHist"></div></div></div>
@@ -299,7 +316,11 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const S = {mode:'sketch', strokes:[], cur:null, bgImg:null, image:null, last:null, rep:null};
 const toast = m => {const t=$('#toast'); t.textContent=m; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',4200);};
-function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i===n);e.classList.toggle('done',i<n);});}
+function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i===n);e.classList.toggle('done',i<n);});if(GUIDE[n])guide(...GUIDE[n]);}
+// 머리줄 단계 설명 (번호 = 위 단계 번호)
+const GUIDE=[['1 입력','만들 제품과 조건을 문장, 스케치, 사진으로 넣습니다'],['2 설계 사양','AI가 요청을 물리 조건으로 바꾸고, 항목마다 근거를 붙입니다'],
+  ['3 1차 설계','3D 형상을 만들고 정밀 시뮬레이션으로 기준 충족 여부를 판정합니다'],['4 물리 최적화','AI가 형상을 바꿔 가며 성능을 예측합니다']];
+function guide(a,b){const g=document.getElementById('guide');if(g)g.innerHTML=`<b>${a}</b>${b}`;}
 
 /* ---------- 쉬운 말 (화면 표시용) ---------- */
 const EASY=[
@@ -419,9 +440,10 @@ function renderAll(){
   // 메인: 형상
   if(V3.mount)V3.mount.material=V3.baseMat;
   R.shadowMap.needsUpdate=true;
-  if(!V3.drawing)drawInto($("#vMain"));   // 도면일 때는 메인 칸을 투명하게 두어 캔버스 아래 도면이 보임 (캔버스를 다른 요소로 덮지 않음)
+  const cmpOn=!!(V3.cmp&&V3.cmp.on&&V3.mount);
+  if(cmpOn)cmpRender();else if(!V3.drawing)drawInto($("#vMain"));   // 도면일 때는 메인 칸을 투명하게 두어 캔버스 아래 도면이 보임 (캔버스를 다른 요소로 덮지 않음)
   if(!V3.mount)return;
-  drawNav();
+  if(cmpOn){$('#vNav').hidden=$('#navOv').hidden=true;}else drawNav();
   // 분포 창: 부품만, 같은 카메라
   const vis=[V3.bike,V3.ground,V3.handlebar,V3.holder,...V3.aux].filter(Boolean).map(o=>[o,o.visible]);
   vis.forEach(([o])=>o.visible=false);R.shadowMap.autoUpdate=false;
@@ -607,7 +629,8 @@ $('#vClose').onclick=()=>view(V3.kind==='close'?'full':'close');
 // 도면 버튼(성능 칸): 도면 PDF 내려받기 + 3D 설계 창에 도면 띄우기 (3D 창의 '도면' 버튼을 누른 것과 같음)
 $('#files a[data-f="design_1st_drawing.pdf"]').addEventListener('click',e=>{const a=e.currentTarget;if(a.classList.contains('off'))return;
   if(!V3.drawing&&a.dataset.png)$('#vDraw').onclick();});
-$('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
+$('#vCmp').onclick=()=>{if(V3.drawing)$('#vDraw').onclick();cmpToggle(!(V3.cmp&&V3.cmp.on));};
+$('#vDraw').onclick=()=>{if(V3.cmp&&V3.cmp.on)cmpToggle(false);V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
 // 메인 창 위 버튼 · 도면을 누를 때 회전 조작이 포인터를 가져가지 않게
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
@@ -759,8 +782,8 @@ async function applyHeat(heat){
   if(!heat)return;
   await Promise.all(Object.values(heat.fields).map(decodeField));
   V3.small.forEach((s,i)=>{const f=s.key&&heat.fields[s.key];if(!f)return;
-    if(s.mat){s.mat.userData.tex.dispose();s.mat.dispose();}
-    s.mat=heatMaterial(heat,s.key);
+    if(s.mat&&s.mat!==V3.grayMat){s.mat.userData.tex.dispose();s.mat.dispose();}
+    s.mat=heatMaterial(heat,s.key);const lb=$(SMALL[i]).querySelector('.lab');if(lb)lb.textContent=FIELD[s.key]||s.key;
     const leg=$(SMALL[i]).querySelector('.leg b');if(leg)leg.textContent=`${f.max}${f.unit?' '+f.unit:''}`;});
 }
 function applyFrame(f){
@@ -771,7 +794,7 @@ function applyFrame(f){
   S.rows.forEach(m=>{if(!m.key||f.pred[m.key]==null)return;m.value=f.pred[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='AI 예측';});
   drawMetrics();
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
-  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`최적화 중 · ${nf?'미충족 '+nf+'개':'예측 충족'}`;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'예측 충족';
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
   $('#optText').textContent='형태를 바꿔 가며 계산 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
@@ -786,9 +809,9 @@ function applyRefine(f){
   const fe=f.fem||{};
   S.rows.forEach(m=>{if(!m.key||fe[m.key]==null)return;m.value=fe[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='정밀 계산';});
   drawMetrics();optStage(1.5);
-  setPhase(f.stage==='pick'?'AI 후보 선택':'정밀 최적화 중','정밀 계산');$('#pTitle').textContent='성능 · 정밀 계산';$('#optPhase').textContent='② 정밀 최적화 ·';
+  setPhase(f.stage==='pick'?'AI 후보 선택':'정밀 최적화 중','정밀 계산');$('#pTitle').textContent='정밀 계산 성능';$('#optPhase').textContent='② 정밀 최적화 ·';if(!O||!O.gRef){if(O)O.gRef=1;guide('4 물리 최적화','AI가 찾은 후보를 정밀 시뮬레이션으로 확인하며 다듬습니다');}
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
-  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`정밀 최적화 · ${nf?'미충족 '+nf+'개':'계산 충족'}`;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'계산 충족';
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
   $('#optText').textContent=f.note||'정밀 최적화 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
@@ -843,12 +866,9 @@ function spark(){
     g.fillStyle='#5fd3a6';g.fillRect(rx0,T+ph-3,rw*pr,3);
     g.textAlign='center';g.fillStyle='#fff';g.font='700 16px ui-monospace,Consolas,monospace';g.fillText(Math.round(pr*100)+'%',cx,T+ph/2-6);
     g.font='11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#c9d2e3';g.fillText('정밀 계산 중',cx,T+ph/2+12);}
-  else if(O.femDone){const lane=(ph-4)/Math.max(nk,1),f3=v=>v==null?'–':(Math.abs(v)>=100?v.toFixed(0):Math.abs(v)<1?+v.toPrecision(2):+v.toPrecision(3));
-    rows.forEach((m,k)=>{const yc=T+4+lane*(k+.5),b=(O.before||{})[m.key],a=(O.after||{})[m.key];
-      g.textAlign='left';g.font='10px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle=PAL[k%PAL.length];g.fillText(SHORT[m.key]||m.label,rx0+5,yc-6);
-      g.font='10.5px ui-monospace,Consolas,monospace';g.fillStyle='#8e9ab2';const t1=`${f3(b)} → `;g.fillText(t1,rx0+5,yc+6);
-      const w1=g.measureText(t1).width;g.fillStyle='#fff';g.fillText(f3(a),rx0+5+w1,yc+6);
-      g.textAlign='right';g.font='700 12px sans-serif';g.fillStyle=m.ok?'#5fd3a6':'#ff8a96';g.fillText(m.ok?'✓':'✗',L+pw-4,yc);});}
+  else if(O.femDone){const ok=rows.filter(m=>m.ok).length;      // 검증 끝: 충족 개수만 크게 (항목별 값은 오른쪽 성능 칸)
+    g.textAlign='center';g.fillStyle=ok===rows.length?'#5fd3a6':'#ff8a96';g.font='700 18px ui-monospace,Consolas,monospace';g.fillText(`${ok}/${rows.length}`,cx,T+ph/2-8);
+    g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillText(ok===rows.length?'검증 통과':'미충족 '+(rows.length-ok),cx,T+ph/2+12);}
   const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
@@ -861,7 +881,7 @@ function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${ite
 const OPT_SCALE=new URLSearchParams(location.search).has('optfast')?0.1:(+new URLSearchParams(location.search).get('optscale')||1),OPT_AI_MS=50000*OPT_SCALE,OPT_FEM_MS=60000*OPT_SCALE;
 async function finishOpt(r){
   const g=r.gate,O=S.opt,rows=optRows(),n=rows.length;
-  optStage(2);setPhase('정밀 계산 중','정밀 계산');O.fem=true;O.femDone=false;O.gauge=0;O.fin={};
+  optStage(2);setPhase('정밀 계산 중','정밀 계산');guide('4 물리 최적화','최종 형상을 정밀 시뮬레이션으로 다시 판정합니다');O.fem=true;O.femDone=false;O.gauge=0;O.fin={};
   O.before={};rows.forEach(m=>O.before[m.key]=m.value);
   $('#optBar').style.width='0';
   const D=OPT_FEM_MS,t0=performance.now();           // 정밀 계산: 게이지 하나가 0 → 100 % (60 s)
@@ -873,10 +893,10 @@ async function finishOpt(r){
   O.femDone=true;
   g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m&&m.src!=='정밀 계산'){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
   drawMetrics();applyHeat(g.heat);
-  $('#optPhase').textContent='';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';
+  $('#optPhase').textContent='';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='최적 설계 성능';
   $('#kMass').textContent=`${fmt(g.mass_g)} g`;
   const nf=S.rows.filter(m=>!m.ref&&!m.ok).length;
-  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`최적 설계 · 미충족 ${nf}개`:'최적 설계 · 목표 모두 충족';
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'목표 모두 충족';
   const box=$('#optInfo');box.classList.add(nf?'bad':'ok');
   $('#optText').textContent=`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
   O.mf=g.mass_g;readouts(O.iters||null,O.iters,g.mass_g);spark();
@@ -886,7 +906,36 @@ async function finishOpt(r){
   const ad=$('#files a[data-f="design_1st_drawing.pdf"]');
   if(r.files['opt_final_drawing.pdf']&&ad){ad.href=r.files['opt_final_drawing.pdf']+'?dl=1';ad.classList.remove('off');}
   if(r.files['opt_final_drawing.png']){$('#imgDraw').src=r.files['opt_final_drawing.png'];if(ad)ad.dataset.png=r.files['opt_final_drawing.png'];}
-  setStep(3);
+  setStep(3);guide('4 물리 최적화 완료',`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`);
+  if(V3.firstGeo&&S.rep&&S.rep.heat&&g.heat){await Promise.all(Object.values(g.heat.fields).map(decodeField));
+    V3.cmp={geoA:V3.firstGeo,geoB:V3.mount.geometry,heatA:S.rep.heat,heatB:g.heat,mA:O.m0,mB:g.mass_g,on:false,mats:null};$('#vCmp').hidden=false;}
+}
+// 1차 ↔ 최적 비교 (같은 색 척도): 3 줄(흔들림 · 충격 · 온도) × 2 칸(1차 · 최적)
+const CMP_ROWS=[['shake','흔들림'],['stress','충격 때 걸리는 힘'],['temp','폰 온도 상승']];
+function cmpToggle(on){
+  const C=V3.cmp;if(!C)return;C.on=on;$('#vCmp').classList.toggle('on',on);
+  const ov=$('#cmpOv');ov.hidden=!on;$('#ovl3d').hidden=on;
+  if(on){
+    if(!C.mats){C.mats=CMP_ROWS.filter(([k])=>C.heatA.fields[k]&&C.heatB.fields[k]).map(([k,t])=>({k,t,a:heatMaterial(C.heatA,k),b:heatMaterial(C.heatB,k)}));
+      const bb=new THREE.Box3();[C.geoA,C.geoB].forEach(gg=>{gg.computeBoundingBox();bb.union(gg.boundingBox);});C.box=bb;C.mc=bb.getCenter(new THREE.Vector3());}
+    const u=f=>f.unit?' '+f.unit:'',cell=(r,w)=>{const f=(w==='a'?C.heatA:C.heatB).fields[r.k],f0=C.heatA.fields[r.k];
+      return `<div class="cc" data-k="${r.k}" data-w="${w}"><span class="lab">${r.t}</span><div class="leg"><div class="ends"><span>${f0.lo}${u(f0)}</span><span>최대 <b>${f.max}${u(f)}</b></span><span>${f0.hi}${u(f0)}</span></div><div class="bar"></div></div></div>`;};
+    ov.innerHTML=`<div class="ch">1차 설계<small>${fmt(C.mA)} g</small></div><div class="ch b">최적 설계<small>${fmt(C.mB)} g</small></div>`+C.mats.map(r=>cell(r,'a')+cell(r,'b')).join('');
+    guide('1차 설계 ↔ 최적 설계','같은 조건 · 같은 색 척도로 비교 (빨강일수록 불리)');
+  }else if(S.optLast&&S.optLast.mf!=null)guide('4 물리 최적화 완료',`무게 ${fmt(S.optLast.m0)} → ${fmt(S.optLast.mf)} g`);
+}
+function cmpRender(){
+  const C=V3.cmp,{cam,ctl,R}=V3,camC=V3.camC||(V3.camC=new THREE.PerspectiveCamera(25,1,1,40000));
+  const vis=[V3.bike,V3.ground,V3.handlebar,V3.holder,...V3.aux].filter(Boolean).map(o=>[o,o.visible]);vis.forEach(([o])=>o.visible=false);
+  const geo0=V3.mount.geometry,mat0=V3.mount.material,q=cam.quaternion.clone().invert(),d=cam.position.distanceTo(ctl.target),b=C.box,fwd=new THREE.Vector3(0,0,-1).applyQuaternion(cam.quaternion);
+  $$('#cmpOv .cc').forEach(el=>{const r=C.mats.find(m=>m.k===el.dataset.k);if(!r)return;const as=Math.max(el.clientWidth,1)/Math.max(el.clientHeight,1);let t=1e-6;
+    for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const v=new THREE.Vector3(x,y,z).sub(C.mc).applyQuaternion(q),dz=Math.max(d-v.z,d*0.2);t=Math.max(t,Math.abs(v.y)/dz,Math.abs(v.x)/dz/as);}
+    const k=t*1.05/0.80/Math.tan(cam.fov*Math.PI/360);
+    camC.quaternion.copy(cam.quaternion);camC.position.copy(C.mc).addScaledVector(fwd,-d);
+    camC.position.addScaledVector(new THREE.Vector3(0,1,0).applyQuaternion(cam.quaternion),-0.05*2*d*Math.tan(cam.fov*Math.PI/360)*k);
+    camC.fov=2*Math.atan(Math.tan(cam.fov*Math.PI/360)*k)*180/Math.PI;
+    V3.mount.geometry=el.dataset.w==='a'?C.geoA:C.geoB;V3.mount.material=el.dataset.w==='a'?r.a:r.b;drawInto(el,camC);});
+  V3.mount.geometry=geo0;V3.mount.material=mat0;vis.forEach(([o,v])=>o.visible=v);
 }
 // TV 스탠드 · AI 글래스 · 템플릿 거치대: 고르기까지는 같고, 최적 설계는 아직 없음 → 고른 기준을 최적화 입력 묶음으로 저장
 async function saveTargets(run,targets){
@@ -906,8 +955,12 @@ $('#optimize').onclick=async()=>{
   if(rep.template.id!=='P01')return saveTargets(run,targets);
   S.opt=S.optLast={n:0,queue:[],done:false,res:null,m0:null,aiN:null};hybridSteps(false);updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
-  S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
-  V3.optBox=null;
+  S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='AI 예측 성능';setStep(3);
+  V3.optBox=null;if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;V3.firstGeo=V3.mount.geometry.clone();
+  // 물리 AI 는 흔들림 분포를 예측하지 않음 → 탐색 · 정밀 최적화 동안 흔들림 창은 회색 (마지막 검증에서 정밀 계산 분포로 채움)
+  V3.small.forEach((s,i)=>{if(s.key!=='shake')return;if(s.mat&&s.mat!==V3.grayMat){s.mat.userData.tex.dispose();s.mat.dispose();}
+    s.mat=V3.grayMat||(V3.grayMat=new THREE.MeshStandardMaterial({color:0xc3c8cf,roughness:0.6,metalness:0}));
+    const el=$(SMALL[i]),lb=el.querySelector('.lab'),b=el.querySelector('.leg b');if(lb)lb.textContent='흔들림 · 검증 때 계산';if(b)b.textContent='–';});
   if(V3.kind!=='close')view('close');
   try{
     const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
@@ -943,6 +996,7 @@ function setCommon(rep, massG){
   $$('#files a[data-f]').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
   const ad=$('#files a[data-f="design_1st_drawing.pdf"]');if(ad)ad.dataset.png=rep.files['design_1st_drawing.png']||'';
   $('#fOpt').hidden=true;$('#optInfo').hidden=true;
+  if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;
 }
 // 가운데 칸 머리: 3D 설계 · 물리 시뮬레이션 옆에 지금 단계
 function setPhase(a,b){$('#vTitle').textContent=a;$('#simTag').textContent=b;$('#vTitle').hidden=$('#simTag').hidden=false;}
@@ -1024,6 +1078,7 @@ async function playDemo(i,auto=QS.has('auto')){
   if(auto){await sleep(800);await makeSpec(false);await sleep(2800);$('#bConfirm').click();await sleep(1000);run();}
 }
 window.playDemo=playDemo;
+guide(...GUIDE[0]);
 document.addEventListener('keydown',e=>{if(!QS.has('video')||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
   const i='123'.indexOf(e.key);if(i>=0)playDemo(i);});
 </script>
