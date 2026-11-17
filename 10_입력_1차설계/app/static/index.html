@@ -133,6 +133,7 @@ body:not(.layout-a) .vp .leg .ends span:first-child,body:not(.layout-a) .vp .leg
 .optinfo .gh{display:flex;align-items:center;gap:4px;margin-bottom:4px;white-space:nowrap}.optinfo .gh b{font-size:14px;margin-right:auto;color:#fff}
 .optinfo .gh .it{font:600 13px ui-monospace,Consolas,monospace;color:#9cc2ff}
 .optinfo .sts{display:flex;gap:4px;margin-bottom:4px}
+.optinfo .lg .cur{color:#fff;font-weight:700}
 .optinfo .lg{display:flex;gap:2px 7px;flex-wrap:wrap;font-size:10.5px;color:#c9d2e3;margin-top:2px}.optinfo .lg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .optinfo .stp{font-size:10.5px;font-weight:700;border:1px solid #2c3a57;color:#6f7d99;border-radius:999px;padding:1px 7px;white-space:nowrap}
 .optinfo .stp.on{border-color:#4d8dff;color:#9cc2ff;background:rgba(77,141,255,.14)}.optinfo .stp.done{border-color:#1f9d74;color:#5fd3a6}
@@ -603,12 +604,15 @@ function showMount(rep){
 $('#vBike').onclick=e=>{V3.navB=null;const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);V3.bike.visible=on;V3.ground.visible=on;};
 $('#vPhone').onclick=e=>{const on=!e.target.classList.contains('on');e.target.classList.toggle('on',on);if(V3.holder)V3.holder.visible=on;};
 $('#vClose').onclick=()=>view(V3.kind==='close'?'full':'close');
+// 도면 버튼(성능 칸): 도면 PDF 내려받기 + 3D 설계 창에 도면 띄우기 (3D 창의 '도면' 버튼을 누른 것과 같음)
+$('#files a[data-f="design_1st_drawing.pdf"]').addEventListener('click',e=>{const a=e.currentTarget;if(a.classList.contains('off'))return;
+  if(!V3.drawing&&a.dataset.png)$('#vDraw').onclick();});
 $('#vDraw').onclick=()=>{V3.drawing=!V3.drawing;$('#vDraw').classList.toggle('on',V3.drawing);$('#imgDraw').style.display=V3.drawing?'block':'none';$('#ovl3d').hidden=V3.drawing;};
 // 메인 창 위 버튼 · 도면을 누를 때 회전 조작이 포인터를 가져가지 않게
 $$('#vMain .vt, #imgDraw').forEach(el=>el.addEventListener('pointerdown',e=>e.stopPropagation()));
 init3d();
 // 서버 버전 확인: 화면만 새것이고 서버가 예전 것이면(업데이트 뒤 서버를 다시 안 켬, 서버 창 두 개) 바로 알려 줌
-const APP_V='2026-11-16i';
+const APP_V='2026-11-17a';
 const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 개 떠 있습니다. 열려 있는 서버 창(검은 창)을 모두 닫고 app\\start.bat 을 다시 실행한 뒤 이 페이지를 새로고침해 주세요.';
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
@@ -783,44 +787,70 @@ const PAL=['#6fc3ff','#ffb36b','#c38bff','#5fd3a6','#ff7a8a','#ffd166','#9ad0ff'
 function ratioOf(m,v){if(typeof v!=='number'||!m.limit)return null;const r=m.op==='>='?v/m.limit:(v>0?m.limit/v:2);return Math.max(0,Math.min(2,r));}
 function optRows(){return (S.rows||[]).filter(m=>m.key&&!m.ref&&m.limit);}
 function histPoint(it,useV0){const v={};optRows().forEach(m=>{v[m.key]=ratioOf(m,useV0?m.v0:m.value);});return v;}
+// x: 0 ~ N = ① AI 탐색 (AI 가 형태를 바꾸며 예측), N ~ 1.3N = ② 정밀 계산 (항목마다 물리 해석으로 하나씩 확인)
+// y: 목표 달성률 — 맨 위 선 = 목표 달성 (그 위로는 그리지 않음)
 function spark(){
   const c=$('#optSpark');if(!c||!c.clientWidth)return;const dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
   if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);}
   const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
-  const h=(S.opt&&S.opt.hist)||[],N=(S.opt&&S.opt.iters)||120,L=36,Rr=8,T=6,B=14,pw=W-L-Rr,ph=H-T-B,rows=optRows();
-  g.font='10.5px ui-monospace,Consolas,monospace';g.textBaseline='middle';
-  let hi=1.3;h.forEach(x=>Object.values(x.v||{}).forEach(r=>{if(r!=null)hi=Math.max(hi,r*1.08);}));hi=Math.min(2.05,hi);
-  const X=i=>L+i/Math.max(1,N)*pw,Y=r=>T+(1-r/hi)*ph;
+  const O=S.opt||S.optLast||{},h=O.hist||[],N=O.iters||120,NX=N*1.75,L=8,Rr=8,T=18,B=14,pw=W-L-Rr,ph=H-T-B,rows=optRows();
+  const X=i=>L+i/NX*pw,Y=r=>T+(1-Math.min(1,Math.max(0,r)))*ph,xN=X(N);
+  g.font='10.5px "Malgun Gothic","Noto Sans KR",sans-serif';g.textBaseline='middle';
+  // 영역: ① AI 탐색 | ② 정밀 계산
+  g.fillStyle='rgba(77,141,255,.05)';g.fillRect(L,T,xN-L,ph);
+  g.fillStyle=O.fem?'rgba(31,191,138,.10)':'rgba(255,255,255,.03)';g.fillRect(xN,T,L+pw-xN,ph);
   g.strokeStyle='#1c2740';g.lineWidth=1;
-  for(const v of niceTicks(0,hi,4)){if(v>hi)continue;const y=Math.round(Y(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();g.textAlign='right';g.fillStyle='#7f8aa3';g.fillText(Math.round(v*100)+'%',L-4,y);}
-  for(const v of niceTicks(0,N,W<260?3:5)){const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText(v,x,T+ph+9);}
+  for(let k=1;k<4;k++){const y=Math.round(T+ph*k/4)+.5;g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();}
+  for(const v of niceTicks(0,N,W<260?3:4)){if(v<=0||v>=N)continue;const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();}
   g.strokeStyle='#33405c';g.strokeRect(L+.5,T+.5,pw,ph);
-  // 100 % = 목표
-  g.fillStyle='rgba(31,191,138,.07)';g.fillRect(L,T,pw,Y(1)-T);
-  g.setLineDash([4,3]);g.strokeStyle='rgba(95,211,166,.8)';g.beginPath();g.moveTo(L,Y(1));g.lineTo(L+pw,Y(1));g.stroke();g.setLineDash([]);
-  g.textAlign='right';g.fillStyle='#5fd3a6';g.fillText('목표',L+pw-3,Y(1)-7);
+  g.strokeStyle='#3b4a6b';g.beginPath();g.moveTo(Math.round(xN)+.5,T);g.lineTo(Math.round(xN)+.5,T+ph);g.stroke();
+  g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText('① AI 탐색',(L+xN)/2,T+ph+8);g.fillStyle=O.fem?'#5fd3a6':'#7f8aa3';g.fillText('② 정밀 계산',(xN+L+pw)/2,T+ph+8);
+  // 목표 달성 (맨 위)
+  g.setLineDash([4,3]);g.strokeStyle='rgba(95,211,166,.9)';g.beginPath();g.moveTo(L,T+.5);g.lineTo(L+pw,T+.5);g.stroke();g.setLineDash([]);
+  g.textAlign='left';g.fillStyle='#5fd3a6';g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillText('목표 달성',L+2,T-8);
+  const fin=O.fin||{},keys=rows.map(m=>m.key),nk=keys.length;
   rows.forEach((m,k)=>{const col=PAL[k%PAL.length],pts=h.filter(x=>x.v&&x.v[m.key]!=null);if(!pts.length)return;
     g.beginPath();pts.forEach((x,i)=>{const px=X(x.it),py=Y(x.v[m.key]);i?g.lineTo(px,py):g.moveTo(px,py);});
     g.strokeStyle=col;g.lineWidth=S.sel&&S.sel.has(S.rows.indexOf(m))?2.4:1.5;g.stroke();
-    const q=pts[pts.length-1];g.fillStyle=col;g.beginPath();g.arc(X(q.it),Y(q.v[m.key]),2.6,0,7);g.fill();
-    const fr=S.opt&&S.opt.fin&&S.opt.fin[m.key];if(fr!=null){const x=X(N),y=Y(fr);g.beginPath();g.moveTo(x,y-4.5);g.lineTo(x+4.5,y);g.lineTo(x,y+4.5);g.lineTo(x-4.5,y);g.closePath();g.fill();g.strokeStyle='#0d1422';g.lineWidth=1;g.stroke();}});
-  const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('')+(S.opt&&S.opt.fin?'<span>◆ 정밀 계산</span>':'');
+    const q=pts[pts.length-1],x0=X(q.it),y0=Y(q.v[m.key]);g.fillStyle=col;g.beginPath();g.arc(x0,y0,2.6,0,7);g.fill();
+  });
+  // ② 정밀 계산: 항목마다 한 줄 — 차례로 계산 막대가 차고, 끝나면 ✓(충족) / ✗(미충족)
+  const x1=xN+6,x2=L+pw-5,lane=(ph-6)/Math.max(nk,1);
+  rows.forEach((m,k)=>{const col=PAL[k%PAL.length],yc=T+6+lane*(k+.5),pr=(O.prog||{})[m.key]||0,done=fin[m.key]!=null;
+    g.font='10.5px "Malgun Gothic","Noto Sans KR",sans-serif';g.textAlign='left';g.textBaseline='middle';
+    g.fillStyle=O.cur===m.key||done?'#e6ecf7':'#6f7d99';g.fillText(SHORT[m.key]||m.label,x1,yc-6);
+    const bw=x2-x1-14,by=yc+3;g.fillStyle='#1f2a42';g.fillRect(x1,by,bw,4);
+    if(pr>0){g.fillStyle=col;g.fillRect(x1,by,bw*Math.min(1,pr),4);}
+    if(done){g.textAlign='right';g.font='700 12px sans-serif';g.fillStyle=m.ok?'#5fd3a6':'#ff8a96';g.fillText(m.ok?'✓':'✗',x2,yc+4);}
+    else if(O.cur===m.key){g.strokeStyle='#fff';g.lineWidth=1.5;const a=performance.now()/150;g.beginPath();g.arc(x2-5,yc+4,4,a,a+4.2);g.stroke();}
+  });
+  const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
 function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
 function readouts(it,iters,m){$('#roIt').textContent=it==null?'–':`${it}/${iters}`;$('#roM').textContent=m==null?'–':`${fmt(m)} g`;
   const sh=S.rows.filter(x=>!x.ref);$('#roOk').textContent=sh.length?`${sh.filter(x=>x.ok).length}/${sh.length}`:'–';}
-function finishOpt(r){
-  const g=r.gate;
-  $('#optPhase').textContent='② 정밀 계산으로 확인 ·';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';
-  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
+async function finishOpt(r){
+  const g=r.gate,O=S.opt,rows=optRows(),n=rows.length;
+  optStage(2);setPhase('정밀 계산 중','정밀 계산');O.fem=true;O.fin={};
+  $('#optBar').style.width='0';
+  const tick=setInterval(spark,50);              // 계산 막대 · 도는 표시
+  for(let k=0;k<n;k++){
+    const m=rows[k];O.cur=m.key;O.prog=O.prog||{};$('#optText').textContent=`정밀 계산 ${k+1}/${n} · ${SHORT[m.key]||m.label} 확인 중`;
+    const t0=performance.now();while(performance.now()-t0<800){O.prog[m.key]=(performance.now()-t0)/800;await sleep(40);}O.prog[m.key]=1;
+    const x=g.rows.find(x=>x.key===m.key);if(x){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}
+    O.fin[m.key]=ratioOf(m,m.value);$('#optBar').style.width=`${100*(k+1)/n}%`;drawMetrics();
+  }
+  clearInterval(tick);O.cur=null;spark();
+  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m&&m.src!=='정밀 계산'){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
   drawMetrics();applyHeat(g.heat);
+  $('#optPhase').textContent='';optStage(3);setPhase('최적 설계','정밀 계산');$('#pTitle').textContent='성능 · 1차 → 최적';
   $('#kMass').textContent=`${fmt(g.mass_g)} g`;
   const nf=S.rows.filter(m=>!m.ref&&!m.ok).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`최적 설계 · 미충족 ${nf}개`:'최적 설계 · 목표 모두 충족';
   const box=$('#optInfo');box.classList.add(nf?'bad':'ok');
-  $('#optText').textContent=`무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
-  S.opt.mf=g.mass_g;S.opt.fin=histPoint(0);readouts(S.opt.iters||null,S.opt.iters,g.mass_g);spark();
+  $('#optText').textContent=`무게 ${fmt(O.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
+  O.mf=g.mass_g;readouts(O.iters||null,O.iters,g.mass_g);spark();
   $('#optBar').style.width='100%';
   const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
   setStep(3);
@@ -841,7 +871,7 @@ $('#optimize').onclick=async()=>{
   const run=(rep.files['handoff.zip']||'').split('/')[2];
   const targets=[...S.sel].sort((a,b)=>a-b).map(i=>S.rows[i].key).filter(Boolean);
   if(rep.template.id!=='P01')return saveTargets(run,targets);
-  S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
+  S.opt=S.optLast={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
   S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
   V3.optBox=null;
@@ -863,7 +893,7 @@ $('#optimize').onclick=async()=>{
       if(q.done){S.opt.res=q.result;S.opt.done=true;}
     }
     await play;
-    finishOpt(S.opt.res);
+    await finishOpt(S.opt.res);
   }catch(e){toast(e.message);$('#optInfo').hidden=true;}
   finally{S.opt=null;updateOpt();updateActs();}
 };
@@ -874,6 +904,7 @@ function setCommon(rep, massG){
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
   $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;
   $$('#files a[data-f]').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
+  const ad=$('#files a[data-f="design_1st_drawing.pdf"]');if(ad)ad.dataset.png=rep.files['design_1st_drawing.png']||'';
   $('#fOpt').hidden=true;$('#optInfo').hidden=true;
 }
 // 가운데 칸 머리: 3D 설계 · 물리 시뮬레이션 옆에 지금 단계

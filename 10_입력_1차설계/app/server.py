@@ -31,7 +31,7 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
-APP_VERSION = "2026-11-16i"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
+APP_VERSION = "2026-11-17a"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
 OPT_JOBS = {}                                              # 간이 물리 최적화 job id -> 진행 (반복 · 기록 · 최신 표면)
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
@@ -43,8 +43,24 @@ mimetypes.add_type("model/stl", ".stl")
 
 
 def _safe_join(base, rel):
-    p = os.path.realpath(os.path.join(base, rel))
-    return p if p.startswith(os.path.realpath(base) + os.sep) and os.path.isfile(p) else None
+    """base 안의 파일만 (경로 밖으로 나가는 요청 거부). realpath 는 쓰지 않음: 윈도우에서 경로가 260자를 넘으면
+    realpath 가 '\\?\' 붙은 경로를 돌려줘 base 와 비교가 틀어지고 '없는 파일'이 됨 (긴 이름의 도면 PDF 만 not found 였던 원인)."""
+    b = os.path.normcase(os.path.abspath(base))
+    p = os.path.abspath(os.path.join(base, rel.replace("/", os.sep)))
+    try:
+        if os.path.commonpath([b, os.path.normcase(p)]) != b:
+            return None
+    except ValueError:                                   # 다른 드라이브
+        return None
+    lp = _long(p)
+    return lp if os.path.isfile(lp) else None
+
+
+def _long(p):
+    """윈도우 긴 경로(260자 이상)도 열 수 있게 '\\?\' 접두어."""
+    if os.name == "nt" and len(p) >= 240 and not p.startswith("\\\\?\\"):
+        return "\\\\?\\" + p
+    return p
 
 
 class Handler(BaseHTTPRequestHandler):
