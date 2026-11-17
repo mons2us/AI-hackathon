@@ -59,31 +59,31 @@ def _p01_rules():
     b0, b1 = road["band_hz"]
     return [
         dict(group="흔들림", rx=r"안\s*흔들리(?:게|도록)?", basis="근거 DB", default=True,
-             rows=[R("떨림 주파수", ">=", tg["f1_min_hz"], "Hz", ["f1"]),
-                   R(f"흔들림 ({b0}–{b1} Hz)", "<=", SHAKE_LIMIT, "배", ["shake"])],
+             rows=[R("떨림 주파수 (높을수록 덜 떨림)", ">=", tg["f1_min_hz"], "Hz", ["f1"]),
+                   R("흔들림 (길보다 몇 배)", "<=", SHAKE_LIMIT, "배", ["shake"])],
              source="ISBS 2020 조약돌길 실측 · 흔들림 배수는 가정(확인 질문)"),
         dict(group="충격", rx=r"울퉁불퉁(?:한)?\s*길|덜덜", basis="근거 DB", default=True,
-             rows=[R("충격 가속도", "=", road["shock_g"], "g", edit=False),
-                   R("충격 응력", "<=", tg["shock_vm_max_mpa"], "MPa", ["stress"])],
+             rows=[R("길에서 받는 충격", "=", road["shock_g"], "g", edit=False),
+                   R("충격 때 걸리는 힘 (한도)", "<=", tg["shock_vm_max_mpa"], "MPa", ["stress"])],
              source=f"ISBS 2020 · Prusament PETG {y:g} MPa ÷ {sf:g}"),
         dict(group="무게", rx=r"(?:최대한\s*)?가볍게", basis="목표",
-             rows=[R("무게", text="최소 (조건을 모두 지키면서)")], source="말 = 최적화 목표"),
-        dict(group="출력", rx=r"3D\s*프린터(?:로)?(?:\s*뽑을\s*거야)?", basis="질문", default=True,
-             rows=[R("층간 응력", "<=", tg["shock_interlayer_max_mpa"], "MPa", ["interlayer"])],
-             source="PETG 층간 강도 — 출력 방향 확인 필요"),
+             rows=[R("무게", text="가능한 한 가볍게")], source="말 = 최적화 목표"),
+        dict(group="제작", rx=r"3D\s*프린터(?:로)?(?:\s*뽑을\s*거야)?", basis="질문", default=True,
+             rows=[R("만드는 방법", text="3D 프린터 (PETG 플라스틱)")],
+             source="PETG 3D 프린팅 — 층 사이 강도는 판정에 그대로 씀 (출력 방향 확인 필요)"),
         dict(group="폰", rx=r"모든\s*폰", rx_note=r"폰", basis="근거 DB", default=True,
-             rows=[R("폰 + 고정 부품", "=", 311, "g", edit=False), R("폰 크기", text="폭 64–90 · 두께 6–14 mm, 4면 고정")],
+             rows=[R("폰 무게 (고정 부품 포함)", "=", 311, "g", edit=False), R("폰 크기", text="대부분의 폰 (폭 64–90 mm)")],
              source="시판 폰 + 케이스 범위"),
         dict(group="열", rx=r"열이?\s*안\s*갇히(?:게)?", basis="가정", default=True,
              rows=[R("폰 온도 상승", "<=", tg["phone_Tmax_rise_max_c"], "°C", ["Tmax"])], source="발열 4 W 가정 (내비 사용)"),
         dict(group="터치", rx=r"(?:화면을?\s*)?눌러도\s*안\s*휘(?:게)?", basis="가정", default=True,
-             rows=[R("화면 5 N 누를 때 처짐", "<=", tg["touch_max_mm"], "mm", ["touch"])], source="누르는 힘 5 N 가정"),
-        dict(group="설치", rx=r"스템\s*옆(?:에)?|35\s*(?:도|°)", rx_note=r"35\s*°|35\s*도", basis="질문", default=True,
-             rows=[R("거치 각도", "=", 35, "°", edit=False), R("핸들바 지름", "=", 31.8, "mm", edit=False),
-                   R("피할 곳", text="스템 · 케이블 · 레버")],
+             rows=[R("화면 누를 때 휨", "<=", tg["touch_max_mm"], "mm", ["touch"])], source="손가락으로 누르는 힘 5 N 가정"),
+        dict(group="설치", rx=r"핸들바\s*가운데(?:에)?|스템\s*옆(?:에)?", rx_note=r"35\s*°|35\s*도", basis="질문", default=True,
+             rows=[R("핸들바 굵기", "=", 31.8, "mm", edit=False), R("피할 곳", text="케이블 · 브레이크 레버"),
+                   R("폰 기울기", "=", 35, "°", edit=False)],
              source="스케치 근사값 → 각도 · 핸들바 지름 확인 질문"),
         dict(group="설계 영역", rx=r"\?", rx_note=r"\?", basis="스케치",
-             rows=[R("설계 영역", text="'?' 상자 (클램프 · 폰 받침은 고정)")], source="스케치 '?' 상자"),
+             rows=[R("새로 설계할 부분", text="스케치의 '?' 부분")], source="스케치 '?' 상자 (클램프 · 폰 받침은 그대로)"),
     ]
 
 
@@ -99,22 +99,22 @@ def _tv_rules(pk):
         dict(group="화면", rx=r"\d{2}\s*(?:인치|형)(?:\s*TV)?", rx_note=r"\d{2}\s*(?:\"|인치|형)", basis="근거 DB" if tv["size_in"] == 27 else "가정",
              default=True, rows=[R("화면 크기", "=", tv["size_in"], "인치", param="size_in"),
                                  R("화면 무게", "=", tv["mass_kg"], "kg", edit=False),
-                                 R(f"화면 ({'가로' if orient == 'landscape' else '세로'})", text=f"{sw:.0f} × {sh:.0f} mm")],
+                                 R("화면 방향", text=f"{'가로' if orient == 'landscape' else '세로'} ({sw:.0f} × {sh:.0f} mm)")],
              source="LG 스탠바이미 27형 사양 (다른 크기는 비례)"),
         dict(group="넘어짐", rx=r"(?:아이가\s*)?밀어도\s*안\s*넘어지(?:게)?|안\s*넘어지(?:게)?", rx_note=r"10\s*°", basis="근거 DB", default=True,
-             rows=[R("기울여도 안 넘어지는 각", ">=", 10.0, "°", ["tilt"]), R("수평으로 밀 때 여유 (참고)", ">=", 1.0, "배", ["push"])],
+             rows=[R("기울여도 안 넘어지는 각도", ">=", 10.0, "°", ["tilt"])],
              source="IEC 62368-1 8.6 안정성 시험"),
         dict(group="이동", rx=r"(?:바퀴로\s*)?굴려서?\s*옮기(?:고|는|기)?|바퀴", basis="가정", default=True,
-             rows=[R("바퀴 하나 하중", "<=", T.CASTER_LIMIT_N, "N", ["caster"]), R("바퀴", text="5개 · 둥근 받침")],
+             rows=[R("바퀴 하나가 받는 힘", "<=", T.CASTER_LIMIT_N, "N", ["caster"]), R("바퀴", text="5개 · 둥근 받침")],
              source="소형 캐스터 정격 약 20 kg"),
         dict(group="높이", rx=r"앉아서\s*(?:보기\s*좋은|보는)?\s*(?:높이)?|높이\s*조절", basis="스케치", default=True,
-             rows=[R("화면 중심 높이", "=", round(pk["zc_t"]), "mm", param="zc")], source=hsrc + " → 템플릿 3단에 맞춤"),
+             rows=[R("화면 높이 (바닥에서 화면 가운데)", "=", round(pk["zc_t"]), "mm", param="zc")], source=hsrc + " → 템플릿 3단에 맞춤"),
         dict(group="흔들림", rx=r"흔들리지?\s*않게|안\s*흔들리게?", basis="가정", default=True,
-             rows=[R("밀 때 화면 윗단 흔들림", "<=", T.TOP_DEFLECTION_MM, "mm", ["defl"])], source="팀 TV 스탠드 사례와 같은 값"),
+             rows=[R("밀 때 화면 흔들림", "<=", T.TOP_DEFLECTION_MM, "mm", ["defl"])], source="팀 TV 스탠드 사례와 같은 값"),
         dict(group="튼튼함", rx=r"튼튼|부러지지?\s*않게", basis="가정", default=True,
-             rows=[R("응력", "<=", round(y / T.SF, 1), "MPa", ["stress"])], source=f"강 SS275 {y:.0f} MPa ÷ {T.SF:g}"),
+             rows=[R("몸체에 걸리는 힘 (한도)", "<=", round(y / T.SF, 1), "MPa", ["stress"])], source=f"강 SS275 {y:.0f} MPa ÷ 안전율 {T.SF:g}"),
         dict(group="설계 영역", rx=r"받침\s*모양은\??", rx_note=r"\?", basis="스케치",
-             rows=[R("설계 영역", text="받침 (화면 · 기둥 위치는 고정)")], source="스케치 '?' 상자"),
+             rows=[R("새로 설계할 부분", text="받침")], source="스케치 '?' 상자 (화면 · 기둥 위치는 그대로)"),
     ]
 
 
@@ -125,28 +125,28 @@ def _glasses_rules(lw_t):
     y = G.MAT["yield_mpa"]
     return [
         dict(group="무게", rx=r"가볍(?:게|고)?", basis="근거 DB", default=True,
-             rows=[R("총무게 (테 + 렌즈 + 부품)", "<=", G.MASS_LIMIT, "g", ["mass"])], source="보도: 41–50 g"),
+             rows=[R("총무게", "<=", G.MASS_LIMIT, "g", ["mass"])], source="보도: 41–50 g"),
         dict(group="흘러내림", rx=r"안\s*흘러내리(?:게|는)?", basis="가정", default=True,
-             rows=[R("조이는 힘 (좌우 각각)", ">=", G.CLAMP_RANGE[0], "N", ["clamp_lo"])], source="흘러내림 방지 하한 (가정)"),
+             rows=[R("머리 조이는 힘 (최소)", ">=", G.CLAMP_RANGE[0], "N", ["clamp_lo"])], source="흘러내림 방지 하한 (가정)"),
         dict(group="착용감", rx=r"적당히\s*조이(?:게)?|편하게|안\s*아프게", basis="근거 DB", default=True,
-             rows=[R(f"조이는 힘 ({G.SPREAD_EACH:.0f} mm 벌릴 때)", "<=", G.CLAMP_RANGE[1], "N", ["clamp_hi"])],
+             rows=[R("머리 조이는 힘 (최대)", "<=", G.CLAMP_RANGE[1], "N", ["clamp_hi"])],
              source="문헌 0–1 N · 특허 50–110 g"),
         dict(group="열", rx=r"관자놀이(?:가)?\s*(?:안\s*)?뜨겁(?:지\s*않게|게)|안\s*뜨겁게", basis="근거 DB", default=True,
-             rows=[R("다리 표면 온도", "<=", G.T_SKIN_LIMIT, "°C", ["skin"]), R("칩 발열 (계속 켜짐)", "=", G.SOC_W, "W", edit=False)],
+             rows=[R("관자놀이 닿는 곳 온도", "<=", G.T_SKIN_LIMIT, "°C", ["skin"]), R("칩 발열", "=", G.SOC_W, "W", edit=False)],
              source=f"IEC 62368-1 TS1 장시간 접촉 · 주변 {G.T_AMB:.0f} °C · 발열은 가정"),
         dict(group="크기", rx=r"렌즈\s*\d{2}", rx_note=r"\b\d{2}\b", basis="스케치", default=True,
              rows=[R("렌즈 폭", "=", lw_t, "mm", param="lens_w")], source="템플릿 48 · 50 · 52 mm 중 가까운 것"),
         dict(group="부품", rx=r"카메라|칩|배터리", basis="근거 DB",
-             rows=[R("카메라 · 칩 · 배터리", "=", parts, "g", edit=False)], source="보도 · 유출 사양 (무게는 가정)"),
+             rows=[R("카메라 · 칩 · 배터리 무게", "=", parts, "g", edit=False)], source="보도 · 유출 사양 (무게는 가정)"),
         dict(group="튼튼함", rx=r"튼튼|부러지지?\s*않게", basis="가정", default=True,
-             rows=[R(f"벌림 · 브리지 {G.BRIDGE_F:.0f} N 응력", "<=", round(y / G.SF, 1), "MPa", ["clamp_vm", "bridge_vm"])],
+             rows=[R("테에 걸리는 힘 (한도)", "<=", round(y / G.SF, 1), "MPa", ["clamp_vm", "bridge_vm"])],
              source=f"아세테이트 {y:.0f} MPa ÷ {G.SF:g} · ISO 12870 부위"),
     ]
 
 
 # ------------------------------------------------------------------ 자전거 템플릿 거치대 (T · G): 설계 명세(constraints)에서
-QNAME = {"transmissibility": ("흔들림 (노면 대역)", "배"), "f1": ("떨림 주파수", "Hz"), "stress": ("충격 응력", "MPa"),
-         "interlayer": ("층간 응력", "MPa"), "min_feature": ("부재 두께", "mm")}
+QNAME = {"transmissibility": ("흔들림 (길보다 몇 배)", "배"), "f1": ("떨림 주파수 (높을수록 덜 떨림)", "Hz"),
+         "stress": ("충격 때 걸리는 힘 (한도)", "MPa"), "interlayer": ("층 사이 힘", "MPa"), "min_feature": ("가장 얇은 곳", "mm")}
 SRC_NAME = {"isbs2020": "ISBS 2020 실측", "team_v3_rigid": "팀 v3 폰 강체", "sdof": "1자유도 근사", "prusament_petg": "Prusament PETG",
             "team_v7": "팀 v7 규칙", "energy_balance": "에너지 평형", "lisbon_reflect": "노면 반사"}
 JUDGED = ("transmissibility", "f1", "stress", "interlayer")
@@ -178,21 +178,22 @@ def _bike_rules(spec):
     if "stress" in C:
         g = shock.get("accel_g") or shock.get("g")
         rules.append(dict(group="충격", rx=r"울퉁불퉁(?:한)?\s*길|자갈|비포장|돌길", basis="근거 DB", default=True,
-                          rows=([R("충격 가속도", "=", float(g), "g", edit=False)] if g else []) + [row("stress")], source=src(["stress"])))
+                          rows=([R("길에서 받는 충격", "=", float(g), "g", edit=False)] if g else []) + [row("stress")], source=src(["stress"])))
     if "interlayer" in C or "min_feature" in C:
         rules.append(dict(group="출력", rx=r"3D\s*프린터|출력", basis="근거 DB", default=True,
-                          rows=[row(k) for k in ("interlayer", "min_feature") if k in C], source=src(["interlayer", "min_feature"])))
-    SPECIAL = {"sun_heat": ("땡볕", r"땡볕|햇빛|여름", "주차 표면 온도", "≤ 열변형 온도 − 10 K")}
+                          rows=[R("만드는 방법", text="3D 프린터")] + [row(k) for k in ("min_feature",) if k in C],
+                          source=src(["interlayer", "min_feature"])))
+    SPECIAL = {"sun_heat": ("땡볕", r"땡볕|햇빛|여름", "햇볕 아래 주차", "뜨거워져도 변형 없음")}
     for k, c in C.items():
         if k in QNAME:
             continue
         grp, rx, item, txt = SPECIAL.get(k, (c.get("requirement") or k, r"(?!)", c.get("quantity", k), f"{c['op']} {c['value']}"))
         rules.append(dict(group=grp, rx=rx, basis="근거 DB", default=True, rows=[R(item, text=txt)], source=src([k])))
-    rules.append(dict(group="무게", rx=r"(?:최대한\s*)?가볍게", basis="목표", rows=[R("무게", text="최소 (조건을 모두 지키면서)")],
+    rules.append(dict(group="무게", rx=r"(?:최대한\s*)?가볍게", basis="목표", rows=[R("무게", text="가능한 한 가볍게")],
                       source="말 = 최적화 목표"))
     if pm:
         rules.append(dict(group="폰", rx=r"모든\s*폰|아이폰|갤럭시", basis="근거 DB", default=True,
-                          rows=[R("폰 + 고정 부품", "=", round(pm), "g", edit=False)], source="시판 폰 + 케이스 범위"))
+                          rows=[R("폰 무게 (고정 부품 포함)", "=", round(pm), "g", edit=False)], source="시판 폰 + 케이스 범위"))
     return rules
 
 

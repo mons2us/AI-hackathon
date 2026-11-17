@@ -67,6 +67,9 @@ with sync_playwright() as p:
         no_scroll(page)
         body = page.inner_text("body")
         assert "발표" not in body and "쪽" not in body, "발표 관련 글자가 남음"
+        hard = [w for w in ("응력", "층간", "P01", "TV01", "AG-", "줄 (말", "FEM", "역설계", "벌점", "자갈길", "출력 층", "참고)", "N 누를", "근거 DB")
+                if w in body]
+        assert not hard, f"어려운 말이 남음: {hard}"
         page.screenshot(path=f"{SP}/gui_{name}.png")
         return n
 
@@ -75,7 +78,7 @@ with sync_playwright() as p:
         page.wait_for_timeout(600)
         assert page.input_value("#text") == demos[i]["prompt"], "예시를 골라도 말이 안 채워짐"
         n = spec_then_design(name, ("tilt", 8) if name == "TV" else None)
-        assert n >= 8 and tid in page.inner_text("#tplTag"), (name, n)
+        assert n >= 8 and page.evaluate("() => S.rep.template.id") == tid, (name, n)
         if name == "TV":                                   # 고친 사양(기울기 10 → 8°)이 1차 설계 판정 기준으로
             assert "≥ 8 °" in page.locator("#metrics .metric").first.inner_text()
     # 사양을 만든 뒤 말을 바꾸면 확정 · 1차 설계가 꺼짐
@@ -92,10 +95,10 @@ with sync_playwright() as p:
     spec_then_design("GLphoto")
     # TV · 글래스도 성능 항목 고르기 → 최적 설계는 없이 고른 기준만 최적화 입력 묶음으로
     blocks = page.locator("#metrics .metric")
-    blocks.nth(0).click(); blocks.nth(5).click()
+    blocks.filter(has_text="총무게").click(); blocks.filter(has_text="온도").click()
     assert page.inner_text("#optimize").endswith("(2개)") and not page.is_disabled("#optimize")
     page.click("#optimize"); page.wait_for_timeout(1500)
-    assert "최적화 입력 묶음" in page.inner_text("#optText") and not page.is_hidden("#fOpt")
+    assert "요청 파일" in page.inner_text("#optText") and not page.is_hidden("#fOpt")
     zhref = page.get_attribute("#fOpt", "href").split("?")[0]
     import zipfile, io
     zg = zipfile.ZipFile(io.BytesIO(urllib.request.urlopen(URL.rstrip("/") + zhref).read()))
@@ -145,7 +148,7 @@ with sync_playwright() as p:
     print(f"최적화: {time.time() - t:.1f} s, 형상 {len(seen)}가지(처음 {tri0 // 3} 삼각형) | {final}")
     print("  성능:", [v.split("\n")[0].lstrip("✓") + " " + v.split("\n")[1] for v in vals][:6])
     assert len(seen) >= 10, "형상이 거의 안 바뀜"
-    assert "FEM 검증" in vals[0] and not page.is_hidden("#fOpt")
+    assert "정밀 계산" in vals[0] and not page.is_hidden("#fOpt")
     page.screenshot(path=f"{SP}/gui_optimized.png")
     import urllib.request, zipfile, io
     href = page.get_attribute("#fOpt", "href").split("?")[0]
@@ -162,7 +165,7 @@ with sync_playwright() as p:
     page.wait_for_function("() => !S.playing", timeout=90000)
     assert page.input_value("#text") == demos[1]["prompt"]
     spec_then_design("video_TV")
-    assert "TV01" in page.inner_text("#tplTag")
+    assert page.evaluate("() => S.rep.template.id") == "TV01"
     print(f"영상 모드: 치기 · 그리기 {time.time() - t:.0f} s 포함")
     errs = [l for l in logs if "error" in l.lower() or "PAGEERROR" in l]
     print("\n".join(errs)[:2000] or "콘솔 오류 없음")

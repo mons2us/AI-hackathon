@@ -188,12 +188,12 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
         <div class="seg" style="margin-top:10px"><button id="mSketch" class="on">스케치</button><button id="mImage">사진</button></div>
         <div id="sketchBox">
           <div class="pad"><canvas id="pad" width="800" height="600"></canvas>
-            <span class="hint" id="padHint">모양을 그리고, 꼭 필요한 글자만</span>
+            <span class="hint" id="padHint">여기에 모양을 그려 주세요</span>
             <div class="ico">
               <button id="undo" title="되돌리기" aria-label="되돌리기"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
               <button id="clear" title="지우기" aria-label="지우기"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg></button>
             </div></div>
-          <select class="btn" id="example"><option value="">예시 (말 + 스케치)…</option></select>
+          <select class="btn" id="example"><option value="">예시 고르기</option></select>
         </div>
         <div id="imageBox" style="display:none">
           <label class="drop" id="drop"><div id="dropInner">사진을 끌어 놓거나 눌러서 선택</div>
@@ -215,12 +215,12 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
         <h2><span id="vTitle">1차 설계</span> <span class="tag" id="tplTag">대기 중</span></h2>
         <div class="views" id="views">
           <div class="vp vmain" id="vMain">
-            <span class="ovl" id="ovl3d">드래그 = 회전 · 휠 = 확대</span>
+            <span class="ovl" id="ovl3d">마우스로 돌리고 휠로 확대</span>
             <div class="optinfo" id="optInfo" hidden><div class="ph" id="optPhase"></div><span id="optText"></span><div class="pb"><i id="optBar"></i></div><canvas id="optSpark" width="560" height="64"></canvas></div>
             <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
             <img class="draw" id="imgDraw" alt="">
             <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 1차 설계 만들기</div>
-            <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">시작</div><div class="hist" id="stageHist"></div></div></div>
+            <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">1차 설계를 만드는 중</div><div class="hist" id="stageHist"></div></div></div>
           </div>
           <div class="vrow">
             <div class="vp" id="vS0"><span class="lab"></span><div class="leg" hidden></div></div>
@@ -235,13 +235,13 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
     <section>
       <div class="card fill">
         <h2><span id="pTitle">1차 설계 성능</span> <span class="tag" id="perfTag">대기 중</span></h2>
-        <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>계산 시간</small><b id="kTime">–</b></div></div>
-        <p class="pick" id="pickHint" hidden>최적화할 항목을 눌러 고르세요</p>
+        <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>목표 충족</small><b id="kTime">–</b></div></div>
+        <p class="pick" id="pickHint" hidden>더 좋게 만들 항목을 눌러 고르세요</p>
         <div class="metrics" id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div>
         <div class="spacer"></div>
         <div class="files" id="files">
-          <a class="off" data-f="design_1st.step">STEP</a><a class="off" data-f="design_1st_drawing.pdf">도면 PDF</a><a class="off" data-f="design_1st.stl">STL</a>
-          <a id="fOpt" hidden>최적 STL</a>
+          <a class="off" data-f="design_1st.step" title="STEP">3D 모델</a><a class="off" data-f="design_1st_drawing.pdf" title="PDF">도면</a><a class="off" data-f="design_1st.stl" title="STL">3D 프린트</a>
+          <a id="fOpt" hidden>최적 설계 파일</a>
         </div>
         <button class="btn opt" id="optimize" disabled>물리 기반 최적화 실행</button>
       </div>
@@ -259,14 +259,14 @@ function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i
 /* ---------- 쉬운 말 (화면 표시용) ---------- */
 const EASY=[
   [/^1차 고유진동수.*$/,'떨림 주파수'],[/^폰 온도 상승.*$/,'폰 온도 상승'],[/^화면 5 N 터치 처짐.*$/,'화면 누를 때 휨'],
-  [/^충격 최대 응력.*$/,'충격 때 가장 큰 힘'],[/^충격 층간 응력.*$|^층간 인장 응력.*$/,'출력 층이 벌어지는 힘'],
-  [/^최대 흔들림.*$|^자갈길 흔들림.*$/,'자갈길 흔들림'],[/^최소 부재 두께.*$/,'가장 얇은 곳 두께'],
-  [/^넘어짐 각.*$/,'넘어지기 전 기울기'],[/^힘 시험: 수평력.*$/,'옆으로 밀 때 여유 (참고)'],[/^힘 시험: 하향력.*$/,'위에서 누를 때 여유 (참고)'],
-  [/^최대 응력 \(화면.*$/,'가장 큰 힘'],[/^화면 윗단 흔들림.*$/,'화면 윗부분 흔들림'],[/^바퀴 하나 (최대 )?하중.*$/,'바퀴 하나에 걸리는 힘'],
-  [/^총무게.*$|^무게$/,'총무게'],[/^착용 클램프 힘.*흘러내림.*$/,'조이는 힘 (안 흘러내리게)'],[/^착용 클램프 힘.*편안.*$/,'조이는 힘 (편하게)'],
-  [/^착용 클램프 힘.*$/,'조이는 힘'],[/^착용 벌림 최대 응력.*$/,'쓸 때 가장 큰 힘'],[/^브리지 누름.*$/,'코 부분 누를 때 가장 큰 힘'],
-  [/^다리 표면 온도.*$|^피부 접촉 온도.*$/,'다리 표면 온도'],[/^안정성 ① 기울임.*$/,'기울여도 안 넘어짐'],[/^안정성 ③ 힘 시험.*$/,'밀어도 안 넘어짐'],
-  [/^응력$/,'가장 큰 힘'],[/^제품 전체 무게.*$/,'제품 전체 무게'],[/^화면 무게$/,'화면 무게'],[/^바퀴 하나 하중$/,'바퀴 하나에 걸리는 힘'],
+  [/^충격 최대 응력.*$/,'충격 때 걸리는 힘'],[/^충격 층간 응력.*$|^층간 인장 응력.*$/,'출력 층이 벌어지는 힘'],
+  [/^최대 흔들림.*$|^자갈길 흔들림.*$/,'흔들림'],[/^최소 부재 두께.*$/,'가장 얇은 곳 두께'],
+  [/^넘어짐 각.*$/,'기울여도 안 넘어지는 각도'],[/^힘 시험: 수평력.*$/,'옆으로 밀 때 여유 (참고)'],[/^힘 시험: 하향력.*$/,'위에서 누를 때 여유 (참고)'],
+  [/^최대 응력 \(화면.*$/,'몸체에 걸리는 힘'],[/^화면 윗단 흔들림.*$/,'밀 때 화면 흔들림'],[/^바퀴 하나 (최대 )?하중.*$/,'바퀴 하나가 받는 힘'],
+  [/^총무게.*$|^무게$/,'총무게'],[/^착용 클램프 힘.*흘러내림.*$/,'머리 조이는 힘 (최소)'],[/^착용 클램프 힘.*편안.*$/,'머리 조이는 힘 (최대)'],
+  [/^착용 클램프 힘.*$/,'조이는 힘'],[/^착용 벌림 최대 응력.*$/,'테에 걸리는 힘 (쓸 때)'],[/^브리지 누름.*$/,'테에 걸리는 힘 (코 부분 누를 때)'],
+  [/^다리 표면 온도.*$|^피부 접촉 온도.*$/,'관자놀이 닿는 곳 온도'],[/^안정성 ① 기울임.*$/,'기울여도 안 넘어짐'],[/^안정성 ③ 힘 시험.*$/,'밀어도 안 넘어짐'],
+  [/^응력$/,'몸체에 걸리는 힘'],[/^제품 전체 무게.*$/,'제품 전체 무게'],[/^화면 무게$/,'화면 무게'],[/^바퀴 하나 하중$/,'바퀴 하나가 받는 힘'],
   [/^내장 부품$/,'내장 부품'],[/^이동$/,'이동'],[/^낙하$/,'떨어뜨림']];
 const easy = n => {for(const [re,t] of EASY) if(re.test(n)) return t; return n.replace(/\s*\((FEM|정역학)\)/g,'').replace(/응력/g,'힘').replace(/변위/g,'휨');};
 // 분포 창 이름 (짧고 쉽게)
@@ -295,7 +295,7 @@ $('#undo').onclick=()=>{if(S.labels.length&&(!S.strokes.length||S.labelsLast))S.
 $('#clear').onclick=()=>{S.strokes=[];S.labels=[];S.bgImg=null;$('#example').value='';redraw();inputChanged();};
 S.demos=[];
 // 예시 = 제품 셋 (말 + 스케치 — 지금 1차 설계 형상을 그대로 냄). 고르면 말과 스케치 획이 채워짐
-function fillExamples(){const sel=$('#example');sel.innerHTML='<option value="">예시 (말 + 스케치)…</option>';
+function fillExamples(){const sel=$('#example');sel.innerHTML='<option value="">예시 고르기</option>';
   S.demos.forEach((d,i)=>{const o=document.createElement('option');o.value=i;o.textContent=d.label;sel.appendChild(o);});}
 function loadDemo(i){const d=S.demos[i];if(!d)return;$('#mSketch').onclick();$('#text').value=d.prompt;
   S.bgImg=null;S.strokes=d.sketch.strokes.map(s=>Object.assign(s.p.map(q=>q.slice()),{c:s.c,w:s.w}));S.labels=d.sketch.labels.map(L=>({...L}));S.labelsLast=true;redraw();inputChanged();}
@@ -534,6 +534,7 @@ fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==AP
 /* ---------- 실행 ---------- */
 // ---------- 설계 사양: [설계 사양] → 표 (수치 고치기) → [확정] → [1차 설계 만들기]
 const BASIS={'근거 DB':0,'스케치':1,'목표':2,'가정':3,'질문':4};
+const BASIS_TXT={'근거 DB':'자료','스케치':'스케치','목표':'목표','가정':'추정','질문':'확인 필요'};   // 근거 (쉬운 말 · 자세한 출처는 마우스를 올리면)
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const OPS={'>=':'≥','<=':'≤','=':'='};
 S.spec=null;          // {req, data, edits, confirmed, stale}
@@ -557,19 +558,19 @@ function updateActs(){
   $('#go').disabled=busy||!sp||sp.stale||!sp.confirmed;
 }
 function specRowHtml(x,i,first){
-  const fr=x.quote?`<span class="q">${x.from.map(f=>`<i class="${f==='말'?'t':f==='스케치'?'s':'d'}">${f}</i>`).join('')}“${esc(x.quote)}”</span>`:'';
+  const fr=x.quote?`<span class="q">“${esc(x.quote)}”${x.from.includes('말')?'':' (스케치)'}</span>`:'';
   let v;
   if(x.text!=null&&x.value==null)v=`<span class="tx">${esc(x.text)}</span>`;
   else if(x.edit)v=`<span class="op">${OPS[x.op]||''}</span><input type="number" step="any" inputmode="decimal" data-id="${esc(x.id)}" value="${x.value}"><small>${esc(x.unit)}</small>`;
-  else v=`<span class="op">${OPS[x.op]||''}</span><span class="lk" title="계산 조건 (이 데모에서는 고정)">${x.value}</span><small>${esc(x.unit)}</small>`;
+  else v=`<span class="op">${OPS[x.op]||''}</span><span class="lk" title="계산에 쓰는 고정 값">${x.value}</span><small>${esc(x.unit)}</small>`;
   return `<tr class="${first?'g1':''}${x.edited?' ed':''}" title="${esc(x.group)} — ${esc(x.source)}"><td class="it"><b>${esc(x.item)}</b>${fr}</td><td class="v">${v}</td>
-    <td class="b"><em class="k${BASIS[x.basis]??3}" title="${esc(x.source)}">${esc(x.basis)}</em></td></tr>`;
+    <td class="b"><em class="k${BASIS[x.basis]??3}" title="${esc(x.source)}">${BASIS_TXT[x.basis]||esc(x.basis)}</em></td></tr>`;
 }
 function showSpec(data,animate){
   const rows=data.rows,box=$('#specs');
   $('#specBody').innerHTML=rows.map((x,i)=>specRowHtml(x,i,i>0&&x.group!==rows[i-1].group)).join('');
   const G=[...new Map(rows.map(x=>[x.group,x])).values()], n=k=>G.filter(x=>x.from.includes(k)).length, ne=Object.keys(S.spec.edits).length;
-  $('#specInfo').innerHTML=`${esc(data.template.id)} · ${rows.length}줄 (말 ${n('말')} · 스케치 ${n('스케치')} · 기본 ${n('기본')})${ne?` · <b>고침 ${ne}</b>`:''}${S.spec.confirmed?' · <span class="ok">확정</span>':''}`;
+  $('#specInfo').innerHTML=`${ne?`고친 값 ${ne}개`:''}${ne&&S.spec.confirmed?' · ':''}${S.spec.confirmed?'<span class="ok">확정됨</span>':''}`;
   box.classList.add('on');box.closest('.card').classList.add('has-spec');$('#padSpacer').hidden=true;$('#specStale').hidden=true;
   const trs=[...$('#specBody').children];
   if(animate)trs.forEach((tr,i)=>setTimeout(()=>tr.classList.add('in'),40*i));else trs.forEach(tr=>tr.classList.add('in'));
@@ -610,7 +611,7 @@ async function run(){
   S.sel=new Set();updateOpt();S.busy=true;updateActs();
   $('#empty').style.display='none';$('#busy').classList.add('on');
   // 서버가 실제로 하고 있는 단계와 경과 시간을 0.3 s 마다 받아 표시
-  $('#stage').textContent='요청 보내는 중';$('#stageHist').innerHTML='';
+  $('#stage').innerHTML='<b>1차 설계를 만드는 중</b>';$('#stageHist').innerHTML='';
   try{
     const r=await fetch('/api/design',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
     const j=await r.json(); if(!r.ok)throw new Error(j.error||r.statusText);
@@ -621,8 +622,7 @@ async function run(){
       const rq=await fetch('/api/job?id='+encodeURIComponent(j.job)), q=await rq.json();
       if(!rq.ok)throw new Error(STALE+(q.error?` (${q.error})`:''));
       if(q.error)throw new Error(q.error);
-      $('#stage').innerHTML=`<b>${q.stage||''}</b>${q.detail?' — '+q.detail:''} · ${(q.stage_s||0).toFixed(1)} s<br><small>전체 ${(q.elapsed||0).toFixed(1)} s</small>`;
-      $('#stageHist').innerHTML=(q.history||[]).slice(-6).map(h=>`✓ ${h.name} · ${h.s.toFixed(1)} s`).join('<br>');
+      $('#stage').innerHTML=`<b>1차 설계를 만드는 중</b><br><small>${(q.elapsed||0).toFixed(0)} 초</small>`;
       if(q.done)rep=q.result;
     }
     S.rep=rep; render(rep); setStep(2);
@@ -636,7 +636,7 @@ const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
 // 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
 function metricHtml(m,i){
   const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6),v=typeof m.value==='number'?+m.value.toPrecision(4):m.value,
-    v0=(typeof m.v0==='number'&&Math.abs(m.v0-m.value)>1e-9)?`<span class="v0"> · 1차 <s>${+m.v0.toPrecision(4)}</s></span>`:'';
+    v0=(typeof m.v0==='number'&&Math.abs(m.v0-m.value)>1e-9)?`<span class="v0"> · 처음 <s>${+m.v0.toPrecision(4)}</s></span>`:'';
   return `<button class="metric${m.ref?' ref':''}${S.sel&&S.sel.has(i)?' sel':''}" data-i="${i}" title="${noPres(m.source||'')}"><div class="row"><span><i class="ck">✓</i>${m.label}${m.src?`<span class="src">${m.src}</span>`:''}</span><b style="color:${m.ref?'var(--ink2)':m.ok?'var(--green)':'var(--red)'}">${v} ${m.unit}</b></div>
     <div class="bar"><i class="${m.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
     <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}${v0}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;
@@ -652,6 +652,7 @@ function showMetrics(rows,pick){
 }
 function drawMetrics(){
   $('#metrics').innerHTML=S.rows.map(metricHtml).join('');
+  const sh=S.rows.filter(m=>!m.ref);$('#kTime').textContent=sh.length?`${sh.filter(m=>m.ok).length} / ${sh.length}`:'–';
   $$('#metrics .metric').forEach(b=>b.onclick=()=>{if(!S.pick||S.opt)return;const i=+b.dataset.i;S.sel.has(i)?S.sel.delete(i):S.sel.add(i);b.classList.toggle('sel',S.sel.has(i));updateOpt();});
 }
 function updateOpt(){
@@ -677,12 +678,12 @@ function applyFrame(f){
   if(f.mesh){const g=q16mesh(f.mesh);V3.mount.geometry.dispose();V3.mount.geometry=g;
     const bb=new THREE.Box3().setFromObject(V3.mount);if(!V3.optBox||!V3.optBox.containsBox(bb)){V3.optBox=(V3.optBox||bb.clone()).union(bb);V3.box=V3.optBox.clone();V3.mc=V3.box.getCenter(new THREE.Vector3());fitSmall();}}
   if(f.heat)applyHeat(f.heat);
-  S.rows.forEach(m=>{if(!m.key||f.pred[m.key]==null)return;m.value=f.pred[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='예측';});
+  S.rows.forEach(m=>{if(!m.key||f.pred[m.key]==null)return;m.value=f.pred[m.key];m.ok=m.op==='>='?m.value>=m.limit:m.value<=m.limit;m.src='AI 예측';});
   drawMetrics();
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=`최적화 중 · ${nf?'미충족 '+nf+'개':'예측 충족'}`;
   $('#kMass').textContent=`${fmt(f.mass_g)} g`;
-  $('#optText').textContent=`역설계 반복 ${f.it} / ${f.iters} · 무게 ${fmt(f.mass_g)} g · 기준 벌점 ${f.pen.toFixed(2)}`;
+  $('#optText').textContent=`${f.it} / ${f.iters} 단계 · 무게 ${fmt(f.mass_g)} g`;
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   if(S.opt&&S.opt.hist){S.opt.hist.push({m:f.mass_g,p:f.pen});spark();}
 }
@@ -693,16 +694,16 @@ function spark(){const c=$('#optSpark');if(!c)return;const g=c.getContext('2d'),
   line('p','#ffb36b');line('m','#ffffff');}
 function finishOpt(r){
   const g=r.gate;
-  $('#optPhase').textContent='② FEM 검증 · 최종 형상만 정밀 계산';$('#vTitle').textContent='최적 설계';$('#pTitle').textContent='성능 · 1차 → 최적';
-  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='FEM 검증';}});
+  $('#optPhase').textContent='② 찾은 형태를 정밀 계산으로 확인';$('#vTitle').textContent='최적 설계';$('#pTitle').textContent='성능 · 1차 → 최적';
+  g.rows.forEach(x=>{const m=S.rows.find(m=>m.key===x.key);if(m){m.value=x.value;m.ok=x.ok;m.src='정밀 계산';}});
   drawMetrics();applyHeat(g.heat);
   $('#kMass').textContent=`${fmt(g.mass_g)} g`;
-  const nf=g.rows.filter(x=>!x.ok).length;
-  $('#perfTag').className='tag '+(g.pass_?'green':'amber');$('#perfTag').textContent=g.pass_?'최적 설계 · 목표 충족':`최적 설계 · 미충족 ${nf}개`;
-  const box=$('#optInfo');box.classList.add(g.pass_?'ok':'bad');
-  $('#optText').textContent=`최적 설계 완료 · 무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · FEM 검증 ${g.pass_?'모든 기준 통과':'미충족 '+nf+'개'}`;
+  const nf=S.rows.filter(m=>!m.ref&&!m.ok).length;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`최적 설계 · 미충족 ${nf}개`:'최적 설계 · 목표 모두 충족';
+  const box=$('#optInfo');box.classList.add(nf?'bad':'ok');
+  $('#optText').textContent=`최적 설계 완료 · 무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
   $('#optBar').style.width='100%';
-  const a=$('#fOpt');a.hidden=false;a.textContent='최적 STL';a.href=r.files['opt_final.stl']+'?dl=1';
+  const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
   setStep(3);
 }
 // TV 스탠드 · AI 글래스 · 템플릿 거치대: 고르기까지는 같고, 최적 설계는 아직 없음 → 고른 기준을 최적화 입력 묶음으로 저장
@@ -712,8 +713,8 @@ async function saveTargets(run,targets){
     const r=await fetch('/api/optimize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({run,targets})});
     const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);
     box.classList.add('ok');$('#optBar').style.width='100%';
-    $('#optText').textContent=`최적 설계는 폰 거치대만 — 고른 ${targets.length}개 기준을 최적화 입력 묶음으로 저장했습니다`;
-    const a=$('#fOpt');a.hidden=false;a.textContent='최적화 입력';a.href=j.files['optimize_input.zip']+'?dl=1';
+    $('#optText').textContent=`이 제품의 최적 설계는 준비 중입니다 — 고른 ${targets.length}개 항목을 요청 파일로 저장했습니다`;
+    const a=$('#fOpt');a.hidden=false;a.textContent='최적화 요청 파일';a.href=j.files['optimize_input.zip']+'?dl=1';
   }catch(e){toast(e.message);box.hidden=true;}
 }
 $('#optimize').onclick=async()=>{
@@ -723,7 +724,7 @@ $('#optimize').onclick=async()=>{
   if(rep.template.id!=='P01')return saveTargets(run,targets);
   S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='역설계 준비 (형상 AI · 물리 AI)';$('#optBar').style.width='0';
-  S.opt.hist=[];spark();$('#optPhase').textContent='① AI 탐색 · 형상 AI가 만들고 물리 AI가 예측';$('#vTitle').textContent='형상 탐색 (AI)';$('#pTitle').textContent='성능 · 물리 AI 예측';setStep(3);
+  S.opt.hist=[];spark();$('#optPhase').textContent='① AI가 형태를 바꿔 가며 더 좋은 설계를 찾는 중';$('#vTitle').textContent='AI 설계 탐색';$('#pTitle').textContent='성능 · AI 예측';setStep(3);
   V3.optBox=null;
   if(V3.kind!=='close')view('close');
   try{
@@ -750,36 +751,38 @@ $('#optimize').onclick=async()=>{
 function setCommon(rep, massG){
   const t=rep.template;
   $('#vTitle').textContent='1차 설계';$('#pTitle').textContent='1차 설계 성능';
-  $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(`${t.id} ${t.name}`);
+  $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(t.name).replace(/\s*\([^)]*\)/g,'').replace(/\s*—\s*/,' · ');
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
-  $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;$('#kTime').textContent=`${fmt(rep.seconds)} s`;
+  $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;
   $$('#files a[data-f]').forEach(a=>{const f=rep.files[a.dataset.f];a.classList.toggle('off',!f);if(f)a.href=f+'?dl=1';});
   $('#fOpt').hidden=true;$('#optInfo').hidden=true;
 }
-function setPerfTag(pass,nFail){$('#perfTag').className='tag '+(pass?'green':'amber');$('#perfTag').textContent=pass?'목표 충족':`미충족 ${nFail}개`;}
-const judgeRows=j=>j.rows.map(r=>({key:r.key,name:r.name,label:easy(r.name),value:r.value,unit:r.unit,op:r.op,limit:r.limit,ok:r.ok,ref:!!r.ref,source:r.source}));
+function setPerfTag(){const n=S.rows.filter(m=>!m.ref).length,nf=S.rows.filter(m=>!m.ref&&!m.ok).length;
+  $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'목표 모두 충족';}
+const HIDE=new Set(['interlayer']);      // 비전문가에게 어려운 항목 (판정 · 최적화 계산에는 그대로 씀)
+const judgeRows=j=>j.rows.filter(r=>!HIDE.has(r.key)&&!r.ref).map(r=>({key:r.key,name:r.name,label:easy(r.name),value:r.value,unit:r.unit,op:r.op,limit:r.limit,ok:r.ok,ref:!!r.ref,source:r.source}));
 function renderIntegral(rep){          // P01 (일체형 거치대)
   const j=rep.judge;
   showMount(rep);
   setCommon(rep, rep.cad.print_total_g||rep.cad.mass_g);
   showMetrics(judgeRows(j),true);              // 학습 모델(역설계)은 P01 에만
-  setPerfTag(j.pass_, j.rows.filter(r=>!r.ok).length);
+  setPerfTag();
 }
 function renderProduct(rep){          // TV 스탠드 · AI 글래스
   const j=rep.judge;
   showProduct(rep);
   setCommon(rep, rep.cad.mass_g);
   showMetrics(judgeRows(j),true);            // 고르기는 P01 과 같음 (최적 설계는 아직 P01 만)
-  setPerfTag(j.pass_, j.fails.length);
+  setPerfTag();
 }
 function renderTemplate(rep){         // 자전거 거치대 템플릿 (T01 …)
   const c=rep.first_design_check, ck=c.checks, rows=[], lim=x=>+x.limit.split(' ')[1];
   showMount(rep);
   setCommon(rep, rep.cad.mass_g);
   const add=(key,label,d,unit,op)=>{const x=ck[key];if(x)rows.push({key,name:key,label,value:+x.value.toFixed(d),unit,op,limit:lim(x),ok:x.pass,ref:!!x.reference,source:x.limit});};
-  add('transmissibility','자갈길 흔들림',2,'배','<=');add('f1','떨림 주파수',1,'Hz','>=');add('stress','충격 때 가장 큰 힘',1,'MPa','<=');add('interlayer','출력 층이 벌어지는 힘',1,'MPa','<=');
+  add('transmissibility','흔들림',2,'배','<=');add('f1','떨림 주파수',1,'Hz','>=');add('stress','충격 때 걸리는 힘',1,'MPa','<=');
   showMetrics(rows,true);
-  setPerfTag(c.pass, Object.values(ck).filter(x=>!x.pass&&!x.reference).length);
+  setPerfTag();
 }
 function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 · 입력이든 같은 형식 (formproof_input/spec_view.py)
   const box=$('#specBox');if(!rows||!rows.length){box.hidden=true;return;}

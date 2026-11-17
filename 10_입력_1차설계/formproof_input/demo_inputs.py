@@ -13,7 +13,7 @@ DEMO_DIR = os.path.join(INPUT_ROOT, "examples", "demo")
 
 DEMOS = [
     dict(product="bike", key="P01", label="폰 거치대",
-         prompt="자전거 핸들바 스템 옆에 다는 폰 거치대. 울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야. "
+         prompt="자전거 핸들바 가운데에 다는 폰 거치대. 울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야. "
                 "모든 폰이 들어가고 열이 안 갇히게, 화면을 눌러도 안 휘게. 케이블과 레버는 피해서"),
     dict(product="tv", key="TV01-low", template="TV01", level="low", label="TV 스탠드",
          prompt="27인치 TV 스탠드. 방마다 바퀴로 굴려서 옮기고, 아이가 밀어도 안 넘어지게. "
