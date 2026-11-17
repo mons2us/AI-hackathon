@@ -17,12 +17,14 @@ $('.wrap').insertAdjacentHTML('beforeend','<footer class="sbar"><span class="sdo
 $('#vMain').insertAdjacentHTML('beforeend','<div class="pban" id="optBan" hidden></div><div class="resbar" id="resBar" hidden></div><div class="reqmap" id="reqMap" hidden></div>');
 $('#optimize').insertAdjacentHTML('beforebegin','<div class="plog" id="plog" hidden><div class="plh">계산 기록</div><div id="plogB"></div></div>');
 SMALL.forEach(s=>$(s).insertAdjacentHTML('beforeend','<span class="ftag"></span>'));
+$('.grid>section').insertAdjacentHTML('afterbegin','<div class="rail" id="rail" title="입력 · 설계 사양 펼치기"><span class="ri"><i>✓</i>1 입력</span><span class="ri"><i>✓</i>2 설계 사양</span><span class="rx">›</span></div>');
+$('#rail').onclick=()=>$('#hLeft').onclick();
 $('#hLeft').onclick=()=>{B.classList.toggle('showleft');$('#hLeft').classList.toggle('on',B.classList.contains('showleft'));relayout();};
 ['#optBan','#resBar','#reqMap'].forEach(s=>$(s).addEventListener('pointerdown',e=>e.stopPropagation()));
 
 // ---------- 단계별 배치
 const STAGES=['input','spec','design','opt','done'];
-function relayout(){requestAnimationFrame(()=>{if(window.V3&&V3.box)fitSmall();if(typeof spark==='function')spark();});}
+function relayout(){const f=()=>{if(window.V3&&V3.box)fitSmall();if(typeof spark==='function')spark();};requestAnimationFrame(f);setTimeout(f,280);setTimeout(f,560);}
 function stage(s){
   STAGES.forEach(x=>B.classList.remove('st-'+x));B.classList.add('st-'+s);
   $('#reqMap').hidden=!(s==='spec'&&S.spec);

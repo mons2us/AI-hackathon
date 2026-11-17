@@ -186,3 +186,14 @@ body.pro .hproj{color:var(--ink2);font-size:14px;white-space:nowrap}body.pro .hp
 body.pro.drawing .resbar{display:none !important}
 body.pro.st-done .metric{padding:6px 12px}body.pro.st-done .metric .bar{display:none}body.pro.st-done .metric .sub{margin-top:0}
 body.pro.st-done .pick{display:none}
+/* 단계 전환: 입력 패널을 없애지 않고 좁은 막대로 접음 + 0.5 s 부드럽게 */
+body.pro .grid{transition:grid-template-columns .5s ease}
+body.pro.st-design .grid,body.pro.st-opt .grid,body.pro.st-done .grid{grid-template-columns:64px minmax(0,1fr)}
+body.pro.st-design .grid>section,body.pro.st-opt .grid>section,body.pro.st-done .grid>section{display:flex !important;overflow:hidden}
+body.pro.st-design:not(.showleft) .grid>section>*:not(.rail),body.pro.st-opt:not(.showleft) .grid>section>*:not(.rail),body.pro.st-done:not(.showleft) .grid>section>*:not(.rail){display:none}
+.rail{display:none}
+body.pro.st-design:not(.showleft) .rail,body.pro.st-opt:not(.showleft) .rail,body.pro.st-done:not(.showleft) .rail{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0;height:100%;background:var(--card);cursor:pointer}
+.rail .ri{writing-mode:vertical-rl;font-size:14px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:8px;padding:10px 0}
+.rail .ri i{writing-mode:horizontal-tb;font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--green);color:#0e131b;display:grid;place-items:center;font-size:12px}
+.rail .rx{margin-top:auto;font-size:18px;color:var(--ink3)}
+.rail:hover .ri{color:var(--ink)}
