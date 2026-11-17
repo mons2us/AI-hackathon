@@ -31,11 +31,12 @@ STATIC = os.path.join(APP, "static")
 RUNS = os.path.join(APP, "runs")
 EXAMPLES = os.path.join(ROOT, "examples")
 LOCK = threading.Lock()                                    # one design at a time (matplotlib / OCC are not thread-safe)
-APP_VERSION = "2026-11-17a"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
+APP_VERSION = "2026-11-17b"                                 # index.html 의 APP_V 와 같아야 함 (화면 · 서버 버전 확인)
 JOBS = {}
 OPT_JOBS = {}                                              # 간이 물리 최적화 job id -> 진행 (반복 · 기록 · 최신 표면)
 WAITING = [0]                                              # 계산 차례를 기다리는 사용자 요청 수 (뒤 DB 채우기보다 먼저)
 WAIT_LOCK = threading.Lock()
+SPEC_LOCK = threading.Lock()                               # 설계 사양 표끼리만 차례로 (LOCK 과 별개)
 FILL = dict(active=False, i=0, n=0, name="")               # 템플릿 결과 DB 채우는 중인지 (대기 문구에 씀)                                                  # job id -> 진행 상태 (단계 이름 · 시작 시각 · 끝난 단계 · 결과)
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("model/step", ".step")
@@ -275,7 +276,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "원하는 조건을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요."})
             from formproof_input import spec_table
             t = time.time()
-            with LOCK:
+            # 사양 표는 스케치 비교 + 규칙 표만 계산(그림 · CAD 없음) → 1차 설계 · 뒤 DB 채우기의 LOCK 을 기다리지 않는다.
+            # (예전엔 LOCK 을 잡아, 서버 첫 실행 때 DB 를 채우는 동안 '설계 사양'이 수십 초 반응 없음)
+            with SPEC_LOCK:
                 sp = spec_table.preview(req.get("text", ""), sketch, image, req.get("template") or None, None, edits=req.get("edits"))
             sp["seconds"] = round(time.time() - t, 2)
             return self._send(200, json.loads(json.dumps(sp, ensure_ascii=False, default=float)))

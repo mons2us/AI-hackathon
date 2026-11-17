@@ -281,7 +281,7 @@ def _font():
     import matplotlib
     from matplotlib import font_manager
     for name in ("Malgun Gothic", "NanumGothic", "Noto Sans CJK KR", "Noto Sans KR"):
-        if any(name == f.name for f in font_manager.fontManager.ttflist):
+        if any(name == f.name and f.weight in (400, "normal", "regular", "book") for f in font_manager.fontManager.ttflist):
             matplotlib.rcParams["font.family"] = name
             return
     matplotlib.rcParams["font.family"] = "DejaVu Sans"

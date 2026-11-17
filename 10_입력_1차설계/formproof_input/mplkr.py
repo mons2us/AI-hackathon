@@ -13,10 +13,14 @@ def pyplot():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     if not _done:
+        import logging
         from matplotlib import font_manager
-        have = {f.name for f in font_manager.fontManager.ttflist}
-        kr = [f for f in FONTS if f in have]
-        plt.rcParams["font.family"] = kr + ["DejaVu Sans"] if kr else ["DejaVu Sans"]
+        # 보통 굵기(400)가 있는 글꼴만 고름: 굵은 체만 깔린 글꼴(예: Noto Sans KR Bold)을 목록에 넣으면
+        # 'findfont: Failed to find font weight normal for Noto Sans …' 경고가 그림마다 찍힘
+        have = {f.name for f in font_manager.fontManager.ttflist if f.weight in (400, "normal", "regular", "book")}
+        kr = [f for f in FONTS if f in have][:1]                # 한 글꼴만 (목록 전체를 넣으면 없는 굵기마다 경고)
+        plt.rcParams["font.family"] = kr + ["DejaVu Sans"]
+        logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
         plt.rcParams["axes.unicode_minus"] = False
         _done.append(kr[0] if kr else None)
     return plt
