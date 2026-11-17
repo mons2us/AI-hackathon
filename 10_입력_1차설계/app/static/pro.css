@@ -184,3 +184,5 @@ body.pro .cperf{display:flex;flex-direction:column}
 body.pro .plog{flex:1 1 auto;min-height:90px;overflow:auto}
 body.pro .hproj{color:var(--ink2);font-size:14px;white-space:nowrap}body.pro .hproj b{color:var(--ink)}
 body.pro.drawing .resbar{display:none !important}
+body.pro.st-done .metric{padding:6px 12px}body.pro.st-done .metric .bar{display:none}body.pro.st-done .metric .sub{margin-top:0}
+body.pro.st-done .pick{display:none}

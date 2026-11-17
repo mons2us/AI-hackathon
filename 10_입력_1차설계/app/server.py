@@ -127,11 +127,14 @@ class Handler(BaseHTTPRequestHandler):
                                "지금 템플릿 하나가 끝나면 이 요청을 먼저 계산합니다")
             out = dict(stage=J["stage"], detail=J["detail"], elapsed=now - J["t0"], stage_s=now - J["ts"],
                        history=J["history"], done=J["done"], error=J["error"])
-            if "frames" in J:                                   # 최적화: 아직 안 보낸 프레임만 (since = 받은 개수)
+            more = False
+            if "frames" in J:                                   # 최적화: 아직 안 보낸 프레임만 (since = 받은 개수), 한 번에 8 개씩
                 since = int(parse_qs(u.query).get("since", ["0"])[0] or 0)
-                out["frames"] = J["frames"][since:]
+                out["frames"] = J["frames"][since:since + 8]     # (한꺼번에 보내면 응답이 수십 MB → 재생 시작이 늦음)
                 out["nframes"] = len(J["frames"])
-            if J["done"]:
+                more = since + len(out["frames"]) < len(J["frames"])
+                out["done"] = J["done"] and not more
+            if J["done"] and not more:
                 out["result"] = J["rep"]
                 JOBS.pop(jid, None)
             return self._send(200, out)

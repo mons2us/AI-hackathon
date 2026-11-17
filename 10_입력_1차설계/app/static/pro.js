@@ -48,7 +48,7 @@ window.setPhase=function(a,b){_setPhase(a,b);
 // ---------- 계산 기록: 실제로 일어난 단계와 측정값만
 function plog(html,run){const b=$('#plogB');$('#plog').hidden=false;
   if(b.lastElementChild&&b.lastElementChild.classList.contains('run'))b.lastElementChild.remove();
-  b.insertAdjacentHTML('beforeend',`<div class="${run?'run':''}"><i>${run?'▶':'✓'}</i><span>${html}</span></div>`);}
+  b.insertAdjacentHTML('beforeend',`<div class="${run?'run':''}"><i>${run?'▶':'✓'}</i><span>${html}</span></div>`);const pl=$('#plog');requestAnimationFrame(()=>pl.scrollTop=pl.scrollHeight);}
 function plogReset(){$('#plogB').innerHTML='';$('#plog').hidden=true;}
 
 // ---------- 설계 사양: AI 가 읽은 요구 → 물리 조건
