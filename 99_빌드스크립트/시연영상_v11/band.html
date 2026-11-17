@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;width:1600px;height:110px;background:#111a2b;font-family:"Noto Sans CJK KR",sans-serif;color:#fff;display:flex;align-items:center;padding:0 44px;box-sizing:border-box;gap:22px}
+i{font-style:normal;display:inline-grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#2563eb;font-size:28px;font-weight:800}
+b{font-size:36px}small{font-size:26px;color:#8fb3ff;font-weight:700;margin-left:6px}.t{margin-left:auto;font-size:20px;color:#ffd166;border:1px solid #6b5a26;border-radius:999px;padding:6px 16px}
+</style></head><body><i id="n"></i><b id="a"></b><small id="s"></small><span class="t" id="t"></span>
+<script>const C={in:['1','입력','',''],spec:['2','설계 사양','',''],first:['3','1차 설계','성능 판정',''],ai:['4','물리 최적화','AI 탐색 → 정밀 최적화','계산 기록 재생'],
+ref:['4','물리 최적화','정밀 최적화','계산 기록 재생'],done:['4','물리 최적화','검증 통과',''],cmp:['✓','결과 비교','1차 설계 vs 최적 설계',''],draw:['✓','제작 파일','A3 제작 도면 · 3D 프린트 파일','']};
+const c=C[new URLSearchParams(location.search).get('k')];n.textContent=c[0];a.textContent=c[1];s.textContent=c[2]?'· '+c[2]:'';t.textContent=c[3];t.style.display=c[3]?'':'none';</script></body></html>
