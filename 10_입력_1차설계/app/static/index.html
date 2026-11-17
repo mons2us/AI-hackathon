@@ -25,7 +25,7 @@ header.top{background:var(--nav);color:#fff;border-radius:14px;padding:9px 16px;
 .step{border:1px solid #2c3850;background:#1f2a40;color:#c3cbd8;border-radius:999px;padding:4px 11px;font-size:14.5px;white-space:nowrap}
 .step i{font-style:normal;display:inline-grid;place-items:center;width:17px;height:17px;border:1px solid currentColor;border-radius:50%;font-size:12.5px;margin-right:5px}
 .step.done{color:#fff;border-color:#3b4a66}.step.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:clamp(340px,25vw,480px) minmax(0,1fr);gap:12px}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:clamp(306px,22.5vw,432px) minmax(0,1fr);gap:12px}
 .grid>section{min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px}
 .card{background:var(--card);border-radius:14px;border:1px solid #e6e9ef;padding:14px;min-height:0}
 .card.fill{flex:1;display:flex;flex-direction:column;overflow:auto}
@@ -75,8 +75,8 @@ select.btn{width:100%;margin-top:8px}
 .vrow{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr 1.5fr;gap:10px}   /* 최적화 과정 창은 조금 넓게 */
 .vrow .vp{min-width:0}
 /* 네비게이션 (3D 설계 왼쪽 아래): 전체 장면 + 지금 보는 곳 */
-.vmain .nav{position:absolute;left:10px;bottom:10px;width:clamp(180px,27%,280px);aspect-ratio:3/2;border-radius:9px;background:transparent;z-index:0}
-.vmain .navov{position:absolute;left:10px;bottom:10px;width:clamp(180px,27%,280px);aspect-ratio:3/2;border-radius:9px;z-index:3;pointer-events:none}
+.vmain .nav{position:absolute;left:10px;bottom:10px;width:clamp(270px,40%,420px);aspect-ratio:3/2;border-radius:9px;background:transparent;z-index:0}
+.vmain .navov{position:absolute;left:10px;bottom:10px;width:clamp(270px,40%,420px);aspect-ratio:3/2;border-radius:9px;z-index:3;pointer-events:none}
 /* 배치 B (기본): 입력 | 3D 설계(위아래 끝까지) | 물리 시뮬레이션 세로(응력 · 흔들림 · 온도 · 최적화 과정) | 성능(좁게)
    배치 A (이전): 주소 끝에 ?layout=a — 3D 설계 | 성능 위, 물리 시뮬레이션 아래 가로 */
 body:not(.layout-a) .views{grid-template-columns:minmax(0,1fr) clamp(220px,15vw,300px) clamp(290px,19vw,380px);grid-template-rows:minmax(0,1fr)}
@@ -130,11 +130,11 @@ body:not(.layout-a) .vp .leg .ends span:first-child,body:not(.layout-a) .vp .leg
 .gt #optInfo:not([hidden]) ~ .gtn{display:none}
 .optinfo{position:absolute;inset:0;display:flex;flex-direction:column;padding:8px 10px 7px;color:#dfe6f3;font-size:13px}
 .optinfo[hidden]{display:none}
-.optinfo .gh{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;white-space:nowrap}.optinfo .gh b{font-size:14px;margin-right:auto;color:#fff}
+.optinfo .gh{display:flex;align-items:center;gap:4px;margin-bottom:4px;white-space:nowrap}.optinfo .gh b{font-size:14px;margin-right:auto;color:#fff}
 .optinfo .gh .it{font:600 13px ui-monospace,Consolas,monospace;color:#9cc2ff}
 .optinfo .sts{display:flex;gap:4px;margin-bottom:4px}
-.optinfo .lg{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:#c9d2e3;margin-top:2px}.optinfo .lg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
-.optinfo .stp{font-size:11.5px;font-weight:700;border:1px solid #2c3a57;color:#6f7d99;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.optinfo .lg{display:flex;gap:2px 7px;flex-wrap:wrap;font-size:10.5px;color:#c9d2e3;margin-top:2px}.optinfo .lg i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.optinfo .stp{font-size:10.5px;font-weight:700;border:1px solid #2c3a57;color:#6f7d99;border-radius:999px;padding:1px 7px;white-space:nowrap}
 .optinfo .stp.on{border-color:#4d8dff;color:#9cc2ff;background:rgba(77,141,255,.14)}.optinfo .stp.done{border-color:#1f9d74;color:#5fd3a6}
 .optinfo .ro{display:flex;justify-content:space-between;gap:6px;margin-top:4px;font-size:12px;color:#8e9ab2;white-space:nowrap}
 .optinfo .ro b{font:600 14px ui-monospace,"Consolas","SFMono-Regular",monospace;color:#fff;font-variant-numeric:tabular-nums}
@@ -278,12 +278,11 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
             <div class="vp" id="vS2"><span class="lab"></span><div class="leg" hidden></div></div>
             <div class="vp gt" id="vS3">   <!-- 최적화 과정 (수렴 그래프) — 분포 창 3개와 같은 크기 -->
               <div class="optinfo" id="optInfo" hidden>
-                <div class="gh"><b>최적화 과정</b><span class="it" id="roIt">–</span></div>
-                <div class="sts"><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stp2">② 정밀 계산</span></div>
+                <div class="gh"><b>최적화 과정</b><span class="stp" id="stp1">① AI 탐색</span><span class="stp" id="stp2">② 정밀 계산</span></div>
                 <canvas id="optSpark"></canvas>
-                <div class="lg"><span><i style="background:#6fc3ff"></i>무게</span><span><i style="background:#ffb36b"></i>목표와의 차이</span><span id="lgF" hidden><i style="background:#1fbf8a"></i>정밀 계산</span></div>
+                <div class="lg" id="optLg"></div>
                 <div class="pb"><i id="optBar"></i></div>
-                <div class="ro"><span>무게 <b id="roM">–</b></span><span>충족 <b id="roOk">–</b></span></div>
+                <div class="ro"><span>단계 <b id="roIt">–</b></span><span>무게 <b id="roM">–</b></span><span>충족 <b id="roOk">–</b></span></div>
                 <div class="st"><span id="optPhase" hidden></span><span id="optText"></span></div>
               </div>
               <div class="none gtn">최적화를 실행하면<br>과정이 여기에 나옵니다</div>
@@ -772,34 +771,40 @@ function applyFrame(f){
   $('#optText').textContent='형태를 바꿔 가며 계산 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   readouts(f.it,f.iters,f.mass_g);
-  if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen});spark();}
+  if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen,v:histPoint(f.it)});spark();}
 }
 // 최적화 과정 그래프: x = 반복, 왼쪽 y = 무게(g, 하늘색), 오른쪽 y = 목표와의 차이(주황, 0 = 모든 목표 충족)
 // 격자 · 축 눈금 · 범례 · 현재 점 · 정밀 계산 결과 점(초록 다이아몬드)
 function niceTicks(lo,hi,n){const r=hi-lo||1,st=Math.pow(10,Math.floor(Math.log10(r/n))),k=[1,2,2.5,5,10].find(k=>r/(st*k)<=n)*st;
   const a=Math.floor(lo/k)*k,o=[];for(let v=a;v<=hi+k*1e-6;v+=k)o.push(+v.toFixed(6));return o;}
+// 항목마다 목표 달성률(%) = 목표 이상 항목은 값 ÷ 목표, 목표 이하 항목은 목표 ÷ 값 — 100 % 선을 넘으면 그 목표 충족
+const SHORT={f1:'떨림',Tmax:'폰 온도',touch:'휨',stress:'충격 힘',shake:'흔들림',interlayer:'층 사이'};
+const PAL=['#6fc3ff','#ffb36b','#c38bff','#5fd3a6','#ff7a8a','#ffd166','#9ad0ff'];
+function ratioOf(m,v){if(typeof v!=='number'||!m.limit)return null;const r=m.op==='>='?v/m.limit:(v>0?m.limit/v:2);return Math.max(0,Math.min(2,r));}
+function optRows(){return (S.rows||[]).filter(m=>m.key&&!m.ref&&m.limit);}
+function histPoint(it,useV0){const v={};optRows().forEach(m=>{v[m.key]=ratioOf(m,useV0?m.v0:m.value);});return v;}
 function spark(){
   const c=$('#optSpark');if(!c||!c.clientWidth)return;const dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;
   if(c.width!==Math.round(W*dpr)||c.height!==Math.round(H*dpr)){c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);}
   const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
-  const h=(S.opt&&S.opt.hist)||[],N=(S.opt&&S.opt.iters)||120,L=34,Rr=8,T=6,B=14,pw=W-L-Rr,ph=H-T-B;
-  const mono='10.5px ui-monospace,Consolas,monospace';g.font=mono;g.textBaseline='middle';
-  const ms=h.map(x=>x.m).concat(S.opt&&S.opt.mf!=null?[S.opt.mf]:[]),ps=h.map(x=>x.p);
-  let mlo=ms.length?Math.min(...ms):0,mhi=ms.length?Math.max(...ms):1;const pad=(mhi-mlo)*.12||1;mlo-=pad;mhi+=pad;
-  const phi=Math.max(1e-6,...(ps.length?ps:[1]))*1.1;
-  const X=i=>L+i/Math.max(1,N)*pw,Ym=v=>T+(1-(v-mlo)/(mhi-mlo))*ph,Yp=v=>T+(1-v/phi)*ph;
-  // 격자 + 눈금
-  g.strokeStyle='#1c2740';g.lineWidth=1;g.fillStyle='#7f8aa3';
-  for(const v of niceTicks(mlo,mhi,4)){if(v<mlo||v>mhi)continue;const y=Math.round(Ym(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();g.textAlign='right';g.fillStyle='#6fc3ff';g.fillText(String(+v.toFixed(1)),L-4,y);}
+  const h=(S.opt&&S.opt.hist)||[],N=(S.opt&&S.opt.iters)||120,L=36,Rr=8,T=6,B=14,pw=W-L-Rr,ph=H-T-B,rows=optRows();
+  g.font='10.5px ui-monospace,Consolas,monospace';g.textBaseline='middle';
+  let hi=1.3;h.forEach(x=>Object.values(x.v||{}).forEach(r=>{if(r!=null)hi=Math.max(hi,r*1.08);}));hi=Math.min(2.05,hi);
+  const X=i=>L+i/Math.max(1,N)*pw,Y=r=>T+(1-r/hi)*ph;
+  g.strokeStyle='#1c2740';g.lineWidth=1;
+  for(const v of niceTicks(0,hi,4)){if(v>hi)continue;const y=Math.round(Y(v))+.5;g.beginPath();g.moveTo(L,y);g.lineTo(L+pw,y);g.stroke();g.textAlign='right';g.fillStyle='#7f8aa3';g.fillText(Math.round(v*100)+'%',L-4,y);}
   for(const v of niceTicks(0,N,W<260?3:5)){const x=Math.round(X(v))+.5;g.beginPath();g.moveTo(x,T);g.lineTo(x,T+ph);g.stroke();g.textAlign='center';g.fillStyle='#7f8aa3';g.fillText(v,x,T+ph+9);}
   g.strokeStyle='#33405c';g.strokeRect(L+.5,T+.5,pw,ph);
-  // 0 선 (모든 목표 충족)
-  g.setLineDash([3,3]);g.strokeStyle='rgba(255,179,107,.45)';g.beginPath();g.moveTo(L,Yp(0));g.lineTo(L+pw,Yp(0));g.stroke();g.setLineDash([]);
-  const line=(k,Y,col)=>{if(h.length<1)return;g.beginPath();h.forEach((x,i)=>{const px=X(x.it),py=Y(x[k]);i?g.lineTo(px,py):g.moveTo(px,py);});
-    g.strokeStyle=col;g.lineWidth=1.8;g.stroke();const q=h[h.length-1];g.fillStyle=col;g.beginPath();g.arc(X(q.it),Y(q[k]),2.8,0,7);g.fill();};
-  line('p',Yp,'#ffb36b');line('m',Ym,'#6fc3ff');
-  if(S.opt&&S.opt.mf!=null){const x=X(N),y=Ym(S.opt.mf);g.fillStyle='#1fbf8a';g.beginPath();g.moveTo(x,y-5);g.lineTo(x+5,y);g.lineTo(x,y+5);g.lineTo(x-5,y);g.closePath();g.fill();}
-  $('#lgF').hidden=!(S.opt&&S.opt.mf!=null);
+  // 100 % = 목표
+  g.fillStyle='rgba(31,191,138,.07)';g.fillRect(L,T,pw,Y(1)-T);
+  g.setLineDash([4,3]);g.strokeStyle='rgba(95,211,166,.8)';g.beginPath();g.moveTo(L,Y(1));g.lineTo(L+pw,Y(1));g.stroke();g.setLineDash([]);
+  g.textAlign='right';g.fillStyle='#5fd3a6';g.fillText('목표',L+pw-3,Y(1)-7);
+  rows.forEach((m,k)=>{const col=PAL[k%PAL.length],pts=h.filter(x=>x.v&&x.v[m.key]!=null);if(!pts.length)return;
+    g.beginPath();pts.forEach((x,i)=>{const px=X(x.it),py=Y(x.v[m.key]);i?g.lineTo(px,py):g.moveTo(px,py);});
+    g.strokeStyle=col;g.lineWidth=S.sel&&S.sel.has(S.rows.indexOf(m))?2.4:1.5;g.stroke();
+    const q=pts[pts.length-1];g.fillStyle=col;g.beginPath();g.arc(X(q.it),Y(q.v[m.key]),2.6,0,7);g.fill();
+    const fr=S.opt&&S.opt.fin&&S.opt.fin[m.key];if(fr!=null){const x=X(N),y=Y(fr);g.beginPath();g.moveTo(x,y-4.5);g.lineTo(x+4.5,y);g.lineTo(x,y+4.5);g.lineTo(x-4.5,y);g.closePath();g.fill();g.strokeStyle='#0d1422';g.lineWidth=1;g.stroke();}});
+  const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('')+(S.opt&&S.opt.fin?'<span>◆ 정밀 계산</span>':'');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
 function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
@@ -815,7 +820,7 @@ function finishOpt(r){
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`최적 설계 · 미충족 ${nf}개`:'최적 설계 · 목표 모두 충족';
   const box=$('#optInfo');box.classList.add(nf?'bad':'ok');
   $('#optText').textContent=`무게 ${fmt(S.opt.m0)} → ${fmt(g.mass_g)} g · ${nf?'미충족 '+nf+'개':'목표 모두 충족'}`;
-  S.opt.mf=g.mass_g;readouts(S.opt.iters||null,S.opt.iters,g.mass_g);spark();
+  S.opt.mf=g.mass_g;S.opt.fin=histPoint(0);readouts(S.opt.iters||null,S.opt.iters,g.mass_g);spark();
   $('#optBar').style.width='100%';
   const a=$('#fOpt');a.hidden=false;a.textContent='최적 설계 파일';a.href=r.files['opt_final.stl']+'?dl=1';
   setStep(3);
@@ -838,7 +843,7 @@ $('#optimize').onclick=async()=>{
   if(rep.template.id!=='P01')return saveTargets(run,targets);
   S.opt={n:0,queue:[],done:false,res:null,m0:null};updateOpt();updateActs();
   const box=$('#optInfo');box.hidden=false;box.classList.remove('ok','bad');$('#optText').textContent='준비 중';$('#optBar').style.width='0';readouts(null);optStage(1);
-  S.opt.hist=[];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
+  S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='성능 · AI 예측';setStep(3);
   V3.optBox=null;
   if(V3.kind!=='close')view('close');
   try{
