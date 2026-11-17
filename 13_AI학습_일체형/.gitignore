@@ -1,0 +1,10 @@
+runs/*.pt
+runs/*.json
+__pycache__/
+runs/*.log
+runs/**/*.pt
+runs/**/*.npy
+runs/hybrid/*.npy
+!runs/hybrid/start_al3_120.npy
+runs/**/*.log
+!runs/hybrid/final_ai_hybrid_89g.npy
