@@ -6,3 +6,4 @@ runs/**/*.pt
 runs/**/*.npy
 runs/hybrid/*.npy
 !runs/hybrid/start_al3_120.npy
+runs/**/*.log
