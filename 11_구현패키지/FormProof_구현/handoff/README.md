@@ -154,6 +154,24 @@ cat runs/improve/report.md                                        # 끝나면: �
 - **흔들림(진동 응답)**: 모드 10개를 겹친 값이라 물리 손실 없이 **회귀(`--ext`)** 로만 학습 — 사용자 결정(11-16). 1차 진동수도 회귀.
 - **한계**: PINO 물리 식은 **열 + 정적 구조(충격 · 터치)**. 진동수 · 흔들림은 데이터로만. f1 을 더 잘 맞힌다는 보장은 없음 — 그래서 FNO · CNN 과 같은 시험 셋 · FEM 검증으로 비교해서 고름. 열은 대류가 약해(받침판 · 폰) 잔차가 온도의 절대 수준보다 분포 모양을 주로 잡아 줌(추정).
 
+## 5. 10 GUI(입력 단계 앱)에 학습 모델 붙이기 — `handoff/gui/carry_to_gui.py` (11-17 추가, 회사 PC · Windows)
+새 GUI 를 ZIP 으로 받을 때마다 손으로 하던 일(모델 · 번역 결과 · 결과 DB 복사, Windows 버그 수정, 'DB 다 채움' 표시, 실행 파일)을 한 번에.
+```
+rem 1) 지금 쓰던 GUI 폴더 → 운반 폴더 (한 번)
+"<기존>\.venv\Scripts\python.exe" carry_to_gui.py save  --gui "<기존>\10_입력_1차설계" --carry C:\work\fp_carry
+rem 2) 새 GUI 폴더에 적용 (새로 받을 때마다)
+"<기존>\.venv\Scripts\python.exe" carry_to_gui.py apply --gui "<새>\10_입력_1차설계"  --carry C:\work\fp_carry
+rem 3) <새>\10_입력_1차설계\run_gui.bat 더블클릭  (run_gui.bat 20 → 찾아가기 20걸음, 기본 10)
+```
+- **cmd 에서 실행** (PowerShell 에서는 `set` 이 환경 설정이 안 되고, 따옴표 경로 실행에 `&` 가 필요). `run_gui.bat` 은 cmd 로 돎.
+- `run_gui.bat` 은 **기존 .venv 의 python** 으로 GUI 를 띄움 → 새 폴더에서 `setup.bat`(PyTorch 재설치 · DB 채우기) 안 함. 기존 폴더는 지우지 말 것.
+- 11-17 회사 PC 에서 겪은 문제와 대응
+  - 뒤에서 결과 DB 를 채우는 작업(P01-opt)과 사용자 최적화 요청이 같이 멈춤(CPU 0 %) → 'DB 다 채움' 표시로 뒤 채우기를 끔.
+  - `PermissionError … field_opt.npz` (WinError 32): `integral.fields()` 가 npz 를 닫지 않은 채 임시 폴더 삭제 → `with np.load(...)` 로 수정.
+    **10 쪽 코드 버그 — 공동작업자에게 전달 필요** (feature/input-spec 은 우리가 push 하지 않음).
+  - CPU 만 있는 PC 에서는 학습 모델 최적화가 매우 느림 (번역 1,500걸음이 1시간 넘게, 찾아가기 한 걸음 수십 초 추정) → 걸음 수를 줄이고(`FP11_ITERS`), 같은 기준으로 한 번 계산해 두면 다음부터 바로 재생.
+- 이 작업 환경 확인 (11-17): 최신 feature/input-spec(6427773) 에 save → apply → 다시 apply. 복사 · 수정 · 표시 · 실행 파일 · 두 번째 적용 시 '이미 고쳐져 있음', 고친 integral.py 문법 OK. 회사 PC(Windows)에서 직접 실행은 미확인.
+
 ## 3. 회사 PC: 결과 보기
 서버의 `fp11/results_fp11.zip` 을 회사 PC 의 `FormProof_구현` 폴더에 복사한 뒤 `handoff\step3_pc_view.bat` 를 더블클릭 → `runs\report.html` 이 열림.
 - 결과 묶음에는 학습 데이터(수 GB)를 넣지 않음. 대신 서버에서 데이터 통계까지 넣어 만든 `runs/report.html` 이 들어 있고, step3 는 그것을 그대로 엶.
