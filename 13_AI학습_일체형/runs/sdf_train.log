@@ -1,4 +1,0 @@
-/home/claude/gui-latest/13_AI학습_일체형/ai/deepsdf.py:61: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
-Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
-  print(json.dumps(dict(it=it, loss=float(loss), train_IoU=round(mi, 3), t=round(time.time() - t0, 1))), flush=True)
-{"it": 0, "loss": 0.693629264831543, "train_IoU": 0.0, "t": 8.2}
