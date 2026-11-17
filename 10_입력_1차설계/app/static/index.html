@@ -165,6 +165,7 @@ table.st tbody tr{opacity:0;transition:opacity .25s}table.st tbody tr.in{opacity
 .acts #bSpec{background:var(--blue)}.acts #bConfirm{background:var(--green)}.acts #go{background:var(--dark)}
 .acts .btn:disabled{background:#c5ccd6 !important;cursor:default}
 .acts .btn.done{background:#e8edf3 !important;color:var(--ink2)}
+.vt[hidden]{display:none}
 header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 크기: 대문자 높이 ≈ 왼쪽 FormProof(17px 굵게)와 같음 */
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b1720;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;display:none;z-index:20;max-width:80vw}
 </style>
@@ -218,7 +219,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
             <div class="optinfo" id="optInfo" hidden><div class="ph" id="optPhase"></div><span id="optText"></span><div class="pb"><i id="optBar"></i></div><canvas id="optSpark" width="560" height="64"></canvas></div>
             <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button></div>
             <img class="draw" id="imgDraw" alt="">
-            <div class="empty" id="empty">왼쪽에서 입력하고 1차 설계 만들기를 누르세요</div>
+            <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 1차 설계 만들기</div>
             <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">시작</div><div class="hist" id="stageHist"></div></div></div>
           </div>
           <div class="vrow">
@@ -357,6 +358,8 @@ function init3d(){
   Object.assign(V3,{R,scene,cam,cam2,k:1,mc:null,box:null,ctl,bike,ground,M,host,mount:null,holder:null,aux:[],small:SMALL.map(()=>({key:null,mat:null}))});
   const fit=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;R.setSize(w,h,false);R.domElement.style.width=w+'px';R.domElement.style.height=h+'px';if(V3.box)fitSmall();};
   new ResizeObserver(fit).observe(host);fit();
+  // 처음 화면은 비워 둠: 자전거 · 바닥 · 핸들바와 보기 버튼은 1차 설계 결과가 오면 (자전거 폰 거치대일 때만 자전거)
+  bike.visible=ground.visible=handlebar.visible=false;$('#vMain .vt').hidden=true;
   view('full');
   (function loop(){requestAnimationFrame(loop);ctl.update();renderAll();})();
 }
@@ -787,6 +790,7 @@ function renderSpec(rows){            // 설계 사양 카드 — 어떤 제품 
   $('#specRows').innerHTML=h;box.hidden=false;
 }
 function render(rep){
+  $('#vMain .vt').hidden=false;
   // 설계 사양 행(spec_rows)과 같은 내용을 스케치 아래 설계 사양 표(spec_table, 확정 전에 고침)로 보여 주므로 #specBox 는 숨김 (한 화면 유지)
   if(rep.kind==='product') return renderProduct(rep);
   if(rep.kind==='integral') return renderIntegral(rep);
