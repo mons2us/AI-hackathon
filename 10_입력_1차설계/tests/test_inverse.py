@@ -24,8 +24,11 @@ def test_path_reaches_verified_design():
     lim = O.limits()
     miss = [k for k in ("Tmax", "shake") if O.violation(k, fr[-1]["pred"][k], lim) > 0]
     assert miss and fr[-1]["pen"] > 0, (fr[-1]["pred"], fr[-1]["pen"])
-    ups = sum(1 for a, b in zip(fr, fr[1:]) if b["pred"]["f1"] < a["pred"]["f1"])
-    assert ups >= 5, ups                                                       # 떨림 주파수가 중간에 내려가는 곳이 여러 번
+    # 계단식: 프레임 사이 값이 그대로인 경우가 대부분이고, 나빠지는 계단(떨어졌다 다시 오름)도 있음
+    pairs = [(k, a["pred"][k], b["pred"][k]) for a, b in zip(fr, fr[1:]) for k in ("f1", "Tmax", "touch", "stress", "shake")]
+    flat = sum(1 for _, x, y in pairs if x == y) / len(pairs)
+    worse = sum(1 for k, x, y in pairs if (y < x if lim[k][0] == ">=" else y > x))
+    assert flat > 0.6 and worse >= 3, (flat, worse)
     meshes = sum(f["mesh"] is not None for f in fr)
     assert meshes >= 20, meshes
     assert all(f["pred"]["f1"] is not None for f in fr)

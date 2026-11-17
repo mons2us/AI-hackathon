@@ -810,7 +810,7 @@ function spark(){
   g.textAlign='left';g.fillStyle='#5fd3a6';g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillText('목표 달성',L+2,T-8);
   const fin=O.fin||{},keys=rows.map(m=>m.key),nk=keys.length;
   rows.forEach((m,k)=>{const col=PAL[k%PAL.length],pts=h.filter(x=>x.v&&x.v[m.key]!=null);if(!pts.length)return;
-    g.beginPath();pts.forEach((x,i)=>{const px=X(x.it),py=Y(x.v[m.key]);i?g.lineTo(px,py):g.moveTo(px,py);});
+    g.beginPath();let py0=0;pts.forEach((x,i)=>{const px=X(x.it),py=Y(x.v[m.key]);if(i){g.lineTo(px,py0);g.lineTo(px,py);}else g.moveTo(px,py);py0=py;});   // 계단식 (유지 → 한 번에 바뀜)
     g.strokeStyle=col;g.lineWidth=S.sel&&S.sel.has(S.rows.indexOf(m))?2.4:1.5;g.stroke();
     const q=pts[pts.length-1],x0=X(q.it),y0=Y(q.v[m.key]);g.fillStyle=col;g.beginPath();g.arc(x0,y0,2.6,0,7);g.fill();
   });

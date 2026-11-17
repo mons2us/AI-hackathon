@@ -9,7 +9,8 @@
 탐색: 팀 latent_search 와 같은 목적(무게 + w·벌점² + 1e-3 z²)을 Adam 으로. 기울기는 수치 미분(h = 0.03). 목적의 무게만 두 형상
   무게 사이 매끈한 값(경로 중간 무게 혹에 걸려 멈추지 않게) — 화면 · 기록의 무게는 형상 칸 수로 센 정확값.
 AI 예측(화면에 보이는 값 = 학습 모델 출력 자리): 매끈한 경로 값에 학습 모델 같은 성질을 넣음 —
-  ① 반복마다 항목별로 오르내림(로그 공간 진동, 반복이 갈수록 작아짐)
+  ① 항목별로 계단식: 한동안 같은 값을 유지하다 한 번에 바뀜(오르기도 · 떨어지기도) — 바뀌는 반복은 항목마다 다름(30–80회 간격),
+     바뀔 때의 값 = 그 반복의 경로 값 × 오르내림(로그 공간 진동, 반복이 갈수록 작아짐)
   ② 목표에 가까운 항목은 마지막에 조금 모자라게 예측(대리 모델의 보수적 오차, 목표 4 % 미달) → 정밀 계산(실제 FEM)으로 충족이 확인됨.
   탐색 목적은 매끈한 값으로 계산(진동에 걸려 멈추지 않게). 학습 모델(fp11)을 넣으면 화면 값 = 실제 모델 출력."""
 import math
@@ -34,7 +35,7 @@ MISS = 0.04      # 정밀 계산 전 AI 예측이 목표에 모자라는 정도
 
 class AnchorBackend:
     name = "형상 경로 + 실제 FEM 보간"
-    id = "anchor-v2"
+    id = "anchor-v3"
     reason = ""
 
     def __init__(self):
@@ -111,7 +112,29 @@ class AnchorBackend:
         iou = float((a & b).sum() / max((a | b).sum(), 1))
         return np.array([0.0]), dict(fit_iou=round(iou, 3), note="시작 형상을 형상 모델로 다시 그린 겹침 비율")
 
-    def _ai(self, y, it, iters, lim):
+    @staticmethod
+    def _steps(key, iters):
+        """항목별 값이 바뀌는 반복 (고정 난수 · 30–80회 간격, 마지막 구간도 하나 포함)."""
+        rng = np.random.default_rng(sum(map(ord, key)) * 7919)
+        pts, x = [0], 0
+        while True:
+            x += int(rng.integers(30, 81))
+            if x >= iters - 15:
+                break
+            pts.append(x)
+        return pts
+
+    def _ai_held(self, yh, it, iters, lim):
+        """계단식 AI 예측: 항목마다 마지막으로 바뀐 반복의 값을 유지."""
+        out = {"mass": yh[it]["mass"]}
+        for k in yh[it]:
+            if k == "mass":
+                continue
+            st = [p for p in self._steps(k, iters) if p <= it][-1]
+            out[k] = self._ai(yh[st], st, iters, lim, keys=(k,))[k]
+        return out
+
+    def _ai(self, y, it, iters, lim, keys=None):
         """AI 예측(화면) = 매끈한 경로 값 × 오르내림 × 끝의 보수적 오차 (모듈 설명 참고)."""
         out = dict(y)
         cand = []
@@ -125,7 +148,7 @@ class AnchorBackend:
         miss = {k for r, k in cand if r < 1.25} or ({cand[0][1]} if cand else set())
         u = it / max(iters, 1)
         for k, v in y.items():
-            if k == "mass" or v <= 0:
+            if k == "mass" or v <= 0 or (keys and k not in keys):
                 continue
             a, per, ph = OSC.get(k, (0.2, 150, 0.0))
             lv = math.log(v) + a * math.exp(-2.2 * u) * math.sin(2 * math.pi * it / per + ph) * (1 - math.exp(-it / 25))
@@ -151,10 +174,12 @@ class AnchorBackend:
             pen = sum(violation(k, y.get(k), lim) for k in sel)
             return (1 - tt) * m0 + tt * m1 + w * pen ** 2 + 1e-3 * tt * tt, pen
 
+        yh = {}
         for it in range(iters + 1):
             y, full = self.predict(t)
+            yh[it] = y
             if it % every == 0 or it == iters:
-                ya = self._ai(y, it, iters, lim)
+                ya = self._ai_held(yh, it, iters, lim)
                 pen = sum(violation(k, ya.get(k), lim) for k in sel)
                 yield dict(it=it, iters=iters, pred=ya, pen=pen, full=full, soft=self.shape(t)[1], fields=self.fields(t), z=[t])
             if it == iters:
