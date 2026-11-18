@@ -27,7 +27,7 @@ import json, os, sys
 import numpy as np
 
 H = 2.0                    # 격자 (mm)
-BRIDGE_MM = float(os.environ.get('BRIDGE_MM', '10'))   # 서포트 없이 브리지로 허용할 길이 (보수적. 뱀부 PETG 실측 전)
+BRIDGE_MM = float(os.environ.get('BRIDGE_MM', '0'))    # 브리지(양쪽이 받쳐진 수평 구간) 허용 길이. 0 = 브리지 없음(가장 보수적, 11-18 사용자 요청) — 모든 면이 45° 이내
 ZB = 24.0                  # 받침판 아랫면 z' (opt_int.py 와 같음)
 
 
