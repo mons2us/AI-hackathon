@@ -869,7 +869,7 @@ function candPanel(f){
   if(!el){el=document.createElement('div');el.id='candP';el.className='candp';$('#vMain').appendChild(el);}
   const C=f.cands,lim=f.cand_lim||{};const ok=C.filter(c=>c.ok).length,pk=C.find(c=>c.pick);
   el.innerHTML=`<b>AI 후보 ${C.length}개 정밀 계산 (FEM)</b><small>기준: ${esc(lim.text||'')}</small><div class="cg">${C.map(c=>`<span class="c${c.ok?' ok':''}${c.pick?' pk':''}" title="${c.it}회 · ${fmt(c.mass)} g · 진동수 AI ${fmt(c.f1p)} / FEM ${fmt(c.f1)} Hz"><i>${c.it}</i><em>${c.ok?'✓':'✗'}</em></span>`).join('')}</div>`+
-    `<small>통과 ${ok}개 → 가장 가벼운 <b>${pk?pk.it+'회째 · '+fmt(pk.mass)+' g':''}</b> 선택 · 진동수 AI 예측 ${pk?fmt(pk.f1p):''} / FEM ${pk?fmt(pk.f1):''} Hz</small>`;
+    `<small>통과 ${ok}개 → ${esc(f.cand_rule||'가장 가벼운')} <b>${pk?pk.it+'회째 · '+fmt(pk.mass)+' g':''}</b> 선택 · 진동수 AI 예측 ${pk?fmt(pk.f1p):''} / FEM ${pk?fmt(pk.f1):''} Hz</small>`;
   el.hidden=false;
 }
 function applyRefine(f){
@@ -883,7 +883,7 @@ function applyRefine(f){
   setPhase(f.stage==='pick'?'AI 후보 선택':'정밀 최적화 중','정밀 계산');$('#pTitle').textContent='정밀 계산 성능';$('#optPhase').textContent='② 정밀 최적화 ·';if(!O||!O.gRef){if(O)O.gRef=1;guide('4 물리 최적화','AI가 찾은 후보를 정밀 시뮬레이션으로 확인하며 다듬습니다');}
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'계산 충족';
-  $('#kMass').textContent=`${fmt(f.mass_g)} g`;
+  $('#kMass').textContent=f.mass_g==null?'정리 중':`${fmt(f.mass_g)} g`;
   $('#optText').textContent=f.note||'정밀 최적화 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   readouts(f.it,f.iters,f.mass_g);
