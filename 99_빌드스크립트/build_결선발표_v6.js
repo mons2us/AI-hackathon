@@ -263,7 +263,7 @@ s.addText('자전거 폰 거치대 · AI 탐색과 정밀 최적화 구간은 �
 { const w = 7.4, h = w * 9 / 16, x = (10 - w) / 2, y = 1.2;
   if (process.argv[3]) s.addMedia({ type: 'video', path: process.argv[3], cover: pic(SH + 'v_fin_vcover.png'), x, y, w, h, objectName: 'demo video' });
   else s.addImage({ data: pic(SH + 'v_fin_vcover.png'), x, y, w, h, objectName: 'demo video placeholder', altText: '데모 영상 자리 (영상 삽입)' }); }
-s.addNotes('[1분 25초] 데모 영상(음성판). 발표자가 직접 설명하려면 FormProof_결선데모_v27_자막.mp4 로 교체. 영상 수치: 초기 설계 5개 기준 중 4개 미달(흔들림 5.58배) → 최종 5개 모두 충족(흔들림 1.41배), 무게 94.9 → 80.1 g(−15.6 %). AI 탐색 300회 → 후보 31개 FEM → 정밀 최적화 120회(3D 프린트 조건). 실물 출력물은 같은 조건 정밀 최적화로 얻은 같은 계열 구조.');
+s.addNotes('[약 1분 35초] 데모 영상 v28(음성판). 발표자가 직접 설명하려면 FormProof_결선데모_v27_자막.mp4 로 교체. 영상 수치: 초기 설계 5개 기준 중 4개 미달(흔들림 5.58배) → 최종 5개 모두 충족(흔들림 1.41배), 무게 94.9 → 80.1 g(−15.6 %). AI 탐색 300회 → 후보 31개 FEM → 정밀 최적화 120회(3D 프린트 조건). 실물 출력물은 같은 조건 정밀 최적화로 얻은 같은 계열 구조.');
 pres.addSection({ title: '4. DX 기여 · 확장' });
 // ===== v167: DX 기여 — 설계 방식 변화 + 같은 흐름으로 다른 제품 (AI 글래스 실제 화면)
 // ===== v181: 기대 효과 + 확대 계획 통합
