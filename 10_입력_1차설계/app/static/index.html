@@ -694,6 +694,7 @@ function inputReq(){
   const req={text:$('#text').value.trim()};
   if(S.mode==='sketch'&&hasSketch())req.sketch=pad.toDataURL('image/png');
   if(S.mode==='image'&&S.image)req.image=S.image;
+  if(S.mode==='file'){if(hasSketch())req.sketch=pad.toDataURL('image/png');else if(S.image)req.image=S.image;}   // 파일 탭에서도 그린 스케치 · 올린 사진이 먼저
   const ok=S.files.filter(f=>!f.busy&&!f.err);
   if(ok.length){
     req.attach=ok.map(f=>({name:f.name,kind:f.kind,label:f.label,rows:f.rows||[]}));

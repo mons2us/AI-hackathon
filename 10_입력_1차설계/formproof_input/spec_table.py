@@ -204,8 +204,10 @@ def attach_rows(attach):
     for a in attach or []:
         grp = ("CAD · " if a.get("kind") == "cad" else "문서 · ") + str(a.get("name", "파일"))
         for i, r in enumerate(a.get("rows") or []):
+            ask = r.get("basis") == "질문"                # 뜻을 붙인 값(확인 필요)은 따로 묶어 근거 표시가 묻히지 않게
             out.append(dict(R(str(r.get("item", "")), text=str(r.get("text", "")), edit=False),
-                            id=f"file:{a.get('name')}:{i}", group=grp, quote=a.get("name") if i == 0 else None,
+                            id=f"file:{a.get('name')}:{i}", group=grp + (" · " + str(r.get("item")) if ask else ""),
+                            quote=(str(r.get("item")) if ask else a.get("name")) if (i == 0 or ask) else None,
                             **{"from": [a.get("label") or ("CAD" if a.get("kind") == "cad" else "문서")]},
                             basis=r.get("basis") or "CAD", source=str(r.get("source", ""))))
     return out
