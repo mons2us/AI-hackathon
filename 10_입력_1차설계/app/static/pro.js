@@ -111,7 +111,7 @@ window.applyRefine=function(f){
   if(O&&!S._aiLogged){S._aiLogged=true;plog(`AI 탐색 <b>${O.aiMax||'–'}회</b> 완료 <em>(계산 기록 재생)</em>`);}
   const r=_applyRefine(f);
   if(f.note&&f.note!==S._refNote){S._refNote=f.note;plog(esc(f.note));}
-  ban(`<span class="big">${f.stage==='pick'?'후보':'정밀'}</span><span class="t">${f.stage==='pick'?'AI 후보 정밀 계산 → 선택':'정밀 최적화 중'}<em>(계산 기록 재생)</em><small>${esc(f.note||'')} · 무게 ${fmt(f.mass_g)} g</small></span>`);
+  ban(`<span class="big">${f.stage==='pick'?'후보':'정밀'}</span><span class="t">${f.stage==='pick'?'AI 후보 정밀 계산 → 선택':'정밀 최적화 중'}<em>(계산 기록 재생)</em><small>${esc(f.note||'')}${f.mass_g==null?'':' · 무게 '+fmt(f.mass_g)+' g'}</small></span>`);
   // 흔들림 창: 물리 AI 가 예측하지 않음 → 이 단계에서는 숨김 (검증에서 정밀 계산 분포로 채움)
   return r;
 };

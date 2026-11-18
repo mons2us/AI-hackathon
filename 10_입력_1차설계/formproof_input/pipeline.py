@@ -267,7 +267,7 @@ def _design(text="", sketch=None, image=None, template=None, out="out", with_mes
     before = os.listdir(out)
     H = memo.get(mkey, out)
     if H is None:
-        progress.step("초기 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소 — 이 명세는 처음 (다음부터 DB)")
+        progress.step("초기 성능 계산 (정밀 시뮬레이션 · 진동 전달)", f"{int(dens.sum()):,} 요소 — 이 명세는 처음 (다음부터 DB)")
         check = evaluate(P, dens, fields=with_mesh)
         fields = check.pop("fields", None)
         progress.step("CAD · STEP · STL · 도면")

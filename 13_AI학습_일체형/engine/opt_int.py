@@ -240,6 +240,13 @@ if MODE=='field':   # 분포 출력: 노면 진동 FF Hz(세계 위아래)에서
     i1=int(np.argmin([l for l,_ in out])); p1=phis[i1]; m1=np.sqrt(p1[0::3]**2+p1[1::3]**2+p1[2::3]**2); m1=m1/m1[used].max()
     np.savez('field_%s.npz'%TAG,r=r,amp=amp,T=np.asarray(T).ravel(),mode1=m1,trms=trms,vm=vmn,f1=float(np.sqrt(out[i1][0])/2/np.pi),nx=nx,FF=FF); ps.free_memory(everything=True)
     print('field ok',TAG,'amp max',float(amp[used].max()),'T max',float(np.asarray(T).max())); sys.exit()
+if MODE=='amcheck':   # 형상 → 출력 조건(45° 돌출) 거른 형상 · 침식(얇아진) 형상 비교: 칸 수 · 무게 · 진동수
+    r=np.where(design,(np.load(env('RHO')).ravel()>0.5).astype(float),fixval); outj={}
+    for nm,rr_ in (('raw',r),('am',ungrid(am_forward(r)[0],fixval) if AMF else r)):
+        rb=(rr_>0.5).astype(float); rb=np.where(design,rb,fixval); res,stt=analyse(rb)
+        outj[nm]=dict(mass_g=round(massg(rb),1),solid=int(((rb>0.5)&design).sum()),f=[round(float(np.sqrt(q[0])/2/np.pi),1) for q in res][:2],touch=round(stt[0][0],3))
+    am_b=(np.where(design,ungrid(am_forward(r)[0],fixval),0)>0.5)&design; rw=(r>0.5)&design
+    outj['removed_by_am']=int((rw&~am_b).sum()); print(json.dumps(outj)); sys.exit()
 if MODE=='eval':
     r=np.load(env('RHO')); r=np.where(design,r,fixval); J,_,T=thermal(r); out=frf(r)
     _,stt=analyse(r,4); out['touch_mm']=[round(s_[0],3) for s_ in stt]
@@ -253,7 +260,8 @@ if MODE=='fd':
 # ---- 최적화: 무게 최소, 제약 f1..f4 ≥ FT, 폰 온도 P-norm ≤ TLIM ----
 x=np.full(nd,0.5); START=int(env('START','0'))
 if START>0: x=np.load('x_%s.npy'%TAG)
-if env('START_RHO'): x=np.clip(0.2+0.6*(np.load(env('START_RHO')).ravel()[didx]>0.5),0,1)   # 형상 AI 후보를 시작 형상으로
+if env('START_RHO'):   # 형상 AI 후보를 시작 형상으로 (START_LO/START_HI: 빈 칸 · 찬 칸 시작 밀도, 기본 0.2/0.8)
+    _lo,_hi=float(env('START_LO','0.2')),float(env('START_HI','0.8')); x=np.clip(_lo+(_hi-_lo)*(np.load(env('START_RHO')).ravel()[didx]>0.5),0,1)
 xo1=x[:,None].copy(); xo2=x[:,None].copy(); low=np.zeros((nd,1)); upp=np.ones((nd,1)); mcon=7
 sched=json.loads(env("SCHED",json.dumps({0:1,30:2,60:4,90:8,120:16,160:32})).replace("\"",chr(34))); sched={int(k):v for k,v in sched.items()}; ETAE=float(env('ETAE','0.6')); t0=time.time()
 for it in range(START,ITERS):
@@ -269,7 +277,7 @@ for it in range(START,ITERS):
     vm=np.zeros(len(ei)); vm[design]=1.0/nd; f0=rn[design].mean(); df0=chain(vm,amn,0.5)
     cT=float(T[phn].max())/J; fval=np.r_[[1-q[0]/LT for q in res],cT*J/TLIM-1,[s_[0]/DLIM-1 for s_ in stat]]
     dfdx=np.vstack([chain(-q[1]/LT,ame,ETAE) for q in res]+[chain(cT*dJ/TLIM,amn,0.5)]+[chain(s_[1]/DLIM,ame,ETAE) for s_ in stat])
-    xn,_,_,_,_,_,_,_,_,low,upp=mmapy.mmasub(mcon,nd,it+1-START,x[:,None],np.zeros((nd,1)),np.ones((nd,1)),xo1,xo2,f0,df0[:,None],fval[:,None],dfdx,low,upp,1.,np.zeros((mcon,1)),1e4*np.ones((mcon,1)),np.zeros((mcon,1)),move=0.1)
+    xn,_,_,_,_,_,_,_,_,low,upp=mmapy.mmasub(mcon,nd,it+1-START,x[:,None],np.zeros((nd,1)),np.ones((nd,1)),xo1,xo2,f0,df0[:,None],fval[:,None],dfdx,low,upp,1.,np.zeros((mcon,1)),1e4*np.ones((mcon,1)),np.zeros((mcon,1)),move=float(env('MOVE','0.1')))   # MOVE: 한 번에 바뀌는 밀도 폭 (후보 근처 다듬기는 작게)
     xo2=xo1.copy(); xo1=x[:,None].copy(); x=xn.ravel()
     print(json.dumps(dict(it=it,beta=be,mass_g=round(massg(rn),1),f=[round(float(np.sqrt(q[0])/2/np.pi),1) for q in res],Tmax=round(float(T[phn].max()),2),touch=[round(s_[0],3) for s_ in stat],t=round(time.time()-t0))),flush=True)
     if it%10==0 or it==ITERS-1: np.save('x_%s.npy'%TAG,x); np.save('rprint_%s.npy'%TAG,rn)

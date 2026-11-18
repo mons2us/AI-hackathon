@@ -63,6 +63,12 @@ select.btn{width:100%;margin-top:8px}
 .fitem .ft{min-width:0;font-size:13px;line-height:1.45}.fitem .ft b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fitem .ft em{font-style:normal;font-size:11.5px;padding:1px 7px;border-radius:9px;background:var(--blue-s,#e8f0ff);color:var(--blue,#2b6be6);margin-right:6px}
 .fitem .ft span{display:block;color:var(--ink2)}.fitem button{border:0;background:none;color:var(--ink2);cursor:pointer;font-size:18px;padding:4px 6px}
+.candp{position:absolute;left:10px;right:10px;bottom:10px;z-index:6;background:rgba(14,22,38,.93);border:1px solid #2c3a55;border-radius:10px;padding:9px 12px;color:#e8eef9;font-size:12.5px;line-height:1.45}
+.candp b{font-size:13.5px}.candp small{display:block;color:#9aa6bd}.candp small b{color:#fff;font-size:12.5px}
+.candp .cg{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin:6px 0}
+.candp .c{display:flex;flex-direction:column;align-items:center;border-radius:5px;background:rgba(255,92,108,.16);color:#ff9aa5;padding:2px 0;font-size:10.5px}
+.candp .c.ok{background:rgba(95,211,166,.18);color:#7fe3bd}.candp .c.pk{outline:2px solid #ffb020;background:rgba(255,176,32,.25);color:#ffd27a}
+.candp .c i{font-style:normal;opacity:.8}.candp .c em{font-style:normal;font-weight:700}
 .fitem.busy{opacity:.6}.fitem.err .ft span{color:#d33}
 .spacer{flex:1;min-height:10px}
 .spec{margin-top:10px;border-top:1px solid var(--line);padding-top:10px;max-height:38vh;overflow:auto}
@@ -856,8 +862,19 @@ function applyFrame(f){
   if(S.opt&&S.opt.hist){S.opt.iters=f.iters;S.opt.hist.push({it:f.it,m:f.mass_g,p:f.pen,v:histPoint(f.it)});spark();}
 }
 // 정밀 최적화 프레임 (후보 선택 · 구조 최적화 + FEM): 값은 정밀 계산 결과, 표면만 바꿈 (분포는 마지막 검증에서)
+/* AI 후보 비교 (pick 프레임의 cands): 탐색 중 10회마다 형상 → 출력 조건 · 정밀 계산(FEM) 통과 여부 · 무게, 고른 후보 강조 */
+function candPanel(f){
+  let el=$('#candP');
+  if(f.stage!=='pick'||!f.cands){if(el&&f.stage==='refine'&&(f.it-(S.opt&&S.opt.aiN||0))>14)el.hidden=true;return;}
+  if(!el){el=document.createElement('div');el.id='candP';el.className='candp';$('#vMain').appendChild(el);}
+  const C=f.cands,lim=f.cand_lim||{};const ok=C.filter(c=>c.ok).length,pk=C.find(c=>c.pick);
+  el.innerHTML=`<b>AI 후보 ${C.length}개 정밀 시뮬레이션</b><small>기준: ${esc(lim.text||'')}</small><div class="cg">${C.map(c=>`<span class="c${c.ok?' ok':''}${c.pick?' pk':''}" title="${c.it}회 · ${fmt(c.mass)} g · 진동수 AI ${fmt(c.f1p)} / 정밀 ${fmt(c.f1)} Hz"><i>${c.it}</i><em>${c.ok?'✓':'✗'}</em></span>`).join('')}</div>`+
+    `<small>통과 ${ok}개 → ${esc(f.cand_rule||'가장 가벼운')} <b>${pk?pk.it+'회째 · '+fmt(pk.mass)+' g':''}</b> 선택 · 진동수 AI 예측 ${pk?fmt(pk.f1p):''} / 정밀 ${pk?fmt(pk.f1):''} Hz</small>`;
+  el.hidden=false;
+}
 function applyRefine(f){
   const O=S.opt;if(O&&!O.aiN){O.aiN=f.it;hybridSteps(true);}
+  candPanel(f);
   if(f.mesh){const g=q16mesh(f.mesh);V3.mount.geometry.dispose();V3.mount.geometry=g;
     const bb=new THREE.Box3().setFromObject(V3.mount);if(!V3.optBox||!V3.optBox.containsBox(bb)){V3.optBox=(V3.optBox||bb.clone()).union(bb);V3.box=V3.optBox.clone();V3.mc=V3.box.getCenter(new THREE.Vector3());fitSmall();}}
   const fe=f.fem||{};
@@ -866,7 +883,7 @@ function applyRefine(f){
   setPhase(f.stage==='pick'?'AI 후보 선택':'정밀 최적화 중','정밀 계산');$('#pTitle').textContent='정밀 계산 성능';$('#optPhase').textContent='② 정밀 최적화 ·';if(!O||!O.gRef){if(O)O.gRef=1;guide('4 물리 최적화','AI가 찾은 후보를 정밀 시뮬레이션으로 확인하며 다듬습니다');}
   const nf=S.rows.filter(m=>!m.ok&&!m.ref).length;
   $('#perfTag').className='tag '+(nf?'amber':'green');$('#perfTag').textContent=nf?`미충족 ${nf}개`:'계산 충족';
-  $('#kMass').textContent=`${fmt(f.mass_g)} g`;
+  $('#kMass').textContent=f.mass_g==null?'정리 중':`${fmt(f.mass_g)} g`;
   $('#optText').textContent=f.note||'정밀 최적화 중';
   $('#optBar').style.width=`${100*f.it/f.iters}%`;
   readouts(f.it,f.iters,f.mass_g);

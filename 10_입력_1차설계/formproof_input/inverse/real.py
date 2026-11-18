@@ -33,7 +33,7 @@ class TorchBackend:
         from .fp11.deepsdf import ShapeAI
         from .fp11.surrogate import Surrogate
         self.torch = torch
-        self.grid = Grid(meta_path)
+        self.grid = Grid(meta_path); self._meta_path = meta_path
         M = I.masks()                                            # 우리 P01 격자와 같은지 (다르면 형상 · 분포가 어긋남)
         if self.grid.ne != len(M["design"]) or not np.array_equal(self.grid.design, M["design"]) or not np.array_equal(self.grid.solid, M["solid"]):
             raise ValueError("grid_meta.npz 의 격자(설계 영역 · 고정 부품)가 P01 격자와 다릅니다")
@@ -102,7 +102,38 @@ class TorchBackend:
             fit_iou = iou(self.S.decode(z)[0].cpu().numpy(), tgt.cpu().numpy())
         return z.cpu().numpy(), dict(fit_iou=round(float(fit_iou), 3), note="시작 형상을 형상 AI 로 다시 그린 겹침 비율")
 
-    def trace(self, z0, sel, lim, iters=None, every=None, lr=0.02, w=3.0):
+    def am_filter(self, o):
+        """출력 조건 필터 (팀 엔진 opt_int.am_forward 와 같은 식, 미분 가능): 폰 판 윗면을 바닥에 두고 쌓을 때
+        아래층 5칸(가운데 + 4이웃, y=0 거울)이 받쳐 주지 않는 칸은 지움 (45° 돌출 제한). o: (1, 설계칸) 점유 확률 → 같은 꼴."""
+        torch = self.torch
+        g = self.grid
+        if not hasattr(self, "_am"):
+            nz, ny, nx = int(g.nz), int(g.ny), int(g.nx)
+            _m = np.load(self._meta_path) if hasattr(self, "_meta_path") else None
+            z0, hh = (float(_m["origin"][2]), float(_m["h"])) if _m is not None else (-36.0, 2.0)
+            ktop = int((24 + 6 - z0) / hh) - 1                                   # 판 맨 윗층 (출력 바닥) — 엔진 KTOP 과 같은 식
+            fixed = ~np.asarray(g.design, bool); fixval = np.where(np.asarray(g.solid, bool), 1.0, 0.0)
+            T = lambda a: torch.as_tensor(np.ascontiguousarray(a.reshape(nz, ny, nx)[ktop::-1]), device=self.S.dev)
+            self._am = dict(nz=nz, ny=ny, nx=nx, ktop=ktop, FX=T(fixed), FV=T(fixval).float(), base=torch.as_tensor(fixval, dtype=torch.float32, device=self.S.dev),
+                            didx=torch.as_tensor(np.asarray(g.didx), device=self.S.dev))
+        A = self._am; PP, NS, EPS = 40.0, 5, 1e-4; QA = PP + np.log(NS) / np.log(0.5)
+        full = A["base"].clone().index_put((A["didx"],), o[0].float())
+        X = torch.flip(full.view(A["nz"], A["ny"], A["nx"])[: A["ktop"] + 1], [0])
+        layers = [X[0]]
+        for j in range(1, X.shape[0]):
+            L = layers[-1] ** PP
+            P_ = torch.nn.functional.pad(L, (1, 1, 1, 1))
+            P_ = torch.cat([torch.cat([P_[:1, :1], L[:1], P_[:1, -1:]], 1), P_[1:]], 0)      # y=0 쪽 거울
+            s = P_[1:-1, 1:-1] + P_[:-2, 1:-1] + P_[2:, 1:-1] + P_[1:-1, :-2] + P_[1:-1, 2:] + 1e-30
+            Xi = s ** (1.0 / QA); a = X[j]
+            v = 0.5 * (a + Xi - torch.sqrt((a - Xi) ** 2 + EPS) + np.sqrt(EPS))
+            layers.append(torch.where(A["FX"][j], A["FV"][j], v))
+        Y = torch.stack(layers, 0)
+        out = full.view(A["nz"], A["ny"], A["nx"]).clone()
+        out[: A["ktop"] + 1] = torch.flip(Y, [0])
+        return out.reshape(-1)[A["didx"]].unsqueeze(0)
+
+    def trace(self, z0, sel, lim, iters=None, every=None, lr=0.02, w=3.0, am=None):
         torch = self.torch
         from . import violation
         iters = int(iters or os.environ.get("FP11_ITERS", 500))
@@ -126,6 +157,10 @@ class TorchBackend:
 
         for it in range(iters + 1):
             o = self.S.decode(z, sharp=2.0)
+            if am is None:
+                am = os.environ.get("FP11_AM", "0") == "1"
+            if am:
+                o = self.am_filter(o)                                    # 출력 가능한 형상만 평가 (45° 돌출 제한)
             out = self.M.predict(o)
             y = out["scalars"][0]
             pen = pen_t(y)
