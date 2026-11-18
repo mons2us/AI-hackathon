@@ -1,4 +1,5 @@
 # 일체형 거치대(클램프 + 팔 + 기울인 받침판) 3D 위상 최적화 — 진동(강체 폰) + 열 + 출력(45°) 동시
+# 출력(45°) = Langelaar(2017, SMO 55:871) 적층 필터 am_forward (AM=1 기본). MODE=eval 결과에 'print'(출력 가능성, printability.py) 추가 (11-18)
 # 좌표: 폰 판 기준 좌표계 (x' 폰 길이 방향, z' 판 법선). 핸들바 축 = y 이므로 판을 TILT만큼 기울여도 핸들바는 원 그대로.
 #   세계 좌표: X(앞) = x' cos t - z' sin t,  Z(위) = x' sin t + z' cos t
 # 절반 모델 (y ≥ 0, y=0 대칭면 uy=0) → 대칭 모드(위아래 · 앞뒤 · 핸들바축 회전)만 계산
@@ -403,6 +404,13 @@ if MODE=='eval':
     r=np.load(env('RHO')); r=np.where(design,r,fixval); J,_,T=thermal(r); out=frf(r)
     _,stt=analyse(r,4); out['touch_mm']=[round(s_[0],3) for s_ in stt]
     out.update(mass_g=round(massg(r),1),Tmax=round(float(T[phn].max()),2),tilt=float(env('TILT','35')))
+    try:   # 11-18 추가: 3D 프린터(FDM) 출력 가능성 — printability.py (몸체 팔·판만 / 고정 부품 포함 전체)
+        import printability as _pr; _pm=_pr.meta_from(dict(_gen_meta(),void=void))
+        _a,_=_pr.check(r,_pm,fixed_ok=True); _b,_=_pr.check(r,_pm)
+        out['print']=dict(rule='45deg, plate top on bed, build -z\'',design_need_support=_a['need_support_in_design'],
+                          body_need_support=_b['need_support'],body_need_support_g=_b['need_support_g'],fixed_parts_need_support=_b['need_support_in_fixed_parts'],
+                          below_bed_cells=int(r.reshape(nz,ny,nx)[KTOP+1:].__gt__(0.5).sum()),printable_design=_a['need_support_in_design']==0)
+    except Exception as _e: out['print']=dict(error=str(_e))
     json.dump(out,open('frfint_%s.json'%TAG,'w')); print(json.dumps({k:v for k,v in out.items() if k not in('freq',)},default=str)[:1500]); sys.exit()
 if MODE=='fd':
     rg=np.random.default_rng(0); r=np.where(design,rg.uniform(0.2,0.8,len(ei)),fixval); J,dJ,_=thermal(r)

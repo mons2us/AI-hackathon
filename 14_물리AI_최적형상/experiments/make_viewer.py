@@ -249,7 +249,7 @@ INDEX = '''<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><title>08 
 <table><tr><th>그룹</th><th>후보 → 선택</th><th>제외 (허공 가지 / 울퉁불퉁 / 끊김 초과)</th><th>선택된 형식</th></tr>__ROWS__</table>
 <p style="font-size:13px;color:#5b6475">파이썬으로 보기: <code>np.load("그룹_shapes.npz")</code> → occ_bits(np.unpackbits 후 [:ne]), label(0 설계 1 고정 2 빈곳 3 강체), shape(nx,ny,nz, 요소 번호 e=(k*ny+j)*nx+i), meta.
 같은 번호는 <code>fp08.shapes.make_shape(problem, 그룹, 번호)</code>로 언제든 똑같이 다시 만들어짐.</p>
-<p style="font-size:13px;color:#5b6475">생성 __DATE__ · 코드 sosopapa 브랜치 08_물리AI_최적형상/fp08 · 뷰어 experiments/make_viewer.py</p></body></html>'''
+<p style="font-size:13px;color:#5b6475">생성 __DATE__ · 코드 sosopapa 브랜치 14_물리AI_최적형상/fp08 · 뷰어 experiments/make_viewer.py</p></body></html>'''
 
 if __name__ == '__main__':
     data, out = sys.argv[1], sys.argv[2]

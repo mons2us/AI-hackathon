@@ -73,7 +73,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 
 ---
 
-## 4. 파일 지도 (`08_물리AI_최적형상/`)
+## 4. 파일 지도 (`14_물리AI_최적형상/`)
 
 | 경로 | 역할 |
 |---|---|
@@ -112,7 +112,7 @@ DeepSDF 크기 비교 (bike_pad80, 형상 1,000개, 3,000스텝, CPU):
 ## 5. 단계별 실행
 
 ### 준비 (회사 PC, 한 번)
-1. 코드 받기 (회사 PC 는 GitHub 접속 가능 확인됨, 2026-11-14): `git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git` → `cd AI-hackathon/08_물리AI_최적형상`
+1. 코드 받기 (회사 PC 는 GitHub 접속 가능 확인됨, 2026-11-14): `git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git` → `cd AI-hackathon/14_물리AI_최적형상`
    이미 받아 둔 경우 `git pull origin sosopapa`. **GitHub 이 기준**이며, 다운로드 폴더의 zip·md 사본은 예비용(옛날 판일 수 있음).
    bat 파일은 `.gitattributes` 로 CRLF 줄끝이 유지됨 → cmd 에서 그대로 실행. (LF 로 바뀌면 `'THREADS'은(는) 내부 또는 외부 명령…` 같은 오류가 남)
 2. 파이썬 패키지: `pip install -r requirements.txt` (인터넷 없으면 파일 맨 위 주석의 오프라인 방법).

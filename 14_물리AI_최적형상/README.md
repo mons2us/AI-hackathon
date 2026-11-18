@@ -1,4 +1,4 @@
-# 08_물리AI — 요청에서 대리 모델을 자동으로 만들고, 그 모델로 최적 설계를 찾는 단계
+# 14_물리AI (구 08) — 요청에서 대리 모델을 자동으로 만들고, 그 모델로 최적 설계를 찾는 단계
 
 > 담당: 물리 엔진·물리 AI (소소파파) · 최종 갱신 2026-11-14 (토) · 해커톤 2026-11-16 (월) 시작
 > 상태 표시: ✅ 완료 · 🔄 진행 · ⏳ 예정 · ❓ 확인 필요 · ⛔ 보류 · 그림 버전: `README.html` · 공부 노트: [`docs/DeepSDF_study.html`](docs/DeepSDF_study.html), [`docs/NeuralOperator_study.html`](docs/NeuralOperator_study.html) (FNO·PINO·GNO·PI-GNO), [`docs/MeshGraphNets_study.html`](docs/MeshGraphNets_study.html)

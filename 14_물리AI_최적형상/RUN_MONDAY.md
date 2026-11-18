@@ -1,12 +1,12 @@
 # 월요일 실행 안내 — 08 물리 AI 자동 루프
 
-> 코드: `sosopapa` 브랜치 `08_물리AI_최적형상/fp08/`. 모든 명령은 `08_물리AI_최적형상/` 폴더에서 실행.
+> 코드: `sosopapa` 브랜치 `14_물리AI_최적형상/fp08/`. 모든 명령은 `14_물리AI_최적형상/` 폴더에서 실행.
 > 숫자 중 **실측**은 주말 리허설(Claude 작업 환경, CPU 2코어)에서 잰 값, **추정**은 그 값으로 계산한 값.
 
 ## 0. 설치 (두 서버 공통)
 
 ```bash
-git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git && cd AI-hackathon/08_물리AI_최적형상
+git clone -b sosopapa https://github.com/mons2us/AI-hackathon.git && cd AI-hackathon/14_물리AI_최적형상
 pip install numpy scipy scikit-image pypardiso torch    # GPU 서버는 CUDA 버전 torch
 python -m fp08.problems                                  # 6개 그룹 격자·칸 수 출력되면 정상
 ```
@@ -32,7 +32,7 @@ python -m fp08.loop --run runs/main --data data --stages shapes,fem --workers $(
 # --eso: 선택된 5,000개 중 절반을 FEM 변형 에너지로 다듬어(ESO) 새 형상으로 추가 → 그룹당 약 7,500개 (32코어 약 25분, 추정)
 # 후보 12,000개를 만들어 허공 가지·울퉁불퉁한 것을 거르고 5,000개 선택 (data/<그룹>/selection.json, drop_reason.json)
 # 진행: runs/main/report.html, runs/main/loop.log, data/<그룹>/spec.json
-rsync -a data/ <GPU서버>:<경로>/08_물리AI_최적형상/data/      # 서버 간 SSH 전송 (사내망)
+rsync -a data/ <GPU서버>:<경로>/14_물리AI_최적형상/data/      # 서버 간 SSH 전송 (사내망)
 ```
 - 끊겨도 같은 명령을 다시 실행하면 만든 묶음은 건너뛰고 이어서 함.
 - 같은 (그룹, 번호)는 항상 같은 형상(시드 고정) → 전송이 막히면 GPU 서버에서 같은 명령으로 다시 만들어도 동일.

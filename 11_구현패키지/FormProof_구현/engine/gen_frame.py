@@ -21,9 +21,15 @@
 반환 occ: 설계 영역 요소의 점유 (len = 전체 요소 수, bool). 고정 부품(solid)은 포함 안 함 (opt_int 가 붙임).
 prm: 계열·변수 사전 (JSON 저장 가능) — 형상 AI / 변수 최적화의 입력.
 """
-import math
+import math, os
 import numpy as np
 from scipy import ndimage
+
+# 11-18 추가: 3D 프린터(FDM, 층층이 쌓기) 출력 가능 형상. PRINTABLE=1(기본)이면 build() 끝에서 45° 규칙(printability.py)을
+# 만족하도록 떠 있는 칸 아래를 채움 (출력 방향 = opt_int.py 와 같음: 받침판 윗면이 베드, -z' 로 쌓음).
+# PRINTABLE=0 이면 11-17 까지와 같은 형상 (이전 학습 데이터 재현용). prm['printable'] 이 있으면 그것을 따름.
+PRINTABLE_DEFAULT = os.environ.get('PRINTABLE', '1') == '1'
+LAST_PRINT = {}
 
 RING_R = 19.0                          # 부재가 링에 붙는 반지름 (접촉부 16.1–20.6 가운데)
 SECTIONS = ('rect', 'round', 'channel', 'ibeam')
@@ -259,7 +265,32 @@ def build(prm, meta, grip=None):
     contact = solid & (rr >= 16.1) & (rr < 20.6)
     keep = np.unique(lab[contact & (lab > 0)])
     occ &= np.isin(lab, keep)
+    if prm.get('printable', PRINTABLE_DEFAULT):
+        occ = make_printable(occ, meta)
     return occ
+
+
+def _keep_ring_connected(occ, meta):
+    xc, zc = meta['xc'], meta['zc']; solid = meta['solid'].astype(bool)
+    nz, ny, nx = int(meta['nz']), int(meta['ny']), int(meta['nx'])
+    lab, _ = ndimage.label((occ | solid).reshape(nz, ny, nx)); lab = lab.ravel()
+    rr = np.sqrt(xc ** 2 + zc ** 2)
+    keep = np.unique(lab[solid & (rr >= 16.1) & (rr < 20.6) & (lab > 0)])
+    return occ & np.isin(lab, keep)
+
+
+def make_printable(occ, meta):
+    """45° 출력 규칙으로 보정 (printability.make_self_supporting) + 링과 끊긴 조각 제거. LAST_PRINT 에 추가 · 깎은 칸 수"""
+    import printability as pr
+    pm = pr.meta_from(meta); design = pm['design']
+    r = np.where(design, occ.astype(float), 0.)
+    before, _ = pr.check(r, pm, fixed_ok=True)
+    r2, added, trimmed = pr.make_self_supporting(r, pm)
+    occ2 = _keep_ring_connected((r2 > 0.5) & design, meta)
+    after, _ = pr.check(np.where(design, occ2.astype(float), 0.), pm, fixed_ok=True)
+    LAST_PRINT.clear(); LAST_PRINT.update(added=int(added), trimmed=int(trimmed), need_before=before['need_support_in_design'],
+                                          need_after=after['need_support_in_design'])
+    return occ2
 
 
 def check(occ, meta, grip):
@@ -287,8 +318,11 @@ def sample(rng, meta, grip=2, family=None, tries=20):
     for _ in range(tries):
         prm = draw(rng, family)
         prm['grip'] = int(grip)
+        prm['printable'] = bool(PRINTABLE_DEFAULT)
         occ = build(prm, meta)
         ok, why = check(occ, meta, grip)
+        if ok and prm['printable'] and LAST_PRINT.get('need_after', 0) > 0:
+            continue                                   # 보정해도 떠 있는 칸이 남으면 다시 뽑기 (210개 중 4개꼴)
         if ok and occ.sum() >= 30:
             return occ, prm
     return None, prm
