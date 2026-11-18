@@ -1,0 +1,241 @@
+{
+ "input": {
+  "text": "울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게, 3D 프린터로 뽑을 거야",
+  "sketch": "examples/hand/hand_T07.png",
+  "photo": null,
+  "template": null
+ },
+ "text": {
+  "params": {
+   "road": "cobblestone",
+   "objective": "min_mass",
+   "material": "PETG"
+  },
+  "shape_hint": {},
+  "fired": [
+   {
+    "rule": "road_rough",
+    "effect": {
+     "road": "cobblestone"
+    },
+    "why": "거친 노면 → 자갈길 진동 측정값(ISBS 2020)"
+   },
+   {
+    "rule": "light",
+    "effect": {
+     "objective": "min_mass"
+    },
+    "why": "목표: 무게 최소화"
+   },
+   {
+    "rule": "print",
+    "effect": {
+     "material": "PETG"
+    },
+    "why": "3D 프린트 재료 PETG(데이터시트 보유 재료)"
+   }
+  ],
+  "questions": [
+   "어떤 폰을 올리나요? (기본: 폰 200 g + 클램프 50 g 가정)",
+   "핸들바 굵기(클램프 위치 직경)는? (기본: 31.8 mm)"
+  ]
+ },
+ "template": {
+  "id": "T07",
+  "name": "트러스",
+  "desc": "곧은 팔 + 아래 보강대",
+  "chosen_by": "스케치 매칭(ring 기준)",
+  "match": {
+   "frame": "ring",
+   "ring_score": 0.83,
+   "candidates": [
+    {
+     "id": "T07",
+     "name": "트러스",
+     "score": 0.493,
+     "mirrored": false,
+     "confidence": 1.0
+    },
+    {
+     "id": "T04",
+     "name": "높은 받침",
+     "score": 0.514,
+     "mirrored": false,
+     "confidence": 0.958
+    },
+    {
+     "id": "T01",
+     "name": "기본형",
+     "score": 0.696,
+     "mirrored": false,
+     "confidence": 0.666
+    }
+   ]
+  }
+ },
+ "problem": {
+  "grid": {
+   "h": 2.0,
+   "origin": [
+    -24.0,
+    55.0,
+    -36.0
+   ],
+   "shape": [
+    62,
+    10,
+    39
+   ]
+  },
+  "elements": {
+   "design": 15290,
+   "solid": 910,
+   "void": 7815,
+   "rigid": 165
+  },
+  "supports": {
+   "handlebar": 473
+  },
+  "point_mass_nodes": {
+   "phone_clamp": 24
+  },
+  "half_model_mass_kg": 0.125
+ },
+ "stl": {
+  "triangles": 6856,
+  "volume_mm3": 24618.1,
+  "bbox": [
+   [
+    -20.0,
+    45.0,
+    -34.0
+   ],
+   [
+    99.7,
+    65.0,
+    20.0
+   ]
+  ]
+ },
+ "criteria": [
+  {
+   "id": "f1",
+   "rule": "natural_frequency_hz >= 91.2",
+   "why": "T_max=1.333 -> f1 >= 45.6 / sqrt(1-1/T_max)",
+   "source": [
+    "sdof",
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "stress",
+   "rule": "von_mises_max_mpa <= 26.0",
+   "why": "yield 39.0 / SF 1.5",
+   "source": [
+    "prusament_petg",
+    "assumed:sf"
+   ]
+  },
+  {
+   "id": "interlayer",
+   "rule": "layer_normal_tension_mpa <= 10.9",
+   "why": "interlayer 16.4 / SF 1.5, 옆으로 눕혀 출력(적층 방향 y)",
+   "source": [
+    "prusament_petg",
+    "assumed:print_orientation"
+   ]
+  },
+  {
+   "id": "min_feature",
+   "rule": "min_member_thickness_mm >= 5.0",
+   "why": "",
+   "source": [
+    "team_v7"
+   ]
+  }
+ ],
+ "assumptions": [
+  "노면 진동은 바퀴 축 측정값을 핸들바에 그대로 적용(보수적)",
+  "옆 충격 = 위아래 충격 크기",
+  "48.5 g 충격을 정적 하중으로 환산",
+  "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체",
+  "폰 클램프 질량 50 g",
+  "안전율 1.5, 진동 증폭 허용 1.33배는 선택값",
+  "충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장"
+ ],
+ "first_design_check": {
+  "mass_g": 32.9,
+  "elements": 1785,
+  "connected": true,
+  "parts": 1,
+  "freqs_hz": [
+   29.4,
+   43.1,
+   101.8,
+   383.5
+  ],
+  "f1_hz": 29.4,
+  "shock_vertical": {
+   "vm_max_mpa": 25.9,
+   "vm_p999_mpa": 25.5,
+   "s_yy_tension_mpa": 3.0,
+   "tip_disp_mm": 8.279
+  },
+  "shock_lateral": {
+   "vm_max_mpa": 25.2,
+   "vm_p999_mpa": 23.2,
+   "s_yy_tension_mpa": 6.6,
+   "tip_disp_mm": 6.383
+  },
+  "checks": {
+   "f1": {
+    "value": 29.4,
+    "limit": ">= 91.2",
+    "pass": false
+   },
+   "stress": {
+    "value": 25.9,
+    "limit": "<= 26.0",
+    "pass": true
+   },
+   "interlayer": {
+    "value": 6.6,
+    "limit": "<= 10.9",
+    "pass": true
+   }
+  },
+  "pass": false
+ },
+ "cad": {
+  "step": "design_1st.step",
+  "valid": true,
+  "solids": 1,
+  "volume_mm3": 25953.0,
+  "mass_g": 32.96,
+  "bbox": [
+   [
+    -20.6,
+    45.0,
+    -34.0
+   ],
+   [
+    100.0,
+    65.0,
+    21.0
+   ]
+  ]
+ },
+ "drawing": {
+  "sheet": "A4",
+  "scale": "1:1",
+  "views": [
+   "front",
+   "top",
+   "right",
+   "iso"
+  ],
+  "dxf": "design_1st_drawing.dxf",
+  "pdf": "design_1st_drawing.pdf"
+ },
+ "seconds": 2.48
+}

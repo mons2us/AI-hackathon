@@ -1,0 +1,312 @@
+[
+ {
+  "name": "al2_000",
+  "pred_f1": 34.464,
+  "fem_f1": 31.3,
+  "pred_touch": 0.736,
+  "fem_touch": 0.923,
+  "pred_stress": 15.232,
+  "fem_stress": 15.6,
+  "fem_T": 32.57
+ },
+ {
+  "name": "al2_010",
+  "pred_f1": 79.731,
+  "fem_f1": 66.4,
+  "pred_touch": 0.115,
+  "fem_touch": 0.205,
+  "pred_stress": 5.034,
+  "fem_stress": 8.5,
+  "fem_T": 26.46
+ },
+ {
+  "name": "al2_020",
+  "pred_f1": 111.645,
+  "fem_f1": 104.9,
+  "pred_touch": 0.075,
+  "fem_touch": 0.082,
+  "pred_stress": 3.938,
+  "fem_stress": 4.7,
+  "fem_T": 21.84
+ },
+ {
+  "name": "al2_030",
+  "pred_f1": 110.359,
+  "fem_f1": 113.7,
+  "pred_touch": 0.076,
+  "fem_touch": 0.069,
+  "pred_stress": 3.751,
+  "fem_stress": 3.8,
+  "fem_T": 21.79
+ },
+ {
+  "name": "al2_040",
+  "pred_f1": 109.786,
+  "fem_f1": 114.6,
+  "pred_touch": 0.078,
+  "fem_touch": 0.068,
+  "pred_stress": 3.771,
+  "fem_stress": 3.9,
+  "fem_T": 21.79
+ },
+ {
+  "name": "al2_050",
+  "pred_f1": 108.583,
+  "fem_f1": 106.4,
+  "pred_touch": 0.079,
+  "fem_touch": 0.079,
+  "pred_stress": 3.787,
+  "fem_stress": 3.9,
+  "fem_T": 21.8
+ },
+ {
+  "name": "al2_060",
+  "pred_f1": 107.848,
+  "fem_f1": 105.8,
+  "pred_touch": 0.08,
+  "fem_touch": 0.08,
+  "pred_stress": 3.83,
+  "fem_stress": 4.0,
+  "fem_T": 21.8
+ },
+ {
+  "name": "al2_070",
+  "pred_f1": 108.078,
+  "fem_f1": 104.5,
+  "pred_touch": 0.08,
+  "fem_touch": 0.082,
+  "pred_stress": 3.917,
+  "fem_stress": 4.0,
+  "fem_T": 21.79
+ },
+ {
+  "name": "al2_080",
+  "pred_f1": 107.441,
+  "fem_f1": 103.1,
+  "pred_touch": 0.081,
+  "fem_touch": 0.084,
+  "pred_stress": 4.045,
+  "fem_stress": 3.9,
+  "fem_T": 21.8
+ },
+ {
+  "name": "al2_090",
+  "pred_f1": 106.936,
+  "fem_f1": 102.1,
+  "pred_touch": 0.081,
+  "fem_touch": 0.086,
+  "pred_stress": 4.174,
+  "fem_stress": 4.1,
+  "fem_T": 21.79
+ },
+ {
+  "name": "al2_100",
+  "pred_f1": 106.499,
+  "fem_f1": 98.7,
+  "pred_touch": 0.081,
+  "fem_touch": 0.093,
+  "pred_stress": 4.31,
+  "fem_stress": 4.3,
+  "fem_T": 21.77
+ },
+ {
+  "name": "al2_110",
+  "pred_f1": 105.383,
+  "fem_f1": 97.4,
+  "pred_touch": 0.083,
+  "fem_touch": 0.095,
+  "pred_stress": 4.498,
+  "fem_stress": 4.4,
+  "fem_T": 21.8
+ },
+ {
+  "name": "al2_120",
+  "pred_f1": 102.421,
+  "fem_f1": 93.3,
+  "pred_touch": 0.089,
+  "fem_touch": 0.104,
+  "pred_stress": 4.79,
+  "fem_stress": 4.8,
+  "fem_T": 21.77
+ },
+ {
+  "name": "al2_130",
+  "pred_f1": 98.86,
+  "fem_f1": 90.8,
+  "pred_touch": 0.095,
+  "fem_touch": 0.11,
+  "pred_stress": 5.149,
+  "fem_stress": 5.1,
+  "fem_T": 21.77
+ },
+ {
+  "name": "al2_140",
+  "pred_f1": 94.835,
+  "fem_f1": 87.8,
+  "pred_touch": 0.103,
+  "fem_touch": 0.118,
+  "pred_stress": 5.606,
+  "fem_stress": 5.5,
+  "fem_T": 21.74
+ },
+ {
+  "name": "al2_150",
+  "pred_f1": 92.374,
+  "fem_f1": 84.9,
+  "pred_touch": 0.109,
+  "fem_touch": 0.127,
+  "pred_stress": 6.063,
+  "fem_stress": 6.0,
+  "fem_T": 21.7
+ },
+ {
+  "name": "al2_160",
+  "pred_f1": 91.611,
+  "fem_f1": 81.8,
+  "pred_touch": 0.112,
+  "fem_touch": 0.137,
+  "pred_stress": 6.367,
+  "fem_stress": 6.4,
+  "fem_T": 21.67
+ },
+ {
+  "name": "al2_170",
+  "pred_f1": 91.717,
+  "fem_f1": 80.2,
+  "pred_touch": 0.113,
+  "fem_touch": 0.143,
+  "pred_stress": 6.608,
+  "fem_stress": 6.7,
+  "fem_T": 21.67
+ },
+ {
+  "name": "al2_180",
+  "pred_f1": 92.083,
+  "fem_f1": 78.8,
+  "pred_touch": 0.113,
+  "fem_touch": 0.148,
+  "pred_stress": 6.928,
+  "fem_stress": 7.3,
+  "fem_T": 21.65
+ },
+ {
+  "name": "al2_190",
+  "pred_f1": 92.58,
+  "fem_f1": 73.8,
+  "pred_touch": 0.113,
+  "fem_touch": 0.169,
+  "pred_stress": 7.446,
+  "fem_stress": 7.8,
+  "fem_T": 21.64
+ },
+ {
+  "name": "al2_200",
+  "pred_f1": 91.385,
+  "fem_f1": 64.7,
+  "pred_touch": 0.116,
+  "fem_touch": 0.22,
+  "pred_stress": 8.685,
+  "fem_stress": 12.7,
+  "fem_T": 21.57
+ },
+ {
+  "name": "al2_210",
+  "pred_f1": 91.831,
+  "fem_f1": 64.1,
+  "pred_touch": 0.114,
+  "fem_touch": 0.224,
+  "pred_stress": 9.014,
+  "fem_stress": 13.6,
+  "fem_T": 21.56
+ },
+ {
+  "name": "al2_220",
+  "pred_f1": 93.762,
+  "fem_f1": 51.5,
+  "pred_touch": 0.109,
+  "fem_touch": 0.345,
+  "pred_stress": 8.72,
+  "fem_stress": 14.5,
+  "fem_T": 21.59
+ },
+ {
+  "name": "al2_230",
+  "pred_f1": 93.238,
+  "fem_f1": 51.3,
+  "pred_touch": 0.111,
+  "fem_touch": 0.348,
+  "pred_stress": 9.034,
+  "fem_stress": 14.7,
+  "fem_T": 21.57
+ },
+ {
+  "name": "al2_240",
+  "pred_f1": 93.889,
+  "fem_f1": 51.4,
+  "pred_touch": 0.109,
+  "fem_touch": 0.346,
+  "pred_stress": 9.007,
+  "fem_stress": 14.3,
+  "fem_T": 21.59
+ },
+ {
+  "name": "al2_250",
+  "pred_f1": 94.401,
+  "fem_f1": 51.8,
+  "pred_touch": 0.107,
+  "fem_touch": 0.34,
+  "pred_stress": 9.014,
+  "fem_stress": 14.1,
+  "fem_T": 21.58
+ },
+ {
+  "name": "al2_260",
+  "pred_f1": 94.869,
+  "fem_f1": 51.8,
+  "pred_touch": 0.106,
+  "fem_touch": 0.34,
+  "pred_stress": 9.027,
+  "fem_stress": 14.1,
+  "fem_T": 21.58
+ },
+ {
+  "name": "al2_270",
+  "pred_f1": 94.68,
+  "fem_f1": 51.3,
+  "pred_touch": 0.107,
+  "fem_touch": 0.347,
+  "pred_stress": 9.146,
+  "fem_stress": 14.1,
+  "fem_T": 21.58
+ },
+ {
+  "name": "al2_280",
+  "pred_f1": 94.763,
+  "fem_f1": 51.7,
+  "pred_touch": 0.107,
+  "fem_touch": 0.342,
+  "pred_stress": 9.231,
+  "fem_stress": 13.2,
+  "fem_T": 21.59
+ },
+ {
+  "name": "al2_290",
+  "pred_f1": 94.787,
+  "fem_f1": 50.8,
+  "pred_touch": 0.108,
+  "fem_touch": 0.355,
+  "pred_stress": 9.35,
+  "fem_stress": 13.0,
+  "fem_T": 21.59
+ },
+ {
+  "name": "al2_300",
+  "pred_f1": 94.805,
+  "fem_f1": 50.3,
+  "pred_touch": 0.108,
+  "fem_touch": 0.362,
+  "pred_stress": 9.507,
+  "fem_stress": 14.1,
+  "fem_T": 21.6
+ }
+]

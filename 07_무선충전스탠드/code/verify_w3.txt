@@ -1,0 +1,1 @@
+{"tag": "w3", "al_g": 105.6, "Tmax_contact_3W": 38.8, "Tmean_contact_3W": 36.4, "Tmax_contact_5W": 48.0, "Tmean_contact_5W": 44.1, "tap_mm": 0.0035, "weight_sag_mm": -0.0004}

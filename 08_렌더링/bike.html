@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#fff;overflow:hidden}canvas{display:block}</style>
+<script src="three.min.js"></script><script src="RoomEnvironment.js"></script><script src="RoundedBoxGeometry.js"></script></head><body>
+<script>
+const W=1600,H=1000;
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,alpha:true});
+renderer.setPixelRatio(window.devicePixelRatio);renderer.setSize(W,H);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.62;renderer.physicallyCorrectLights=false;
+document.body.appendChild(renderer.domElement);
+const scene=new THREE.Scene();const pmrem=new THREE.PMREMGenerator(renderer);scene.environment=pmrem.fromScene(new THREE.RoomEnvironment(),0.04).texture;
+THREE.Object3D.DefaultUp.set(0,0,1);
+const cam=new THREE.PerspectiveCamera(30,W/H,5,20000);cam.up.set(0,0,1);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a9399,0.25));
+const sun=new THREE.DirectionalLight(0xffffff,0.9);sun.position.set(400,700,2600);sun.castShadow=true;
+sun.shadow.mapSize.set(4096,4096);Object.assign(sun.shadow.camera,{left:-1600,right:1600,top:1600,bottom:-1600,near:100,far:6000});sun.shadow.bias=-0.0005;scene.add(sun);
+const fill=new THREE.DirectionalLight(0xdfe9ff,0.15);fill.position.set(-1200,900,600);scene.add(fill);
+const GROUND=-903;
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(20000,20000),new THREE.ShadowMaterial({opacity:0.22}));ground.position.z=GROUND;ground.receiveShadow=true;scene.add(ground);
+
+const M=(c,r=0.5,m=0.1)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
+const frameMat=new THREE.MeshPhysicalMaterial({color:0x0d2438,roughness:0.3,metalness:0.3,clearcoat:1,clearcoatRoughness:0.08}), darkMat=M(0x16191c,0.75,0.0), alMat=M(0x8f979e,0.35,0.6), tireMat=M(0x111214,0.9,0);
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+function tube(a,b,r,mat,seg=24){const d=new THREE.Vector3().subVectors(b,a);const g=new THREE.CylinderGeometry(r,r,d.length(),seg);const m=new THREE.Mesh(g,mat);
+  m.position.copy(a).addScaledVector(d,0.5);m.quaternion.setFromUnitVectors(V(0,1,0),d.clone().normalize());m.castShadow=true;m.receiveShadow=true;return m;}
+const bike=new THREE.Group();scene.add(bike);
+// geometry (mm), handlebar center at origin, forward +x, up +z
+const S=V(-90,0,-40), dH=V(0.309,0,-0.951), Hb=S.clone().addScaledVector(dH,150), A=V(125,0,-563), Rr=V(-875,0,-563), BB=V(-455,0,-633), ST=V(-607,0,-136), SAD=V(-650,0,-40);
+const TT=S.clone().addScaledVector(dH,25);
+[[ST,TT,16],[BB,Hb,20],[BB,ST,16],[S,Hb,19]].forEach(p=>bike.add(tube(p[0],p[1],p[2],frameMat)));
+for(const s of [-38,38]){bike.add(tube(V(BB.x,s*0.6,BB.z),V(Rr.x,s,Rr.z),9,frameMat));bike.add(tube(V(ST.x,s*0.4,ST.z-20),V(Rr.x,s,Rr.z),8,frameMat));bike.add(tube(V(Hb.x,s*0.8,Hb.z),V(A.x,s*1.2,A.z),11,frameMat));}
+bike.add(tube(ST,SAD,13,alMat));
+const saddle=new THREE.Mesh(new THREE.BoxGeometry(260,70,40),darkMat);saddle.position.set(SAD.x-10,0,SAD.z+18);saddle.castShadow=true;bike.add(saddle);
+// stem + handlebar + grips
+bike.add(tube(S,V(0,0,0),17,frameMat));bike.add(tube(V(0,-30,0),V(0,30,0),22,frameMat));
+bike.add(tube(V(0,-360,0),V(0,360,0),15.9,alMat,32));
+bike.add(tube(V(0,-360,0),V(0,-230,0),17.5,darkMat));bike.add(tube(V(0,230,0),V(0,360,0),17.5,darkMat));
+for(const s of [-1,1]){bike.add(tube(V(0,s*215,0),V(70,s*235,-40),7,darkMat));}
+// wheels
+function wheel(c){const g=new THREE.Group();const t=new THREE.Mesh(new THREE.TorusGeometry(326,15,20,120),tireMat);t.rotation.x=Math.PI/2;t.castShadow=true;g.add(t);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(305,8,12,120),alMat);rim.rotation.x=Math.PI/2;g.add(rim);
+  g.add(tube(V(0,-35,0),V(0,35,0),18,alMat));
+  for(let i=0;i<24;i++){const a=i/24*Math.PI*2, s=i%2?35:-35;g.add(tube(V(0,s,0),V(300*Math.cos(a),0,300*Math.sin(a)),1.2,alMat,6));}
+  g.position.copy(c);return g;}
+bike.add(wheel(A));bike.add(wheel(Rr));
+// crank
+const ring=new THREE.Mesh(new THREE.CylinderGeometry(95,95,6,48),alMat);ring.position.set(BB.x,-60,BB.z);ring.castShadow=true;bike.add(ring);
+bike.add(tube(V(BB.x,-66,BB.z),V(BB.x+60,-70,BB.z-160),9,alMat));bike.add(tube(V(BB.x,66,BB.z),V(BB.x-60,70,BB.z+160),9,alMat));
+
+// mount meshes
+const dec=s=>{const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new Float32Array(u.buffer);};
+const parts={};
+function mk(name,d,mat){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(dec(d.pos),3));if(d.col)g.setAttribute('color',new THREE.BufferAttribute(dec(d.col),3));g.computeVertexNormals();
+  const m=new THREE.Mesh(g,mat);m.castShadow=true;m.receiveShadow=true;m.visible=false;scene.add(m);parts[name]=m;}
+const tealMat=new THREE.MeshStandardMaterial({color:0x0b6366,roughness:0.55,metalness:0.0,envMapIntensity:0.6}), baseMat=M(0x8aa0b8,0.5,0.05), clampMat=M(0x55606b,0.5,0.2);
+const stressMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.0,envMapIntensity:0.5});
+const flatStress=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,flatShading:true});
+fetch('meshes_bike.json').then(r=>r.json()).then(J=>{
+  mk('final',J.final,tealMat); mk('final_stress',J.final_stress,stressMat); mk('base_plain',J.base_plain,new THREE.MeshStandardMaterial({color:0x8aa0b8,roughness:0.55,flatShading:true}));
+  mk('base_stress',J.base_stress,flatStress); mk('clamp',J.clamp,clampMat); mk('final_vox_stress',J.final_vox_stress,flatStress); mk('base_smooth_stress',J.base_smooth_stress,stressMat); mk('base_smooth',J.base_smooth,tealMat);
+  // phone holder: post + cradle + phone (tilted toward rider)
+  const hold=new THREE.Group();scene.add(hold);parts.holder=hold;
+  const post=new THREE.Mesh(new THREE.BoxGeometry(10,12,16),darkMat);post.position.set(91,55,28);post.castShadow=true;hold.add(post);
+  const ph=new THREE.Group();ph.position.set(91,55,44);ph.rotation.y=-0.28;hold.add(ph);
+  const cradle=new THREE.Mesh(new THREE.BoxGeometry(110,58,5),darkMat);cradle.position.z=-6;cradle.castShadow=true;ph.add(cradle);
+  for(const s of [-1,1]){const j=new THREE.Mesh(new THREE.BoxGeometry(14,10,18),darkMat);j.position.set(0,s*41,0);ph.add(j);}
+  const body=new THREE.Mesh(new THREE.RoundedBoxGeometry(162,76,8.5,6,7),new THREE.MeshPhysicalMaterial({color:0x2a2e35,roughness:0.3,metalness:0.7,clearcoat:1}));body.castShadow=true;ph.add(body);
+  const cv=document.createElement('canvas');cv.width=1024;cv.height=480;const cx=cv.getContext('2d');const gr=cx.createLinearGradient(0,0,1024,480);gr.addColorStop(0,'#0e3a5c');gr.addColorStop(0.55,'#1b6f8f');gr.addColorStop(1,'#46b3a4');cx.fillStyle=gr;cx.fillRect(0,0,1024,480);
+  cx.strokeStyle='rgba(255,255,255,0.85)';cx.lineWidth=14;cx.lineCap='round';cx.beginPath();cx.moveTo(140,380);cx.bezierCurveTo(320,250,480,420,640,230);cx.bezierCurveTo(760,110,860,200,900,120);cx.stroke();
+  cx.fillStyle='#fff';cx.beginPath();cx.arc(900,120,22,0,7);cx.fill();cx.fillStyle='rgba(255,255,255,0.9)';cx.font='bold 64px sans-serif';cx.fillText('12.4 km',60,100);
+  const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(154,70),new THREE.MeshPhysicalMaterial({map:tex,emissiveMap:tex,emissive:0xffffff,emissiveIntensity:0.55,roughness:0.05,clearcoat:1}));scr.position.z=4.3;scr.rotation.z=Math.PI;ph.add(scr);
+  const bar=new THREE.Group();scene.add(bar);parts.bar=bar;bar.add(tube(V(0,-20,0),V(0,150,0),15.9,alMat,48));
+  window.ready=true;
+});
+window.show=function(list){for(const k in parts)parts[k].visible=list.includes(k);};
+window.view=function(p,t,fov){cam.fov=fov||30;cam.position.set(...p);cam.lookAt(...t);cam.updateProjectionMatrix();renderer.render(scene,cam);};
+window.bikeVis=function(v){bike.visible=v;ground.visible=v;};
+</script></body></html>

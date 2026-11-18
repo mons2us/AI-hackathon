@@ -1,0 +1,437 @@
+{
+ "input": {
+  "text": "울퉁불퉁한 길에서도 안 흔들리게, 여름 땡볕에서 변형이 없도록, 화면 각도 변환은 최대한 자유롭게",
+  "sketch": null,
+  "photo": null,
+  "template": "T01"
+ },
+ "text": {
+  "params": {
+   "road": "cobblestone",
+   "requirements": [
+    "sun_heat",
+    "free_angle"
+   ]
+  },
+  "shape_hint": {},
+  "fired": [
+   {
+    "rule": "road_rough",
+    "effect": {
+     "road": "cobblestone"
+    },
+    "why": "거친 노면 → 자갈길 진동 측정값(ISBS 2020)"
+   },
+   {
+    "rule": "req_sun_heat",
+    "effect": {
+     "requirement": "sun_heat"
+    },
+    "why": "여름 땡볕에서 변형 없음 → 주차 중 햇빛에 달궈진 부품 온도 ≤ 재료 열변형온도(자기 정하중 응력에서) − 여유"
+   },
+   {
+    "rule": "req_free_angle",
+    "effect": {
+     "requirement": "free_angle"
+    },
+    "why": "화면 각도 최대한 자유롭게 → 폰이 360° 회전 + 기울기 범위에서 핸들·거치대와 부딪히지 않음, 관절이 진동 기준 이상 강성·충격 유지 토크 보유"
+   }
+  ],
+  "questions": [
+   "어떤 폰을 올리나요? (기본: 폰 200 g + 클램프 50 g 가정)",
+   "핸들바 굵기(클램프 위치 직경)는? (기본: 31.8 mm)"
+  ]
+ },
+ "template": {
+  "id": "T01",
+  "name": "기본형",
+  "desc": "팀 v7 기준: 클램프 위에서 앞으로 곧게 뻗은 팔",
+  "chosen_by": "지정",
+  "match": null
+ },
+ "requirements": {
+  "free_angle_options": [
+   {
+    "reach_add": 0.0,
+    "lift": 36.0,
+    "ok": true,
+    "arm": "under",
+    "stalk_base_z": -10.0,
+    "f1_hz": 9.2,
+    "stress_mpa": 63.5,
+    "mass_g": 33.5,
+    "potential_f1_hz": 106.6
+   },
+   {
+    "reach_add": 20.0,
+    "lift": 0.0,
+    "ok": true,
+    "arm": "under",
+    "stalk_base_z": -46.0,
+    "f1_hz": 6.5,
+    "stress_mpa": 71.3,
+    "mass_g": 46.4,
+    "potential_f1_hz": 138.4
+   },
+   {
+    "reach_add": 40.0,
+    "lift": 0.0,
+    "ok": true,
+    "arm": "under",
+    "stalk_base_z": -46.0,
+    "f1_hz": 5.7,
+    "stress_mpa": 79.6,
+    "mass_g": 49.5,
+    "potential_f1_hz": 137.7
+   }
+  ],
+  "sun_heat_before": {
+   "requirement": "sun_heat",
+   "pass_": false,
+   "colour": "black",
+   "sigma_static_mpa": 1.35,
+   "hdt_c": 70.0,
+   "hdt_rule": "0.45–1.8 MPa 사이 선형 보간",
+   "margin_k": 10.0,
+   "h_parked": 5.0,
+   "h_riding": 35.4,
+   "re_riding": 12255,
+   "rows": [
+    {
+     "colour": "black",
+     "absorptance": 0.925,
+     "parked_c": 76.9,
+     "riding_c": 49.5,
+     "limit_c": 60.0,
+     "parked_ok": false,
+     "riding_ok": true
+    },
+    {
+     "colour": "white",
+     "absorptance": 0.2,
+     "parked_c": 48.5,
+     "riding_c": 40.9,
+     "limit_c": 60.0,
+     "parked_ok": true,
+     "riding_ok": true
+    }
+   ],
+   "alternatives": [
+    {
+     "material": "ASA",
+     "limit_c": 83.0,
+     "parked_black_ok": true,
+     "source": "prusa_asa_blog",
+     "note": "시험 조건 미상, 기계 물성 미확보"
+    }
+   ],
+   "recommendation": "출력 색을 흰색(밝은 색)으로 지정 — 같은 PETG로 기준 충족",
+   "assumptions": [
+    "일사 1000 W/m², 기온 38 °C, 하늘 -10 K, 노면 +15 K",
+    "주차 무풍 h 5.0 W/m²K, 주행 15 km/h 평판 강제대류",
+    "HDT − 10 K 여유 (선택값)",
+    "온도에 따른 탄성계수 저하 데이터 없음 → 진동 판정은 상온 E 사용",
+    "볼트 체결부 응력(예압)과 그 크리프는 해석에 없음 — 고온 주차 후 클램프 풀림은 시험으로 확인"
+   ]
+  },
+  "sun_heat": {
+   "requirement": "sun_heat",
+   "pass_": true,
+   "colour": "white",
+   "sigma_static_mpa": 1.35,
+   "hdt_c": 70.0,
+   "hdt_rule": "0.45–1.8 MPa 사이 선형 보간",
+   "margin_k": 10.0,
+   "h_parked": 5.0,
+   "h_riding": 35.4,
+   "re_riding": 12255,
+   "rows": [
+    {
+     "colour": "black",
+     "absorptance": 0.925,
+     "parked_c": 76.9,
+     "riding_c": 49.5,
+     "limit_c": 60.0,
+     "parked_ok": false,
+     "riding_ok": true
+    },
+    {
+     "colour": "white",
+     "absorptance": 0.2,
+     "parked_c": 48.5,
+     "riding_c": 40.9,
+     "limit_c": 60.0,
+     "parked_ok": true,
+     "riding_ok": true
+    }
+   ],
+   "alternatives": [
+    {
+     "material": "ASA",
+     "limit_c": 83.0,
+     "parked_black_ok": true,
+     "source": "prusa_asa_blog",
+     "note": "시험 조건 미상, 기계 물성 미확보"
+    }
+   ],
+   "recommendation": null,
+   "assumptions": [
+    "일사 1000 W/m², 기온 38 °C, 하늘 -10 K, 노면 +15 K",
+    "주차 무풍 h 5.0 W/m²K, 주행 15 km/h 평판 강제대류",
+    "HDT − 10 K 여유 (선택값)",
+    "온도에 따른 탄성계수 저하 데이터 없음 → 진동 판정은 상온 E 사용",
+    "볼트 체결부 응력(예압)과 그 크리프는 해석에 없음 — 고온 주차 후 클램프 풀림은 시험으로 확인"
+   ]
+  },
+  "free_angle": {
+   "requirement": "free_angle",
+   "pass_": true,
+   "target": {
+    "tilt_deg": 60.0,
+    "rotate_deg": 360.0,
+    "clearance_mm": 3.0
+   },
+   "tilt_now": {
+    "portrait": {
+     "down_deg": -68,
+     "up_deg": 60
+    },
+    "landscape": {
+     "down_deg": -68,
+     "up_deg": 60
+    }
+   },
+   "rotate_360_now": true,
+   "joint_lift_needed_mm": 4,
+   "joint": {
+    "portrait/joint_below_phone": {
+     "I_kgm2": 0.0005707,
+     "k_req_Nm_per_rad": 187.4,
+     "hold_torque_Nm": 1.24
+    },
+    "portrait/axis_through_cog": {
+     "I_kgm2": 0.0005347,
+     "k_req_Nm_per_rad": 175.6,
+     "hold_torque_Nm": 0.0
+    },
+    "landscape/joint_below_phone": {
+     "I_kgm2": 0.0001577,
+     "k_req_Nm_per_rad": 51.8,
+     "hold_torque_Nm": 1.24
+    },
+    "landscape/axis_through_cog": {
+     "I_kgm2": 0.0001217,
+     "k_req_Nm_per_rad": 40.0,
+     "hold_torque_Nm": 0.0
+    }
+   },
+   "tradeoff": [],
+   "assumptions": [
+    "목표: 라이더 쪽 0–60° 기울기 + 360° 회전, 간격 3 mm (선택값)",
+    "관절축은 폰 뒷면 아래 8 mm (클램프 두께 가정)",
+    "간섭 대상: 핸들바(클램프 폭 밖은 핸들 Ø, 안은 링 외경)와 거치대 본체. 스템·브레이크 레버는 미포함",
+    "관절 강성 요구 = 폰의 관절 회전 모드 ≥ 진동 기준, 폰+클램프를 강체 판으로 근사"
+   ]
+  }
+ },
+ "problem": {
+  "grid": {
+   "h": 2.0,
+   "origin": [
+    -24.0,
+    55.0,
+    -110.0
+   ],
+   "shape": [
+    72,
+    10,
+    76
+   ]
+  },
+  "elements": {
+   "design": 36927,
+   "solid": 910,
+   "void": 16718,
+   "rigid": 165
+  },
+  "supports": {
+   "handlebar": 473
+  },
+  "point_mass_nodes": {
+   "phone_clamp": 24
+  },
+  "half_model_mass_kg": 0.125
+ },
+ "stl": {
+  "triangles": 9184,
+  "volume_mm3": 34586.4,
+  "bbox": [
+   [
+    -20.0,
+    45.0,
+    -50.0
+   ],
+   [
+    119.7,
+    65.0,
+    20.0
+   ]
+  ]
+ },
+ "criteria": [
+  {
+   "id": "f1",
+   "rule": "natural_frequency_hz >= 91.2",
+   "why": "T_max=1.333 -> f1 >= 45.6 / sqrt(1-1/T_max)",
+   "source": [
+    "sdof",
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "stress",
+   "rule": "von_mises_max_mpa <= 26.0",
+   "why": "yield 39.0 / SF 1.5",
+   "source": [
+    "prusament_petg",
+    "assumed:sf"
+   ]
+  },
+  {
+   "id": "interlayer",
+   "rule": "layer_normal_tension_mpa <= 10.9",
+   "why": "interlayer 16.4 / SF 1.5, 옆으로 눕혀 출력(적층 방향 y)",
+   "source": [
+    "prusament_petg",
+    "assumed:print_orientation"
+   ]
+  },
+  {
+   "id": "min_feature",
+   "rule": "min_member_thickness_mm >= 5.0",
+   "why": "",
+   "source": [
+    "team_v7"
+   ]
+  },
+  {
+   "id": "pose_clearance",
+   "rule": "phone_clearance_mm >= 3.0",
+   "why": "",
+   "source": [
+    "assumed:target_range"
+   ]
+  },
+  {
+   "id": "joint_stiffness",
+   "rule": "joint_rot_stiffness_Nm_per_rad >= 187.4",
+   "why": "(2π·91.2)² × I_joint, I_joint = m(H²+D²)/12 + m·e² = 5.71e-04 kg·m² (세로, 관절이 폰 뒤 12 mm)",
+   "source": [
+    "sdof"
+   ]
+  },
+  {
+   "id": "joint_hold",
+   "rule": "joint_hold_torque_Nm >= 1.24",
+   "why": "m·48.5 g·e·sin60°; 관절축이 폰 무게중심을 지나면 0",
+   "source": [
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "sun_heat",
+   "rule": "parked_surface_temp_c <= HDT(σ_1g) − 10",
+   "why": "햇빛 아래 주차 표면온도(에너지 평형) ≤ 정하중(폰 무게) 응력에서의 열변형온도 − 여유",
+   "source": [
+    "prusament_petg",
+    "energy_balance",
+    "lisbon_reflect"
+   ]
+  }
+ ],
+ "assumptions": [
+  "노면 진동은 바퀴 축 측정값을 핸들바에 그대로 적용(보수적)",
+  "옆 충격 = 위아래 충격 크기",
+  "48.5 g 충격을 정적 하중으로 환산",
+  "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체",
+  "폰 클램프 질량 50 g",
+  "안전율 1.5, 진동 증폭 허용 1.33배는 선택값",
+  "충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장",
+  "각도 자유: 360° 회전 + 기울기 -30~+60°, 간격 3 mm (목표 선택값)"
+ ],
+ "first_design_check": {
+  "mass_g": 46.4,
+  "elements": 2450,
+  "connected": true,
+  "parts": 1,
+  "freqs_hz": [
+   6.5,
+   8.3,
+   20.0,
+   103.9
+  ],
+  "f1_hz": 6.5,
+  "shock_vertical": {
+   "vm_max_mpa": 65.7,
+   "vm_p999_mpa": 64.9,
+   "s_yy_tension_mpa": 32.2,
+   "tip_disp_mm": 102.887
+  },
+  "shock_lateral": {
+   "vm_max_mpa": 71.3,
+   "vm_p999_mpa": 70.8,
+   "s_yy_tension_mpa": 7.2,
+   "tip_disp_mm": 171.616
+  },
+  "checks": {
+   "f1": {
+    "value": 6.5,
+    "limit": ">= 91.2",
+    "pass": false
+   },
+   "stress": {
+    "value": 71.3,
+    "limit": "<= 26.0",
+    "pass": false
+   },
+   "interlayer": {
+    "value": 32.2,
+    "limit": "<= 10.9",
+    "pass": false
+   }
+  },
+  "pass": false
+ },
+ "cad": {
+  "step": "design_1st.step",
+  "valid": true,
+  "solids": 1,
+  "volume_mm3": 36214.2,
+  "mass_g": 45.99,
+  "bbox": [
+   [
+    -20.6,
+    45.0,
+    -50.0
+   ],
+   [
+    120.0,
+    65.0,
+    20.6
+   ]
+  ]
+ },
+ "drawing": {
+  "sheet": "A4",
+  "scale": "1:1",
+  "views": [
+   "front",
+   "top",
+   "right",
+   "iso"
+  ],
+  "dxf": "design_1st_drawing.dxf",
+  "pdf": "design_1st_drawing.pdf"
+ },
+ "seconds": 43.02
+}

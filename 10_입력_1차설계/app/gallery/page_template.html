@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>거치대 외형 후보</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky selection bar, then a grid of variant cards (render on top, module composition below). */
+:root{
+  --bg:#eef1f5; --card:#ffffff; --ink:#151a22; --ink2:#4d5663; --ink3:#8b94a1; --line:#dde3ea; --soft:#f3f5f8;
+  --accent:#2457d6; --accent-s:#e7eefd; --on:#ffffff; --render:#f4f5f7;
+  --f-ui:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --card:#161d27; --ink:#e8ecf2; --ink2:#a9b2bf; --ink3:#6f7a88; --line:#273142; --soft:#1c2533;
+  --accent:#6f98ff; --accent-s:#1b2a4d; --on:#0e131a; --render:#f4f5f7; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --card:#161d27; --ink:#e8ecf2; --ink2:#a9b2bf; --ink3:#6f7a88; --line:#273142; --soft:#1c2533;
+  --accent:#6f98ff; --accent-s:#1b2a4d; --on:#0e131a; --render:#f4f5f7; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--f-ui)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--card);z-index:10}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-size:22px;margin:0 0 4px;letter-spacing:-.3px;text-wrap:balance}
+header p{margin:0;color:var(--ink2);max-width:72ch}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;margin:16px 0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.bar .lab{color:var(--ink2);font-size:13px}
+.bar .ids{font-family:var(--f-num);font-size:13px;min-width:0;overflow-wrap:anywhere;flex:1}
+.bar button{border:0;background:var(--accent);color:var(--on);border-radius:9px;padding:7px 12px;font-weight:600;font-size:13px}
+.bar button.ghost{background:var(--soft);color:var(--ink)}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--ink2)}
+.filters button.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-s)}
+.shot{position:relative;background:var(--render);aspect-ratio:4/3}
+.shot img{display:block;width:100%;height:100%;object-fit:cover}
+.shot .id{position:absolute;left:10px;top:8px;font-family:var(--f-num);font-size:13px;background:rgba(255,255,255,.88);color:#151a22;border-radius:6px;padding:2px 7px}
+.views{display:flex;gap:4px;padding:8px 10px 0}
+.views button{flex:1;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:4px 0;font-size:12px;color:var(--ink2)}
+.views button.on{background:var(--soft);color:var(--ink);border-color:var(--ink3)}
+.body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
+.note{font-weight:600;font-size:13.5px;line-height:1.45}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0;font-size:12.5px}
+dt{color:var(--ink3)}dd{margin:0;min-width:0}
+.meta{display:flex;flex-wrap:wrap;gap:6px;font-size:12px}
+.meta span{background:var(--soft);border-radius:999px;padding:2px 9px;color:var(--ink2)}
+.meta b{font-family:var(--f-num);font-weight:500;color:var(--ink)}
+.pick{margin-top:auto;border:1px solid var(--accent);background:var(--card);color:var(--accent);border-radius:9px;padding:7px;font-weight:600}
+.card.sel .pick{background:var(--accent);color:var(--on)}
+footer{color:var(--ink3);font-size:12px;margin-top:24px;max-width:80ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div class="wrap">
+<header>
+  <h1>자전거 폰 거치대 외형 후보 16종</h1>
+  <p>클램프 3종 × 팔 10종 × 단면 5종 × 연결부 3종 × 폰 홀더 6종을 조합해 CAD로 만든 렌더입니다. 마음에 드는 것을 고르면 아래 번호를 복사해 보내 주세요. 고른 외형은 작업 샘플(템플릿)에 추가하고 물리 조건을 계산합니다.</p>
+</header>
+<div class="bar" role="region" aria-label="선택한 후보">
+  <span class="lab">선택</span><span class="ids" id="ids">아직 없음</span>
+  <button id="copy">번호 복사</button><button id="clear" class="ghost">선택 지우기</button>
+  <div class="filters" id="filters" aria-label="홀더 종류로 거르기"></div>
+</div>
+<main class="grid" id="grid"></main>
+<footer>렌더는 CadQuery로 만든 실제 형상(볼트·경첩·고무 띠 포함)을 스튜디오 조명으로 그린 것입니다. 질량은 PETG(1.27 g/cm³) 출력 부품만 셈하며 고무·금속 부품은 뺐습니다. "해석 팔 형식"은 물리 해석에서 쓰는 팔 경로 계열입니다.</footer>
+</div>
+<script>
+const DATA=/*@@DATA@@*/[];
+const VIEWS=[["hero","폰 포함"],["bare","거치대만"],["side","옆모습"],["rider","라이더 시점"]];
+const MAPS={straight:"곧은 팔 (T01·T04 계열)",dogleg:"구스넥 (T15·T16)",step:"아웃프론트 (T13·T14)",riser:"핸들 위 직결 (T11·T12)",L:"L자 (T05·T09)",truss:"트러스 (T07·T08)",vee:"V자 지지 (T17·T18·T20)"};
+const PH={ultra:"S25 Ultra",plus:"S25+",base:"S25"};
+let sel=new Set(), filt="";
+try{(JSON.parse(localStorage.getItem("fp_gallery_sel")||"[]")).forEach(x=>sel.add(x));}catch(e){}
+const save=()=>{try{localStorage.setItem("fp_gallery_sel",JSON.stringify([...sel]));}catch(e){}};
+const $=s=>document.querySelector(s);
+function render(){
+  const g=$("#grid");g.innerHTML="";
+  for(const d of DATA){
+    if(filt&&d.holder!==filt)continue;
+    const c=document.createElement("article");c.className="card"+(sel.has(d.id)?" sel":"");
+    c.innerHTML=`<div class="shot"><img alt="${d.id} 렌더" loading="lazy" src="img/${d.id}_hero.jpg"><span class="id">${d.id}</span></div>
+      <div class="views">${VIEWS.map(([k,n],i)=>`<button data-v="${k}" class="${i?"":"on"}">${n}</button>`).join("")}</div>
+      <div class="body"><div class="note">${d.note}</div>
+      <dl><dt>클램프</dt><dd>${d.clamp}</dd><dt>팔</dt><dd>${d.arm} · ${d.section}</dd><dt>연결</dt><dd>${d.joint}</dd><dt>홀더</dt><dd>${d.holder}</dd></dl>
+      <div class="meta"><span>본체 <b>${d.mass_g.body} g</b></span><span>홀더 <b>${d.mass_g.holder} g</b></span><span>${PH[d.phone]}</span><span>해석 팔 형식: ${MAPS[d.maps_to]||d.maps_to}</span></div>
+      <button class="pick" aria-pressed="${sel.has(d.id)}">${sel.has(d.id)?"선택됨":"이 외형 선택"}</button></div>`;
+    c.querySelectorAll(".views button").forEach(b=>b.onclick=()=>{c.querySelectorAll(".views button").forEach(x=>x.classList.toggle("on",x===b));c.querySelector("img").src=`img/${d.id}_${b.dataset.v}.jpg`;});
+    c.querySelector(".pick").onclick=()=>{sel.has(d.id)?sel.delete(d.id):sel.add(d.id);save();render();};
+    g.appendChild(c);
+  }
+  const ids=[...sel].sort();$("#ids").textContent=ids.length?ids.join(", "):"아직 없음";
+}
+const holders=[...new Set(DATA.map(d=>d.holder))];
+$("#filters").innerHTML=`<button data-h="" class="on">전체</button>`+holders.map(h=>`<button data-h="${h}">${h}</button>`).join("");
+$("#filters").querySelectorAll("button").forEach(b=>b.onclick=()=>{filt=b.dataset.h;$("#filters").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));render();});
+$("#copy").onclick=async()=>{const t=[...sel].sort().join(", ");if(!t)return;const b=$("#copy");try{await navigator.clipboard.writeText(t);b.textContent="복사됨";}catch(e){const r=document.createRange();r.selectNodeContents($("#ids"));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent="선택한 번호를 길게 눌러 복사";}setTimeout(()=>b.textContent="번호 복사",1800);};
+$("#clear").onclick=()=>{sel.clear();save();render();};
+render();
+</script>
+</body></html>

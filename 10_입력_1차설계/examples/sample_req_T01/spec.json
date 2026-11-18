@@ -1,0 +1,765 @@
+{
+ "schema": "formproof.spec/0.1",
+ "product": "bike_phone_mount",
+ "template": {
+  "id": "T01",
+  "params": {
+   "h": 2.0,
+   "bar_d": 31.8,
+   "bore_gap": 0.2,
+   "ring_t": 4.5,
+   "clamp_w": 20.0,
+   "slit_w": 4.0,
+   "ear_x": [
+    2.0,
+    8.0
+   ],
+   "ear_len": 20.0,
+   "pad_x0": 100.0,
+   "pad_len": 20.0,
+   "pad_z0": 16.0,
+   "pad_t": 4.0,
+   "post_x": [
+    6.0,
+    16.0
+   ],
+   "post_w": 12.0,
+   "post_h": 22.0,
+   "above_margin": 4.0,
+   "holder_gap": 2.0,
+   "design_w": 40.0,
+   "arm": "under",
+   "stalk_base_z": -46.0,
+   "domain_z_min": -110.0,
+   "arm_t": 6.0,
+   "bolt_d": 4.5,
+   "bolt_z": 7.0,
+   "bolt_dy": 5.0,
+   "mount_hole_d": 8.0,
+   "phone": "default",
+   "phone_mass_kg": null,
+   "road": "cobblestone",
+   "material": "PETG",
+   "objective": "min_mass",
+   "safety_factor": null,
+   "include_self_inertia": false,
+   "phone_clamp_t": 8.0,
+   "colour": "white",
+   "requirements": [
+    "free_angle",
+    "sun_heat"
+   ],
+   "angle_tilt": [
+    -30.0,
+    60.0
+   ],
+   "angle_margin": 3.0
+  },
+  "name": "기본형",
+  "chosen_by": "지정"
+ },
+ "units": {
+  "length": "mm",
+  "mass": "t (kg in point_masses)",
+  "force": "N",
+  "stress": "MPa",
+  "time": "s"
+ },
+ "grid": {
+  "h": 2.0,
+  "origin": [
+   -24.0,
+   55.0,
+   -110.0
+  ],
+  "shape": [
+   72,
+   10,
+   76
+  ],
+  "symmetry": {
+   "axis": "y",
+   "at": 55.0,
+   "cases": [
+    "S",
+    "A"
+   ]
+  }
+ },
+ "material": {
+  "name": "PETG",
+  "E": 1700.0,
+  "nu": 0.38,
+  "rho": 1.27e-09,
+  "yield_mpa": 39.0,
+  "interlayer_mpa": 16.4,
+  "source": "prusament_petg"
+ },
+ "regions": [
+  {
+   "name": "bore",
+   "role": "void",
+   "shape": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 16.1
+     }
+    }
+   ],
+   "why": "핸들바가 지나가는 구멍"
+  },
+  {
+   "name": "slit",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       -2.0,
+       2.0
+      ],
+      "z": [
+       null,
+       0.0
+      ]
+     }
+    },
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 26.0
+     }
+    }
+   ],
+   "why": "클램프 조임용 절개"
+  },
+  {
+   "name": "post",
+   "role": "rigid",
+   "stiffness_scale": 20.0,
+   "mass_scale": 0.0,
+   "shape": [
+    {
+     "box": {
+      "x": [
+       106.0,
+       116.0
+      ],
+      "z": [
+       20.0,
+       null
+      ],
+      "y": [
+       null,
+       61.0
+      ]
+     }
+    }
+   ],
+   "why": "시판 폰 클램프(강체 가정, 질량은 point_masses에 포함)"
+  },
+  {
+   "name": "holder",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       98.0,
+       null
+      ],
+      "z": [
+       20.0,
+       null
+      ]
+     }
+    }
+   ],
+   "minus": [
+    "post"
+   ],
+   "why": "폰이 놓이는 공간"
+  },
+  {
+   "name": "above",
+   "role": "void",
+   "shape": [
+    {
+     "box": {
+      "z": [
+       24.0,
+       null
+      ]
+     }
+    }
+   ],
+   "minus": [
+    "post"
+   ],
+   "why": "폰 뒤 공간은 받침판 위 일정 높이까지만 허용"
+  },
+  {
+   "name": "contact",
+   "role": "solid",
+   "shape": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_min": 16.1,
+      "r_max": 20.6,
+      "y": [
+       null,
+       65.0
+      ]
+     }
+    }
+   ],
+   "why": "핸들바 클램프 링(지킬 곳)"
+  },
+  {
+   "name": "ears",
+   "role": "solid",
+   "shape": {
+    "union": [
+     [
+      {
+       "box": {
+        "x": [
+         2.0,
+         8.0
+        ],
+        "z": [
+         -34.0,
+         -14.0
+        ],
+        "y": [
+         null,
+         65.0
+        ]
+       }
+      }
+     ],
+     [
+      {
+       "box": {
+        "x": [
+         -8.0,
+         -2.0
+        ],
+        "z": [
+         -34.0,
+         -14.0
+        ],
+        "y": [
+         null,
+         65.0
+        ]
+       }
+      }
+     ]
+    ]
+   },
+   "why": "M4 볼트 귀(지킬 곳)"
+  },
+  {
+   "name": "pad",
+   "role": "solid",
+   "shape": [
+    {
+     "box": {
+      "x": [
+       100.0,
+       120.0
+      ],
+      "z": [
+       16.0,
+       20.0
+      ],
+      "y": [
+       null,
+       65.0
+      ]
+     }
+    }
+   ],
+   "why": "폰 클램프 받침판(지킬 곳)"
+  },
+  {
+   "name": "phone_sweep",
+   "role": "void",
+   "minus": [
+    "post",
+    "pad",
+    "contact",
+    "ears"
+   ],
+   "shape": [
+    {
+     "phone_sweep": {
+      "joint": [
+       111.0,
+       55.0,
+       30.0
+      ],
+      "H": 160.0,
+      "W": 76.0,
+      "D": 8.0,
+      "clamp_t": 8.0,
+      "margin": 3.0,
+      "tilt_lo": -30.0,
+      "tilt_hi": 60.0,
+      "rot_deg": 360.0,
+      "rot_step": 15.0,
+      "tilt_step": 4.0
+     }
+    }
+   ],
+   "why": "요구 '화면 각도 자유롭게': 폰이 360° 회전·기울기 범위에서 지나가는 공간(비울 곳)"
+  }
+ ],
+ "geometry": {
+  "frame": "x 앞(진행 방향), z 위, y 핸들바 축. 핸들바 중심 (x=0, z=0), 대칭면 y=55.0",
+  "y_sym": 55.0,
+  "bar_d": 31.8,
+  "bore_r": 16.1,
+  "ring_ro": 20.6,
+  "width": 20.0,
+  "slit_half": 2.0,
+  "slit_r": 26.0,
+  "ear_x": [
+   2.0,
+   8.0
+  ],
+  "ear_z": [
+   -34.0,
+   -14.0
+  ],
+  "bolts": {
+   "d": 4.5,
+   "z": -27.0,
+   "y": [
+    50.0,
+    60.0
+   ],
+   "x_span": [
+    -10.0,
+    10.0
+   ]
+  },
+  "pad": {
+   "x": [
+    100.0,
+    120.0
+   ],
+   "z": [
+    16.0,
+    20.0
+   ]
+  },
+  "mount_hole": {
+   "d": 8.0,
+   "x": 110.0,
+   "y": 55.0
+  },
+  "arm": {
+   "style": "under",
+   "t": 6.0,
+   "segments": [
+    [
+     [
+      7.0,
+      -15.24204710660612
+     ],
+     [
+      7.0,
+      -47.0
+     ]
+    ],
+    [
+     [
+      7.0,
+      -47.0
+     ],
+     [
+      109.0,
+      -47.0
+     ]
+    ],
+    [
+     [
+      109.0,
+      -47.0
+     ],
+     [
+      109.0,
+      18.0
+     ]
+    ]
+   ]
+  },
+  "clip": {
+   "holder_x": 98.0,
+   "holder_z": 20.0,
+   "z_above": 24.0
+  },
+  "holes_in_analysis": false,
+  "phone": {
+   "name": "기종 미지정(200 g 가정)",
+   "H": 160.0,
+   "W": 76.0,
+   "D": 8.0,
+   "mass_kg": 0.25,
+   "cog": [
+    111.0,
+    42.0
+   ],
+   "clamp_t": 8.0,
+   "dims_source": "assumed"
+  }
+ },
+ "initial_design": {
+  "name": "arm",
+  "style": "under",
+  "shape": [
+   {
+    "seg": {
+     "plane": "xz",
+     "p0": [
+      7.0,
+      -15.24204710660612
+     ],
+     "p1": [
+      7.0,
+      -47.0
+     ],
+     "t": 6.0,
+     "y": [
+      null,
+      65.0
+     ]
+    }
+   },
+   {
+    "seg": {
+     "plane": "xz",
+     "p0": [
+      7.0,
+      -47.0
+     ],
+     "p1": [
+      109.0,
+      -47.0
+     ],
+     "t": 6.0,
+     "y": [
+      null,
+      65.0
+     ]
+    }
+   },
+   {
+    "seg": {
+     "plane": "xz",
+     "p0": [
+      109.0,
+      -47.0
+     ],
+     "p1": [
+      109.0,
+      18.0
+     ],
+     "t": 6.0,
+     "y": [
+      null,
+      65.0
+     ]
+    }
+   }
+  ],
+  "why": "스케치의 팔 형상 = 1차 설계. 설계 영역 안에서만 유효"
+ },
+ "supports": [
+  {
+   "name": "handlebar",
+   "type": "fixed",
+   "dofs": "xyz",
+   "nodes": [
+    {
+     "cyl": {
+      "axis": "y",
+      "center": [
+       0.0,
+       0.0
+      ],
+      "r_max": 16.700000000000003
+     }
+    }
+   ],
+   "assumption": "클램프 내면이 핸들바에 완전 고정(미끄럼·회전 없음)"
+  }
+ ],
+ "point_masses": [
+  {
+   "name": "phone_clamp",
+   "mass_kg": 0.25,
+   "nodes": [
+    {
+     "box": {
+      "x": [
+       106.0,
+       116.0
+      ],
+      "y": [
+       null,
+       61.0
+      ],
+      "z": [
+       42.0,
+       null
+      ]
+     }
+    }
+   ],
+   "source": [
+    "team_v7",
+    "assumed:clamp_50g"
+   ],
+   "note": "기종 미지정(200 g 가정) 200 g + 폰 클램프 50 g, 클램프 상단에 집중"
+  }
+ ],
+ "load_cases": [
+  {
+   "name": "road_vibration",
+   "type": "modal",
+   "modes_per_case": 2,
+   "excitation_hz": [
+    34.6,
+    45.6
+   ],
+   "source": "isbs2020"
+  },
+  {
+   "name": "shock_vertical",
+   "type": "inertial",
+   "accel_g": 48.5,
+   "dir": [
+    0,
+    0,
+    -1
+   ],
+   "applies_to": [
+    "phone_clamp"
+   ],
+   "include_self": false,
+   "source": "isbs2020"
+  },
+  {
+   "name": "shock_lateral",
+   "type": "inertial",
+   "accel_g": 48.5,
+   "dir": [
+    0,
+    1,
+    0
+   ],
+   "applies_to": [
+    "phone_clamp"
+   ],
+   "include_self": false,
+   "source": "assumed:lateral_equals_vertical"
+  }
+ ],
+ "objective": {
+  "type": "min_mass"
+ },
+ "finish": {
+  "colour": "white"
+ },
+ "requirements": [
+  "free_angle",
+  "sun_heat"
+ ],
+ "constraints": [
+  {
+   "id": "f1",
+   "quantity": "natural_frequency_hz",
+   "op": ">=",
+   "value": 91.2,
+   "load_case": "road_vibration",
+   "derivation": "T_max=1.333 -> f1 >= 45.6 / sqrt(1-1/T_max)",
+   "source": [
+    "sdof",
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "stress",
+   "quantity": "von_mises_max_mpa",
+   "op": "<=",
+   "value": 26.0,
+   "load_cases": [
+    "shock_vertical",
+    "shock_lateral"
+   ],
+   "exclude_regions": [
+    "contact"
+   ],
+   "derivation": "yield 39.0 / SF 1.5",
+   "source": [
+    "prusament_petg",
+    "assumed:sf"
+   ]
+  },
+  {
+   "id": "interlayer",
+   "quantity": "layer_normal_tension_mpa",
+   "op": "<=",
+   "value": 10.9,
+   "layer_normal": "y",
+   "load_cases": [
+    "shock_vertical",
+    "shock_lateral"
+   ],
+   "exclude_regions": [
+    "contact"
+   ],
+   "derivation": "interlayer 16.4 / SF 1.5, 옆으로 눕혀 출력(적층 방향 y)",
+   "source": [
+    "prusament_petg",
+    "assumed:print_orientation"
+   ]
+  },
+  {
+   "id": "min_feature",
+   "quantity": "min_member_thickness_mm",
+   "op": ">=",
+   "value": 5.0,
+   "source": [
+    "team_v7"
+   ]
+  },
+  {
+   "id": "pose_clearance",
+   "quantity": "phone_clearance_mm",
+   "op": ">=",
+   "value": 3.0,
+   "poses": {
+    "rotate_deg": 360,
+    "tilt_deg": [
+     -30.0,
+     60.0
+    ]
+   },
+   "keep_out_region": "phone_sweep",
+   "requirement": "free_angle",
+   "source": [
+    "assumed:target_range"
+   ]
+  },
+  {
+   "id": "joint_stiffness",
+   "quantity": "joint_rot_stiffness_Nm_per_rad",
+   "op": ">=",
+   "value": 187.4,
+   "derivation": "(2π·91.2)² × I_joint, I_joint = m(H²+D²)/12 + m·e² = 5.71e-04 kg·m² (세로, 관절이 폰 뒤 12 mm)",
+   "requirement": "free_angle",
+   "source": [
+    "sdof"
+   ]
+  },
+  {
+   "id": "joint_hold",
+   "quantity": "joint_hold_torque_Nm",
+   "op": ">=",
+   "value": 1.24,
+   "derivation": "m·48.5 g·e·sin60°; 관절축이 폰 무게중심을 지나면 0",
+   "requirement": "free_angle",
+   "source": [
+    "isbs2020"
+   ]
+  },
+  {
+   "id": "sun_heat",
+   "quantity": "parked_surface_temp_c",
+   "op": "<=",
+   "value": "HDT(σ_1g) − 10",
+   "hdt_table": [
+    [
+     0.45,
+     74.0
+    ],
+    [
+     1.8,
+     68.0
+    ]
+   ],
+   "colour": "white",
+   "derivation": "햇빛 아래 주차 표면온도(에너지 평형) ≤ 정하중(폰 무게) 응력에서의 열변형온도 − 여유",
+   "requirement": "sun_heat",
+   "source": [
+    "prusament_petg",
+    "energy_balance",
+    "lisbon_reflect"
+   ]
+  }
+ ],
+ "evidence": {
+  "isbs2020": {
+   "title": "Viellehner & Potthast, Road to lab: cobblestone cycling vibrations transferred to the lab, ISBS Proceedings 38 (2020)",
+   "url": "https://commons.nmu.edu/isbs/vol38/iss1/216/",
+   "note": "바퀴 축(드롭아웃) 측정값. 핸들바에 그대로 적용하는 것은 보수적 가정"
+  },
+  "prusament_petg": {
+   "title": "Prusament PETG V0 Technical Data Sheet v1.0 (2023), ISO 527-1 printed specimens",
+   "url": "https://cdn.shopify.com/s/files/1/1745/6181/files/prusament-petg-v0-technical-data-sheet.pdf",
+   "note": "출력 시편 수평 방향 값. 일반 PETG와 차이 가능"
+  },
+  "sdof": {
+   "title": "1자유도 진동 전달률 T = 1/|1-r^2|, r = f_excitation / f_natural",
+   "url": null,
+   "note": "교과서 식. 강성 설계(f_n > f_ex)에서 T <= T_max 이면 f_n >= f_ex / sqrt(1 - 1/T_max)"
+  },
+  "team_v7": {
+   "title": "FormProof 자전거 폰 거치대 시나리오 v7 (팀 내부 사전 검증)",
+   "url": "02_시연페이지/bike_mount_v7.html"
+  },
+  "energy_balance": {
+   "title": "얇은 판 표면 에너지 평형: a·G = 2h(T−Ta) + εσ[(T⁴−Tsky⁴)+(T⁴−Tground⁴)], 평판 강제대류 Nu=0.664Re^0.5Pr^(1/3)",
+   "url": null,
+   "note": "교과서 식. 계수는 assumptions에 표시"
+  },
+  "lisbon_reflect": {
+   "title": "Matias et al., City and Environment Interactions (Univ. Lisbon), Euronews 2025-08-27 보도",
+   "url": "https://www.euronews.com/2025/08/27/car-colours-and-climate-change-how-your-cars-paint-job-worsens-the-urban-heat-island-effec",
+   "note": "태양광 반사율 흰색 75–85 %, 검정 5–10 % (측정 당시 기온 36 °C)"
+  },
+  "prusa_asa_blog": {
+   "title": "Prusa Research, ASA Prusament is here (blog)",
+   "url": "https://blog.prusa3d.com/pl/asa-prusament-is-here-learn-everything-about-the-successor-to-abs_30636/",
+   "note": "출력물이 약 93 °C 부근까지 변형 없음(HDT 시험값 아님), UV 안정"
+  }
+ },
+ "assumptions": [
+  "노면 진동은 바퀴 축 측정값을 핸들바에 그대로 적용(보수적)",
+  "옆 충격 = 위아래 충격 크기",
+  "48.5 g 충격을 정적 하중으로 환산",
+  "클램프는 핸들바에 완전 고정, 시판 폰 클램프는 강체",
+  "폰 클램프 질량 50 g",
+  "안전율 1.5, 진동 증폭 허용 1.33배는 선택값",
+  "충격 하중에 거치대 자체 질량 관성 미포함(팀 v7과 동일) — 포함 권장",
+  "각도 자유: 360° 회전 + 기울기 -30~+60°, 간격 3 mm (목표 선택값)"
+ ]
+}

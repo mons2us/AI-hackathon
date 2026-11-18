@@ -1,0 +1,11 @@
+out*/
+
+*.npz
+.venv/
+formproof_input/templates/db/precomputed/
+models/*
+!models/README.md
+!models/results_fp11.zip
+!models/grid_meta.npz
+!models/hybrid_p01.json.gz
+!models/hybrid_p01_e2.json.gz
