@@ -2,7 +2,7 @@
    - 단계별 배치 (body.st-input · st-spec · st-design · st-opt · st-done)
    - 설계 사양 단계: AI 가 읽은 요구 → 물리 조건 (설계 사양 행의 인용 · 근거 그대로)
    - 최적화: 진행 띠 · 분포 창(응력 · 온도) 크게 · 과정 그래프 크게, 흔들림 창은 숨김(물리 AI 가 예측하지 않음)
-   - 결과: 결과 띠 + 1차 ↔ 최적 비교(같은 색 척도) 기본, 계산 기록(실제로 일어난 단계 · 측정값만), 상태 표시줄 */
+   - 결과: 결과 띠 + 초기 ↔ 최적 비교(같은 색 척도) 기본, 계산 기록(실제로 일어난 단계 · 측정값만), 상태 표시줄 */
 (function(){
 if(new URLSearchParams(location.search).get('ui')!=='pro')return;
 const B=document.body;B.classList.add('pro');
@@ -42,10 +42,10 @@ const _guide=window.guide;
 window.guide=function(a,b){_guide(a,b);$('#sbMsg').innerHTML=`<b>${a}</b>${b}`;};
 function busy(on){$('#sbDot').classList.toggle('run',!!on);}
 
-// ---------- 분포 창 꼬리표 (AI 예측 · 정밀 계산 · 1차 설계)
+// ---------- 분포 창 꼬리표 (AI 예측 · 정밀 계산 · 초기 설계)
 const _setPhase=window.setPhase;
 window.setPhase=function(a,b){_setPhase(a,b);
-  $$('.vp .ftag').forEach(e=>{e.textContent=b==='1차 설계'?'정밀 시뮬레이션':b;e.className='ftag'+(b==='AI 예측'?'':' fem');});};
+  $$('.vp .ftag').forEach(e=>{e.textContent=b==='초기 설계'?'정밀 시뮬레이션':b;e.className='ftag'+(b==='AI 예측'?'':' fem');});};
 
 // ---------- 계산 기록: 실제로 일어난 단계와 측정값만
 function plog(html,run){const b=$('#plogB');$('#plog').hidden=false;
@@ -69,9 +69,9 @@ window.showSpec=function(data,animate){
 const _confirm=$('#bConfirm').onclick;
 $('#bConfirm').onclick=()=>{_confirm();if(S.spec&&S.spec.confirmed)plog('설계 사양 확정');};
 
-// ---------- 1차 설계
+// ---------- 초기 설계
 const _run=window.run;
-window.run=async function(){busy(true);guide('3 1차 설계','3D 형상을 만들고 정밀 시뮬레이션으로 판정하는 중');await _run();busy(false);};
+window.run=async function(){busy(true);guide('3 초기 설계','3D 형상을 만들고 정밀 시뮬레이션으로 판정하는 중');await _run();busy(false);};
 $('#go').onclick=()=>window.run();
 const _render=window.render;
 window.render=function(rep){
@@ -79,7 +79,7 @@ window.render=function(rep){
   const r=_render(rep);
   $('#hProj').innerHTML=`<b>${esc($('#tplTag').textContent)}</b>`;
   const rows=(S.rows||[]).filter(m=>!m.ref),nf=rows.filter(m=>!m.ok).length;
-  plog(`1차 설계 · 정밀 시뮬레이션 판정 · ${nf?`<b>미충족 ${nf}개</b>`:'<b>모두 충족</b>'}${typeof rep.seconds==='number'?` · ${rep.seconds.toFixed(1)} s`:''}`);
+  plog(`초기 설계 · 정밀 시뮬레이션 판정 · ${nf?`<b>미충족 ${nf}개</b>`:'<b>모두 충족</b>'}${typeof rep.seconds==='number'?` · ${rep.seconds.toFixed(1)} s`:''}`);
   return r;
 };
 
@@ -98,7 +98,9 @@ window.applyFrame=function(f){
   const r=_applyFrame(f);
   if(f.stage!=='pick'&&f.stage!=='refine'){
     const rp=f.stage==='ai';
-    ban(`<span class="big">${f.it}${rp?'':' / '+f.iters}</span><span class="t">AI 탐색 중 · 형상 AI × 물리 AI${rp?'<em>(계산 기록 재생)</em>':''}<small>무게 ${fmt(f.mass_g)} g · 값은 AI 예측</small></span>`);
+    const pr=S.rows.filter(m=>m.key&&!m.ref&&m.src==='AI 예측'),ok=pr.filter(m=>m.ok).length;
+    if(S._m0==null||f.it===0)S._m0=f.mass_g;
+    ban(`<span class="big">${f.it}${rp?'':' / '+f.iters}</span><span class="t">AI 탐색 중 · 형상 AI × 물리 AI${rp?'<em>(계산 기록 재생)</em>':''}<small>AI 예측 기준 ${pr.length}개 중 <b>${ok}개 충족</b> · 무게 ${fmt(S._m0)} → <b>${fmt(f.mass_g)}&nbsp;g</b></small><small class="gl"><i></i>노란 반투명 = 처음 형상</small></span>`);
     plog(`AI 탐색 <b>${f.it}회</b>${rp?' <em>(계산 기록 재생)</em>':''}`,true);
   }
   return r;

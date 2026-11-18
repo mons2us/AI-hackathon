@@ -1,6 +1,6 @@
 """학습된 형상 AI · 물리 AI (results_fp11.zip) 로 도는 역설계 — sosopapa ai/latent_search.trace_run 과 같은 계산.
 
-  fit  : 1차 설계에 z 를 맞춤 (디코더 고정, 무작위 16,384 점 BCE, Adam 5e-3, FP11_FIT_STEPS 회 = 기본 1500).
+  fit  : 초기 설계에 z 를 맞춤 (디코더 고정, 무작위 16,384 점 BCE, Adam 5e-3, FP11_FIT_STEPS 회 = 기본 1500).
          한 번 맞춘 z0 는 models/fp11/z0_<형상 해시>.npy 에 저장 (CPU 에서 오래 걸림)
   trace: 목적 = 무게(정확식) + w·(Σ 고른 기준 정규화 위반 × 10)² + 1e-3‖z‖², Adam lr 0.02, FP11_ITERS 회(기본 500),
          FP11_EVERY 회(기본 10)마다 형상(디코더 sharp 2, 0.5 기준) · 예측값 · 분포를 프레임으로.

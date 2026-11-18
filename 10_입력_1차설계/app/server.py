@@ -149,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
             if sid not in [s[0] for s in integral.SHAPES]:
                 return self._send(404, {"error": "unknown shape"})
             return self._send(200, integral.shape_view(sid))
-        if p == "/api/demos":                         # 데모 입력 3개 (말 + 스케치 획) — 지금 1차 설계 형상을 그대로 냄
+        if p == "/api/demos":                         # 데모 입력 3개 (말 + 스케치 획) — 지금 초기 설계 형상을 그대로 냄
             from formproof_input import demo_inputs
             out = []
             for d in demo_inputs.DEMOS:
@@ -207,7 +207,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": f"잘못된 요청: {e}"})
         out = os.path.join(RUNS, rid)
         if not re.fullmatch(r"[\w.-]+", rid) or rid.startswith(".") or not os.path.isfile(os.path.join(out, "handoff.zip")):
-            return self._send(404, {"error": "이 1차 설계의 결과 폴더가 없습니다. 1차 설계를 다시 만들어 주세요."})
+            return self._send(404, {"error": "이 초기 설계의 결과 폴더가 없습니다. 초기 설계를 다시 만들어 주세요."})
         conf = {}
         try:
             with open(os.path.join(out, "design_spec_confirmed.json"), encoding="utf-8") as f:
@@ -229,7 +229,7 @@ class Handler(BaseHTTPRequestHandler):
                     zo.writestr(it, zi.read(it.filename))
                 zo.write(os.path.join(out, "optimize_targets.json"), "optimize_targets.json")
             return self._send(200, dict(saved=True, files={"optimize_input.zip": f"/runs/{rid}/optimize_input.zip"},
-                                        message="이 제품은 최적 설계 없이 1차 설계까지 — 고른 기준은 최적화 입력 묶음으로 저장했습니다"))
+                                        message="이 제품은 최적 설계 없이 초기 설계까지 — 고른 기준은 최적화 입력 묶음으로 저장했습니다"))
         sel = [k for k in sel if k in OPT.KEYS]
         if not sel:
             return self._send(400, {"error": "최적화할 항목을 하나 이상 고르세요"})
@@ -285,7 +285,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": f"파일을 읽지 못했습니다: {e}"})
 
     def _spec(self):
-        """'설계 사양' 버튼: 말 + 스케치 → 설계 사양 표 (1차 설계 전에, 사용자가 고친 뒤 확정). edits 가 있으면 고친 값 반영해 다시."""
+        """'설계 사양' 버튼: 말 + 스케치 → 설계 사양 표 (초기 설계 전에, 사용자가 고친 뒤 확정). edits 가 있으면 고친 값 반영해 다시."""
         try:
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n).decode("utf-8"))
@@ -295,7 +295,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"error": "원하는 조건을 쓰거나, 스케치를 그리거나, 사진을 올려 주세요."})
             from formproof_input import spec_table
             t = time.time()
-            # 사양 표는 스케치 비교 + 규칙 표만 계산(그림 · CAD 없음) → 1차 설계 · 뒤 DB 채우기의 LOCK 을 기다리지 않는다.
+            # 사양 표는 스케치 비교 + 규칙 표만 계산(그림 · CAD 없음) → 초기 설계 · 뒤 DB 채우기의 LOCK 을 기다리지 않는다.
             # (예전엔 LOCK 을 잡아, 서버 첫 실행 때 DB 를 채우는 동안 '설계 사양'이 수십 초 반응 없음)
             with SPEC_LOCK:
                 sp = spec_table.preview(req.get("text", ""), sketch, image, req.get("template") or None, None, edits=req.get("edits"),
@@ -380,7 +380,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
     def _opt_run(self):
-        """간이 물리 최적화 시작: {run_id} (이미 만든 1차 설계) 또는 {template} (먼저 1차 설계), iters, vol_frac."""
+        """간이 물리 최적화 시작: {run_id} (이미 만든 초기 설계) 또는 {template} (먼저 초기 설계), iters, vol_frac."""
         try:
             n = int(self.headers.get("Content-Length", 0))
             req = json.loads(self.rfile.read(n).decode("utf-8") or "{}")
@@ -388,7 +388,7 @@ class Handler(BaseHTTPRequestHandler):
             if rid:
                 d = os.path.realpath(os.path.join(RUNS, rid))
                 if not d.startswith(os.path.realpath(RUNS) + os.sep) or not os.path.isfile(os.path.join(d, "spec.json")):
-                    return self._send(400, {"error": "run_id 의 1차 설계가 없습니다"})
+                    return self._send(400, {"error": "run_id 의 초기 설계가 없습니다"})
             elif not req.get("template"):
                 return self._send(400, {"error": "run_id 또는 template 이 필요합니다"})
             iters = max(1, min(int(req.get("iters", 40)), 120))
@@ -403,7 +403,7 @@ class Handler(BaseHTTPRequestHandler):
                     with LOCK:
                         r = rid
                         if not r:
-                            J["stage"] = "1차 설계 만드는 중"
+                            J["stage"] = "초기 설계 만드는 중"
                             r = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
                             pipeline.design("", None, None, req["template"], os.path.join(RUNS, r))
                             J["run_id"] = r

@@ -1,4 +1,4 @@
-"""템플릿 결과 DB — 1차 설계는 템플릿(+ 이산 파라미터)이라 같은 템플릿이면 CAD · 도면 · 성능 계산 결과가 같다.
+"""템플릿 결과 DB — 초기 설계는 템플릿(+ 이산 파라미터)이라 같은 템플릿이면 CAD · 도면 · 성능 계산 결과가 같다.
 처음 한 번 계산해 templates/db/precomputed/<키>/ 에 저장하고, 이후에는 파일 복사 + JSON 읽기만 한다 (< 0.5 s).
 미리 채우기: python -m formproof_input.memo  (setup.bat 이 실행, 서버도 시작할 때 빈 항목을 뒤에서 채움)."""
 import hashlib
@@ -81,7 +81,7 @@ def jobs():
     from . import pipeline
     for t in TEMPLATES:
         out.append((t["id"], lambda d, t=t: pipeline.design("", template=t["id"], out=d, with_mesh=True, product="bike")))
-    # P01 물리 기반 최적화: 기본 선택(1차 설계 미충족 5개 · 전부)의 역설계 경로 + FEM 검증 → 누르면 바로 재생
+    # P01 물리 기반 최적화: 기본 선택(초기 설계 미충족 5개 · 전부)의 역설계 경로 + FEM 검증 → 누르면 바로 재생
     out.append(("P01-opt", lambda d: __import__("formproof_input.inverse", fromlist=["precompute"]).precompute(log=lambda *a: None)))
     return out
 

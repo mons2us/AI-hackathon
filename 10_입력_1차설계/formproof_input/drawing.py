@@ -246,7 +246,7 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
     road = next(c for c in spec["load_cases"] if c["type"] == "modal")
     shock = next(c for c in spec["load_cases"] if c["name"] == "shock_vertical")
     lines_a = [
-        (title or "자전거 폰 거치대 — 1차 설계", 4.0),
+        (title or "자전거 폰 거치대 — 초기 설계", 4.0),
         (f"템플릿 {tpl['id']} {tpl.get('name', '')}" + ("" if g.get("look") else f" · 팔 {g['arm']['style']}"), 2.6),
         ("FormProof 입력 단계 산출 (물리 최적화 전)", 2.4),
         (f"척도 1:{1 / scale:g} · 제3각법 · 단위 mm · {'A4' if sheet == A4 else 'A3'} · 팔 두께 {g['arm']['t']:g}", 2.4),
@@ -278,7 +278,7 @@ def make_drawing(spec, body, out_dxf, out_pdf=None, title=None, check=None, mass
         ok = "충족" if check.get("pass") else "미충족 → 최적화 대상"
         head = (f"흔들림 {check['checks']['transmissibility']['value']:g}배" if "transmissibility" in check["checks"]
                 else f"f1 {check['f1_hz']} Hz")
-        lines_c.append((f"1차 설계 판정: {head}, 응력 {check['checks']['stress']['value']} MPa — {ok}", 2.2))
+        lines_c.append((f"초기 설계 판정: {head}, 응력 {check['checks']['stress']['value']} MPa — {ok}", 2.2))
     for col, lines in ((0, lines_a), (1, lines_b), (2, lines_c)):
         y = ty1 - 6
         for s, hgt in lines:

@@ -142,7 +142,7 @@ body.pro .files a#fOpt{background:var(--blue);border-color:var(--blue);color:#ff
 .plog #plogB b{color:var(--ink)}.plog #plogB em{font-style:normal;color:var(--amber)}
 
 /* 3D 창 위 띠: 최적화 진행 · 결과 */
-.pban{position:absolute;left:16px;top:14px;z-index:4;display:flex;align-items:center;gap:14px;background:rgba(14,19,27,.88);border:1px solid rgba(59,130,246,.6);border-radius:12px;padding:10px 18px;pointer-events:none;max-width:calc(100% - 330px)}
+.pban{position:absolute;left:16px;top:14px;z-index:4;display:flex;align-items:center;gap:14px;background:rgba(14,19,27,.88);border:1px solid rgba(59,130,246,.6);border-radius:12px;padding:10px 18px;pointer-events:none;max-width:calc(100% - 300px);white-space:nowrap}
 .pban .big{font:800 26px "DejaVu Sans Mono",ui-monospace,monospace;color:#8fb3ff;white-space:nowrap}
 .pban .t{font-size:17px;font-weight:700;color:var(--ink)}.pban .t small{display:block;font-size:13.5px;font-weight:500;color:var(--ink2)}.pban em{font-style:normal;color:var(--amber);font-size:13.5px;margin-left:6px}
 .resbar{position:absolute;left:0;right:0;top:0;z-index:5;display:flex;align-items:center;gap:18px;padding:10px 18px;background:linear-gradient(90deg,rgba(43,209,151,.22),rgba(14,19,27,.92) 70%);border-bottom:1px solid rgba(43,209,151,.45);pointer-events:none}
@@ -152,7 +152,7 @@ body.pro .files a#fOpt{background:var(--blue);border-color:var(--blue);color:#ff
 .resbar.bad{background:linear-gradient(90deg,rgba(255,107,120,.2),rgba(14,19,27,.92) 70%);border-color:rgba(255,107,120,.45)}.resbar.bad .big,.resbar.bad .t em{color:var(--red)}
 body.pro.st-done .vmain .vt{top:72px}
 
-/* 1차 ↔ 최적 비교 (결과 단계 기본) */
+/* 초기 ↔ 최적 비교 (결과 단계 기본) */
 body.pro .cmpov{padding:126px 14px 14px;gap:10px}
 body.pro .cmpov .ch{background:var(--card);border-color:var(--line);color:var(--ink);font-size:17px}
 body.pro .cmpov .ch small{color:var(--ink2)}
@@ -203,3 +203,7 @@ body.pro .fitem{background:var(--soft);border-color:#2c3646}
 body.pro .fitem .ft em{background:rgba(56,200,210,.16);color:#6fdde6}
 body.pro .fitem .ft span{color:var(--ink2)}
 body.pro .fdrop small{color:var(--ink3)}
+
+/* AI 탐색 띠: 처음 형상(반투명) 범례 */
+.pban .gl{display:flex;align-items:center;gap:6px;margin-top:3px;color:#ffd27a}.pban .gl i{display:inline-block;width:14px;height:10px;border-radius:3px;background:rgba(255,192,77,.45);border:1px solid #ffc04d}
+.pban small b{color:#fff}

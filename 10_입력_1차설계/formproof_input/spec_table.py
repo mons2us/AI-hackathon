@@ -1,4 +1,4 @@
-"""설계 사양 표 — 말 + 스케치 → 1차 설계 전에 정하는 물리 사양 (한 줄 = 한 항목 · 한 수치, 사용자가 고친 뒤 확정).
+"""설계 사양 표 — 말 + 스케치 → 초기 설계 전에 정하는 물리 사양 (한 줄 = 한 항목 · 한 수치, 사용자가 고친 뒤 확정).
 
 행(row):
   id      : 행 이름 (판정 항목 key 또는 param 이름 — 고친 값을 돌려받을 때 씀)
@@ -7,7 +7,7 @@
   item    : 항목 (쉬운 말)
   op      : ">=" | "<=" | "=" | ""   (""= 글로 된 사양)
   value · unit : 수치 · 단위 (text: 글로 된 사양)
-  keys    : 이 수치가 정하는 1차 설계 판정 항목 (고치면 판정 기준이 바뀜)
+  keys    : 이 수치가 정하는 초기 설계 판정 항목 (고치면 판정 기준이 바뀜)
   param   : 이 수치가 정하는 형상 값 (고치면 템플릿 선택이 바뀜: 렌즈 폭 · 화면 크기 · 화면 높이)
   edit    : 고칠 수 있는지 (False = 계산 조건으로 고정된 값, 예: 충격 48.5 g · 폰 311 g — 팀 엔진 / 템플릿 결과 DB 조건)
   basis · source : 근거 (근거 DB | 스케치 | 목표 | 가정 | 질문) · 출처 한 줄
@@ -262,7 +262,7 @@ def spec_params(product, rows):
 
 
 def limits(rows):
-    """판정 기준 {key: (op, 값)} — 1차 설계 판정 · 최적화 기준."""
+    """판정 기준 {key: (op, 값)} — 초기 설계 판정 · 최적화 기준."""
     return {k: (x["op"], float(x["value"])) for x in rows if x.get("keys") and x.get("value") is not None for k in x["keys"]}
 
 
@@ -281,7 +281,7 @@ def relimit(rows, lim):
 
 
 def apply_limits(rep, lim):
-    """1차 설계 결과에 확정한 사양의 판정 기준을 반영 (P01 · TV · 글래스 judge, 템플릿 거치대 checks)."""
+    """초기 설계 결과에 확정한 사양의 판정 기준을 반영 (P01 · TV · 글래스 judge, 템플릿 거치대 checks)."""
     if not lim:
         return rep
     J = rep.get("judge")

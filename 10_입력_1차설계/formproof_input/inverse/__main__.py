@@ -1,5 +1,5 @@
 """python -m formproof_input.inverse check       — 어느 모델로 도는지, 가중치 · 격자 읽기, 시작 형상 맞춤, 몇 회 시험
-python -m formproof_input.inverse precompute  — 기본 선택(1차 설계 미충족 5개 · 전부)의 최적화 경로 + FEM 검증을 미리 계산"""
+python -m formproof_input.inverse precompute  — 기본 선택(초기 설계 미충족 5개 · 전부)의 최적화 경로 + FEM 검증을 미리 계산"""
 import sys
 import time
 
@@ -13,7 +13,7 @@ def check():
     print("사용 모델:", B.name, f"({B.id})", ("— " + B.reason) if B.reason else "")
     t = time.time()
     z0, fit = B.fit(start_shape())
-    print(f"시작 형상 맞춤: 겹침 비율(IoU) {fit['fit_iou']} ({time.time() - t:.1f} s)", "— 0.8 미만이면 형상 AI 가 1차 설계를 잘 못 그림" if fit["fit_iou"] < 0.8 else "")
+    print(f"시작 형상 맞춤: 겹침 비율(IoU) {fit['fit_iou']} ({time.time() - t:.1f} s)", "— 0.8 미만이면 형상 AI 가 초기 설계를 잘 못 그림" if fit["fit_iou"] < 0.8 else "")
     t = time.time()
     fr = list(B.trace(z0, KEYS, limits(), iters=3, every=1))
     dt = (time.time() - t) / 4

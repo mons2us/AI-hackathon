@@ -1,13 +1,13 @@
-"""P01 일체형 자전거 폰 거치대 — 발표 사례(발표초안 v83 7·10·14·22쪽)와 같은 1차 설계 · 설계 명세 · 물리 조건.
+"""P01 일체형 자전거 폰 거치대 — 발표 사례(발표초안 v83 7·10·14·22쪽)와 같은 초기 설계 · 설계 명세 · 물리 조건.
 
 발표의 계산은 팀 엔진(11_구현패키지/FormProof_구현/engine/opt_int.py, GRIP=2 NX=88 MSYS=0.311 TILT=35)이 한다.
-이 모듈은 입력 단계(말 · 스케치 → 1차 설계 + 조건)를 그 엔진과 '같은 문제'로 만든다.
+이 모듈은 입력 단계(말 · 스케치 → 초기 설계 + 조건)를 그 엔진과 '같은 문제'로 만든다.
 
   * 좌표: 폰 판 좌표계 (x' 폰 길이 방향, y 핸들바 축 = 폭, z' 판 법선). 세계: X = x'cos35 − z'sin35, Z = x'sin35 + z'cos35
   * 격자: 2 mm, 88 × 20 × 37, 원점 (−24, 0, −36), 절반 모델(y ≥ 0, y = 0 대칭) — opt_int 와 같음
   * 영역(지킬 곳 · 비울 곳 · 바꿀 곳): REGIONS 선언 → masks() — opt_int 의 solid / void / design 과 요소 하나까지 같음
     (tests/test_integral.py 가 data/grid_meta.npz 와 비교)
-  * 1차 설계 = 발표의 '처음 설계 (판 + 기둥)': 클램프 + 20 × 8 mm 직선 보 + 2 mm 평판 (+ 고정 부품) — mkbase_int.py 와 같음
+  * 초기 설계 = 발표의 '처음 설계 (판 + 기둥)': 클램프 + 20 × 8 mm 직선 보 + 2 mm 평판 (+ 고정 부품) — mkbase_int.py 와 같음
   * 조건: spec/bike_mount_spec.json(설계 명세, 항목마다 출처) · spec/bike_mount_targets.json(판정 기준)과 같은 값
   * 판정 계산: 팀 엔진 MODE=eval 을 그대로 호출(결과 캐시: templates/db/integral_eval.json)
   * 비교 형상(10쪽): LLM 단독 A·B·C(L1–L3.md 의 JSON 프리미티브, llm2rho.py 와 같은 변환), FormProof 최적화 결과
@@ -482,7 +482,7 @@ def judge(res, tg=None):
     return dict(rows=rows, pass_=not fails, fails=fails, mass_g=res["mass_g"], shake=shake, shake_dir=sdir)
 
 
-# ------------------------------------------------------------------ CAD (1차 설계 = 처음 설계, 출력 형상)
+# ------------------------------------------------------------------ CAD (초기 설계 = 처음 설계, 출력 형상)
 def _team_parts():
     import importlib.util
     spec = importlib.util.spec_from_file_location("fp_team_parts", os.path.join(PKG, "cad", "parts.py"))
@@ -759,7 +759,7 @@ def side_grid_png(rho, path, title=""):
     a = np.linspace(0, 2 * np.pi, 80)
     ax.plot(15.9 * np.cos(a), 15.9 * np.sin(a), color="#555", lw=1)
     ax.add_patch(plt.Rectangle((XR, ZB + 6), 150, 8, fill=False, ls="--", color="#c0392b"))
-    ax.set_title(title or "1차 설계 — 폰 판 좌표 측면 (청록 = 재료, 주황 = 고정 부품, 회색 = 설계 영역)", fontsize=9)
+    ax.set_title(title or "초기 설계 — 폰 판 좌표 측면 (청록 = 재료, 주황 = 고정 부품, 회색 = 설계 영역)", fontsize=9)
     ax.set_xlabel("x' (폰 길이 방향, mm)")
     ax.set_ylabel("z' (판 법선, mm)")
     ax.set_aspect("equal")
@@ -772,7 +772,7 @@ NOTE_1ST = ("보 20×8 mm 단면 · 평판 2 mm · 고정 부품(집게 하우�
             "출력 방향: 폰 뒷면이 바닥(적층 = 판 법선)")
 
 
-def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1차 설계 (처음 설계: 판 + 기둥)", pdf=None, parts=(), note=NOTE_1ST):
+def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 초기 설계 (처음 설계: 판 + 기둥)", pdf=None, parts=(), note=NOTE_1ST):
     """측면(세계) · 위(폰 판 좌표) 두 장 도면 (대략 치수). world_body = CadQuery 몸체 또는 trimesh (최적 설계 출력 몸체)."""
     from .mplkr import pyplot
     plt = pyplot()                                  # 한글 글꼴
@@ -815,7 +815,7 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
         b.add_collection(PolyCollection(q[pt_][:, :, [0, 1]], fc=col, ec="none", rasterized=True))
     for (x0, x1, lab) in ((0, 140, "보 20 × 8 (x' 0–140)"), (-10, 140, "평판 2 mm (x' −10–140, 폭 80)")):
         pass
-    if note == NOTE_1ST:                                       # 평판 치수는 1차 설계(판 + 기둥)에만
+    if note == NOTE_1ST:                                       # 평판 치수는 초기 설계(판 + 기둥)에만
         b.annotate("", (-10, -46), (140, -46), arrowprops=dict(arrowstyle="<->", lw=.7))
         b.text(65, -52, "평판 150 (x' −10 – 140)", ha="center", fontsize=8)
         b.annotate("", (150, -40), (150, 40), arrowprops=dict(arrowstyle="<->", lw=.7))
@@ -842,7 +842,7 @@ def drawing_png(world_body, path, mass_g, title="자전거 폰 거치대 — 1�
 
 
 def opt_drawing(rho_full, out, name="opt_final_drawing"):
-    """최적 설계 도면 (1차 설계 도면과 같은 두 장): 출력 몸체(print_body, 발표와 같은 절차) + 고정 부품. 같은 형상은 결과 DB 에서 바로."""
+    """최적 설계 도면 (초기 설계 도면과 같은 두 장): 출력 몸체(print_body, 발표와 같은 절차) + 고정 부품. 같은 형상은 결과 DB 에서 바로."""
     import hashlib
     import shutil
     from . import memo
@@ -1003,7 +1003,7 @@ def _heavy(full, out, with_mesh):
 
 
 def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍스트", match=None, tid="P01", name=None):
-    """P01: 말(+ 스케치) → 설계 명세 · 판정 기준 · 1차 설계(격자 · CAD · 도면) · 팀 엔진 판정 · 넘길 파일."""
+    """P01: 말(+ 스케치) → 설계 명세 · 판정 기준 · 초기 설계(격자 · CAD · 도면) · 팀 엔진 판정 · 넘길 파일."""
     t0 = time.time()
     os.makedirs(out, exist_ok=True)
     note = SKETCH_NOTE if sketch_note is None else sketch_note
@@ -1035,7 +1035,7 @@ def design(text="", out="out", with_mesh=False, sketch_note=None, chosen_by="텍
     with open(os.path.join(out, "targets.json"), "w", encoding="utf-8") as f:
         json.dump(dict(_설명="설계 명세에서 계산에 쓰는 판정 기준 (팀 엔진 FT · TLIM · DLIM 과 같은 값)", **tg), f, ensure_ascii=False, indent=1)
     with open(os.path.join(out, "engine_env.json"), "w", encoding="utf-8") as f:
-        json.dump(dict(env=ENGINE_ENV, start_rho="initial_design.npy (START_RHO 로 넘기면 1차 설계에서 시작)",
+        json.dump(dict(env=ENGINE_ENV, start_rho="initial_design.npy (START_RHO 로 넘기면 초기 설계에서 시작)",
                        run="cd 11_구현패키지/FormProof_구현/engine && env $(cat env) python3 opt_int.py",
                        eval="MODE=eval RHO=initial_design.npy"), f, ensure_ascii=False, indent=1)
     np.savez_compressed(os.path.join(out, "problem.npz"), design=M["design"], solid=M["solid"], void=M["void"], plate=M["plate"],

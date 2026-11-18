@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FormProof · 1차 설계</title>
+<title>FormProof · 초기 설계</title>
 <script src="/static/vendor/three.min.js"></script>
 <script src="/static/vendor/OrbitControls.js"></script>
 <link rel="stylesheet" href="/static/pro.css">   <!-- ?ui=pro 일 때만 적용 (body.pro) -->
@@ -173,7 +173,7 @@ body:not(.layout-a) .vp .leg .ends span:first-child,body:not(.layout-a) .vp .leg
 .files a{flex:1;text-align:center;border:1px solid var(--line);border-radius:9px;padding:7px 4px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap}
 .files a:hover{border-color:var(--blue);color:var(--blue)}.files a.off{pointer-events:none;color:var(--ink3)}
 .muted{color:var(--ink3);font-size:15px}
-/* 설계 사양 표 (스케치 아래): 한 줄 = 한 항목 · 한 수치. 수치는 고쳐 쓸 수 있고(🔒 = 계산 조건 고정), 확정해야 1차 설계 */
+/* 설계 사양 표 (스케치 아래): 한 줄 = 한 항목 · 한 수치. 수치는 고쳐 쓸 수 있고(🔒 = 계산 조건 고정), 확정해야 초기 설계 */
 .specw{flex:1;min-height:0;display:none;flex-direction:column;margin-top:10px;border:1px solid #e3e7ee;border-radius:10px;background:#fff;overflow:hidden}
 .specw.on{display:flex}
 .specw .sh{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;padding:6px 10px;background:#f4f6fa;border-bottom:1px solid #e3e7ee}
@@ -218,7 +218,7 @@ header .brand-r{height:17px;width:auto;display:block;margin-left:14px}   /* 2/3 
 body.opting:not(.layout-a) .vrow{grid-template-rows:.75fr .75fr .75fr 2.3fr}
 .optinfo .rp{font-size:10.5px;font-weight:700;color:#ffd166;border:1px solid #5c4a1e;border-radius:999px;padding:1px 7px;margin-left:4px}
 .optinfo .gh{flex-wrap:wrap;row-gap:3px}.optinfo .gh b{flex-basis:100%}
-/* 1차 ↔ 최적 비교: 3D 창을 3 줄(흔들림 · 충격 · 온도) × 2 칸(1차 · 최적)으로, 같은 색 척도 */
+/* 초기 ↔ 최적 비교: 3D 창을 3 줄(흔들림 · 충격 · 온도) × 2 칸(초기 · 최적)으로, 같은 색 척도 */
 .cmpov{position:absolute;inset:0;z-index:3;pointer-events:none;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto repeat(3,minmax(0,1fr));gap:8px;padding:46px 12px 12px;background:transparent}
 .cmpov[hidden]{display:none}
 .cmpov .ch{font-size:16px;font-weight:700;text-align:center;padding:4px 0;border-radius:9px;background:#fff;border:1px solid var(--line)}
@@ -238,7 +238,7 @@ body.opting:not(.layout-a) .vrow{grid-template-rows:.75fr .75fr .75fr 2.3fr}
     <div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></div>
     <div class="brand"><b>FormProof</b></div>
     <div class="guide" id="guide"></div>
-    <nav class="steps" id="steps"><span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>설계 사양</span><span class="step"><i>3</i>1차 설계</span><span class="step"><i>4</i>물리 최적화</span></nav>
+    <nav class="steps" id="steps"><span class="step on"><i>1</i>입력</span><span class="step"><i>2</i>설계 사양</span><span class="step"><i>3</i>초기 설계</span><span class="step"><i>4</i>물리 최적화</span></nav>
     <img class="brand-r" src="/static/brand/samsung_research.png" alt="Samsung Research">
   </header>
 
@@ -273,7 +273,7 @@ body.opting:not(.layout-a) .vrow{grid-template-rows:.75fr .75fr .75fr 2.3fr}
           <div class="sc"><table class="st"><colgroup><col style="width:45%"><col style="width:37%"><col style="width:18%"></colgroup>
             <thead><tr><th>항목</th><th>사양</th><th>근거</th></tr></thead><tbody id="specBody"></tbody></table></div></div>
         <div class="spacer" id="padSpacer"></div>
-        <div class="acts"><button class="btn" id="bSpec">설계 사양</button><button class="btn" id="bConfirm" disabled>확정</button><button class="btn" id="go" disabled>1차 설계 만들기</button></div>
+        <div class="acts"><button class="btn" id="bSpec">설계 사양</button><button class="btn" id="bConfirm" disabled>확정</button><button class="btn" id="go" disabled>초기 설계 만들기</button></div>
         <div class="spec" id="specBox" hidden><h3>설계 사양 <small>입력 → 계산 조건 · 항목마다 출처</small></h3><div id="specRows"></div></div>
       </div>
     </section>
@@ -286,18 +286,18 @@ body.opting:not(.layout-a) .vrow{grid-template-rows:.75fr .75fr .75fr 2.3fr}
         <div class="vp vmain" id="vMain">
             <span class="ovl" id="ovl3d">마우스로 돌리고 휠로 확대</span>
             <div class="nav" id="vNav" hidden></div><canvas class="navov" id="navOv" hidden></canvas>   <!-- 전체 보기: 지금 보는 곳 = 파란 네모 -->
-            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button><button id="vCmp" hidden>1차 비교</button></div>
+            <div class="vt"><button id="vBike" class="on">자전거</button><button id="vPhone" class="on">폰</button><button id="vClose">확대</button><button id="vDraw">도면</button><button id="vCmp" hidden>초기 비교</button></div>
             <div class="cmpov" id="cmpOv" hidden></div>
             <img class="draw" id="imgDraw" alt="">
-            <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 1차 설계 만들기</div>
-            <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">1차 설계를 만드는 중</div><div class="hist" id="stageHist"></div></div></div>
+            <div class="empty" id="empty">왼쪽에 조건과 스케치를 넣고 설계 사양 → 확정 → 초기 설계 만들기</div>
+            <div class="busy" id="busy"><div class="box"><div class="spin"></div><div class="stage" id="stage">초기 설계를 만드는 중</div><div class="hist" id="stageHist"></div></div></div>
           </div>
       </div>
       <div class="card fill cperf">
-        <h2><span id="pTitle">1차 설계 성능</span> <span class="tag" id="perfTag">대기 중</span></h2>
+        <h2><span id="pTitle">초기 설계 성능</span> <span class="tag" id="perfTag">대기 중</span></h2>
         <div class="kpis"><div class="kpi"><small>무게</small><b id="kMass">–</b></div><div class="kpi"><small>목표 충족</small><b id="kTime">–</b></div></div>
         <p class="pick" id="pickHint" hidden>더 좋게 만들 항목을 눌러 고르세요</p>
-        <div class="mbox"><div class="metrics" id="metrics"><div class="muted">1차 설계를 만들면 여기에 나옵니다</div></div></div>
+        <div class="mbox"><div class="metrics" id="metrics"><div class="muted">초기 설계를 만들면 여기에 나옵니다</div></div></div>
         <button class="btn opt" id="optimize" disabled>물리 기반 최적화 실행</button>
         <div class="files" id="files">
           <a class="off" data-f="design_1st.step" title="STEP">3D 모델</a><a class="off" data-f="design_1st_drawing.pdf" title="PDF">도면</a><a class="off" data-f="design_1st.stl" title="STL">3D 프린트</a>
@@ -336,7 +336,7 @@ const toast = m => {const t=$('#toast'); t.textContent=m; t.style.display='block
 function setStep(n){$$('#steps .step').forEach((e,i)=>{e.classList.toggle('on',i===n);e.classList.toggle('done',i<n);});if(GUIDE[n])guide(...GUIDE[n]);}
 // 머리줄 단계 설명 (번호 = 위 단계 번호)
 const GUIDE=[['1 입력','만들 제품과 조건을 문장, 스케치, 사진, 문서, CAD 파일로 넣습니다'],['2 설계 사양','AI가 요청을 물리 조건으로 바꾸고, 항목마다 근거를 붙입니다'],
-  ['3 1차 설계','3D 형상을 만들고 정밀 시뮬레이션으로 기준 충족 여부를 판정합니다'],['4 물리 최적화','AI가 형상을 바꿔 가며 성능을 예측합니다']];
+  ['3 초기 설계','3D 형상을 만들고 정밀 시뮬레이션으로 기준 충족 여부를 판정합니다'],['4 물리 최적화','AI가 형상을 바꿔 가며 성능을 예측합니다']];
 function guide(a,b){const g=document.getElementById('guide');if(g)g.innerHTML=`<b>${a}</b>${b}`;}
 
 /* ---------- 쉬운 말 (화면 표시용) ---------- */
@@ -377,7 +377,7 @@ pad.addEventListener('pointermove',e=>{if(!S.cur)return;const p=pt(e),q=S.cur[S.
 $('#undo').onclick=()=>{if(S.labels.length&&(!S.strokes.length||S.labelsLast))S.labels.pop();else if(S.strokes.length)S.strokes.pop();else S.bgImg=null;redraw();inputChanged();};
 $('#clear').onclick=()=>{S.strokes=[];S.labels=[];S.bgImg=null;$('#example').value='';redraw();inputChanged();};
 S.demos=[];
-// 예시 = 제품 셋 (말 + 스케치 — 지금 1차 설계 형상을 그대로 냄). 고르면 말과 스케치 획이 채워짐
+// 예시 = 제품 셋 (말 + 스케치 — 지금 초기 설계 형상을 그대로 냄). 고르면 말과 스케치 획이 채워짐
 function fillExamples(){const sel=$('#example');sel.innerHTML='<option value="">예시 고르기</option>';
   S.demos.forEach((d,i)=>{const o=document.createElement('option');o.value=i;o.textContent=d.label;sel.appendChild(o);});}
 function loadDemo(i){const d=S.demos[i];if(!d)return;$('#mSketch').onclick();$('#text').value=d.prompt;
@@ -468,7 +468,7 @@ function init3d(){
   Object.assign(V3,{R,scene,cam,cam2,k:1,mc:null,box:null,ctl,bike,ground,M,host,mount:null,holder:null,aux:[],small:SMALL.map(()=>({key:null,mat:null}))});
   const fit=()=>{const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;R.setSize(w,h,false);R.domElement.style.width=w+'px';R.domElement.style.height=h+'px';if(V3.box)fitSmall();};
   new ResizeObserver(fit).observe(host);fit();
-  // 처음 화면은 비워 둠: 자전거 · 바닥 · 핸들바와 보기 버튼은 1차 설계 결과가 오면 (자전거 폰 거치대일 때만 자전거)
+  // 처음 화면은 비워 둠: 자전거 · 바닥 · 핸들바와 보기 버튼은 초기 설계 결과가 오면 (자전거 폰 거치대일 때만 자전거)
   bike.visible=ground.visible=handlebar.visible=false;$('#vMain .vt').hidden=true;
   view('full');
   (function loop(){requestAnimationFrame(loop);ctl.update();renderAll();})();
@@ -485,7 +485,9 @@ function renderAll(){
   if(V3.mount)V3.mount.material=V3.baseMat;
   R.shadowMap.needsUpdate=true;
   const cmpOn=!!(V3.cmp&&V3.cmp.on&&V3.mount);
-  if(cmpOn)cmpRender();else if(!V3.drawing)drawInto($("#vMain"));   // 도면일 때는 메인 칸을 투명하게 두어 캔버스 아래 도면이 보임 (캔버스를 다른 요소로 덮지 않음)
+  const gh=V3.ghost&&document.body.classList.contains('opting');if(V3.ghost)V3.ghost.visible=!!gh;
+  if(cmpOn)cmpRender();else if(!V3.drawing)drawInto($("#vMain"));
+  if(V3.ghost)V3.ghost.visible=false;   // 도면일 때는 메인 칸을 투명하게 두어 캔버스 아래 도면이 보임 (캔버스를 다른 요소로 덮지 않음)
   if(!V3.mount)return;
   if(cmpOn){$('#vNav').hidden=$('#navOv').hidden=true;}else drawNav();
   // 분포 창: 부품만, 같은 카메라
@@ -684,7 +686,7 @@ const STALE='서버가 이 화면과 다른 버전이거나 서버 창이 두 �
 fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{if(!v||v.version!==APP_V){const t=$('#toast');t.textContent=STALE;t.style.display='block';clearTimeout(t._h);}}).catch(()=>{});
 
 /* ---------- 실행 ---------- */
-// ---------- 설계 사양: [설계 사양] → 표 (수치 고치기) → [확정] → [1차 설계 만들기]
+// ---------- 설계 사양: [설계 사양] → 표 (수치 고치기) → [확정] → [초기 설계 만들기]
 const BASIS={'근거 DB':0,'스케치':1,'목표':2,'가정':3,'질문':4,'CAD':5,'문서':5};
 const BASIS_TXT={'근거 DB':'자료','스케치':'스케치','목표':'목표','가정':'추정','질문':'확인 필요','CAD':'CAD','문서':'문서'};   // 근거 (쉬운 말 · 자세한 출처는 마우스를 올리면)
 const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -707,7 +709,7 @@ function inputReq(){
 function fitText(){const t=$('#text');t.style.height='auto';t.style.height=Math.max(100,t.scrollHeight+2)+'px';}
 window.addEventListener('resize',fitText);
 function inputChanged(){
-  fitText();          // 말 · 스케치 · 사진이 바뀌면 만든 사양은 옛것 → 다시 만들어야 확정 · 1차 설계
+  fitText();          // 말 · 스케치 · 사진이 바뀌면 만든 사양은 옛것 → 다시 만들어야 확정 · 초기 설계
   if(!S.spec||S.spec.stale)return;
   S.spec.stale=true;S.spec.confirmed=false;$('#specStale').hidden=false;$('#specStale').textContent='입력이 바뀌었습니다 — 설계 사양을 다시 만드세요';
   updateActs();
@@ -774,7 +776,7 @@ async function run(){
   S.sel=new Set();updateOpt();S.busy=true;updateActs();
   $('#empty').style.display='none';$('#busy').classList.add('on');
   // 서버가 실제로 하고 있는 단계와 경과 시간을 0.3 s 마다 받아 표시
-  $('#stage').innerHTML='<b>1차 설계를 만드는 중</b>';$('#stageHist').innerHTML='';
+  $('#stage').innerHTML='<b>초기 설계를 만드는 중</b>';$('#stageHist').innerHTML='';
   try{
     const r=await fetch('/api/design',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
     const j=await r.json(); if(!r.ok)throw new Error(j.error||r.statusText);
@@ -785,7 +787,7 @@ async function run(){
       const rq=await fetch('/api/job?id='+encodeURIComponent(j.job)), q=await rq.json();
       if(!rq.ok)throw new Error(STALE+(q.error?` (${q.error})`:''));
       if(q.error)throw new Error(q.error);
-      $('#stage').innerHTML=`<b>1차 설계를 만드는 중</b><br><small>${(q.elapsed||0).toFixed(0)} 초</small>`;
+      $('#stage').innerHTML=`<b>초기 설계를 만드는 중</b><br><small>${(q.elapsed||0).toFixed(0)} 초</small>`;
       if(q.done)rep=q.result;
     }
     S.rep=rep; render(rep); setStep(2);
@@ -796,7 +798,7 @@ $('#go').onclick=()=>run();
 updateActs();
 
 const fmt=(v,d=1)=>(typeof v==='number'?v.toFixed(d):v);
-// 1차 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
+// 초기 설계 성능 항목 = 연한 블록. 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐
 function metricHtml(m,i){
   const ge=m.op==='>=',ratio=ge?m.value/m.limit:m.limit/Math.max(m.value,1e-6),v=typeof m.value==='number'?+m.value.toPrecision(4):m.value,
     v0=(typeof m.v0==='number'&&Math.abs(m.v0-m.value)>1e-9)?`<span class="v0"> · 처음 <s>${+m.v0.toPrecision(4)}</s></span>`:'';
@@ -804,8 +806,8 @@ function metricHtml(m,i){
     <div class="bar"><i class="${m.ok?'':'bad'}" style="width:${Math.max(Math.min(ratio,1)*100,3)}%"></i></div>
     <div class="sub"><span>목표 ${ge?'≥':'≤'} ${m.limit} ${m.unit}${v0}</span><span>${m.ref?'참고':m.ok?'충족':'미충족'}</span></div></button>`;
 }
-// 1차 설계 성능 항목 = 연한 블록. P01 은 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐.
-// 다른 제품(TV 스탠드 · AI 글래스 · 템플릿 거치대)은 1차 설계까지만 → 고르기 · 실행 버튼 없음
+// 초기 설계 성능 항목 = 연한 블록. P01 은 눌러서 최적화 대상으로 고름(다시 누르면 해제) → 1개 이상이면 최적화 실행 버튼 켜짐.
+// 다른 제품(TV 스탠드 · AI 글래스 · 템플릿 거치대)은 초기 설계까지만 → 고르기 · 실행 버튼 없음
 function showMetrics(rows,pick){
   rows.forEach(m=>{if(typeof m.value==='number')m.v0=m.value;});
   S.rows=rows;S.sel=new Set();S.pick=!!pick;
@@ -911,6 +913,17 @@ function spark(){
     g.strokeStyle=col;g.lineWidth=S.sel&&S.sel.has(S.rows.indexOf(m))?2.4:1.5;g.stroke();
     const q=pts[pts.length-1],x0=X(q.it),y0=Y(q.v[m.key]);g.fillStyle=col;g.beginPath();g.arc(x0,y0,2.6,0,7);g.fill();
   });
+  // 무게 (흰 굵은 선, 오른쪽 축) — 기준을 맞춘 뒤에도 AI 가 무게를 줄여 가는 것이 보이게. 범위 밖(정밀 최적화 중 일시 증가)은 위 끝에 붙임
+  const hm=h.filter(x=>x.m!=null);
+  if(hm.length){const m0=hm[0].m,lo=Math.min(...hm.map(x=>x.m),m0)*0.97,hi=m0*1.12,YM=m=>T+ph*(0.08+0.84*(1-(Math.min(hi,Math.max(lo,m))-lo)/(hi-lo)));
+    g.save();g.beginPath();g.rect(L,T,pw,ph);g.clip();
+    g.beginPath();hm.forEach((x,i)=>{const px=X(x.it),py=YM(x.m);i?g.lineTo(px,py):g.moveTo(px,py);});
+    g.strokeStyle='rgba(255,255,255,.92)';g.lineWidth=2.6;g.stroke();
+    g.setLineDash([3,4]);g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=1;g.beginPath();g.moveTo(L,YM(m0));g.lineTo(L+pw,YM(m0));g.stroke();g.setLineDash([]);
+    const q=hm[hm.length-1],qx=X(q.it),qy=YM(q.m);g.fillStyle='#fff';g.beginPath();g.arc(qx,qy,3.6,0,7);g.fill();g.restore();
+    g.font='700 '+(FS+1)+'px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='#fff';g.textAlign='left';
+    g.fillText(`무게 ${fmt(q.m)} g`,Math.min(qx+8,L+pw-110),Math.max(T+10,qy-12));
+    g.font=FS+'px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillStyle='rgba(255,255,255,.6)';g.textAlign='right';g.fillText(`처음 ${fmt(m0)} g`,L+pw-4,YM(m0)-9);}
   // ② 정밀 계산: 계산 중 = 구간 전체가 게이지처럼 왼쪽부터 참 · 끝나면 항목마다 정밀 계산 전(AI 예측) → 후(정밀 계산) 값
   const rx0=xN,rw=L+pw-xN,cx=rx0+rw/2;
   if(O.fem&&!O.femDone){const pr=Math.min(1,O.gauge||0);
@@ -921,7 +934,7 @@ function spark(){
   else if(O.femDone){const ok=rows.filter(m=>m.ok).length;      // 검증 끝: 충족 개수만 크게 (항목별 값은 오른쪽 성능 칸)
     g.textAlign='center';g.fillStyle=ok===rows.length?'#5fd3a6':'#ff8a96';g.font='700 18px ui-monospace,Consolas,monospace';g.fillText(`${ok}/${rows.length}`,cx,T+ph/2-8);
     g.font='600 11px "Malgun Gothic","Noto Sans KR",sans-serif';g.fillText(ok===rows.length?'검증 통과':'미충족 '+(rows.length-ok),cx,T+ph/2+12);}
-  const lg=$('#optLg');if(lg)lg.innerHTML=rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
+  const lg=$('#optLg');if(lg)lg.innerHTML='<span><i style="background:#fff;height:4px"></i><b>무게</b></span>'+rows.map((m,k)=>`<span${O.cur===m.key?' class="cur"':''}><i style="background:${PAL[k%PAL.length]}"></i>${SHORT[m.key]||m.label}</span>`).join('');
 }
 new ResizeObserver(()=>spark()).observe($('#vS3'));
 function optStage(n){$('#stp1').className='stp '+(n===1?'on':n>1?'done':'');$('#stpR').className='stp '+(n===1.5?'on':n>1.5?'done':'');$('#stp2').className='stp '+(n===2?'on':n>2?'done':'');}
@@ -968,7 +981,7 @@ async function finishOpt(r){
   if(V3.firstGeo&&S.rep&&S.rep.heat&&g.heat){await Promise.all(Object.values(g.heat.fields).map(decodeField));
     V3.cmp={geoA:V3.firstGeo,geoB:V3.mount.geometry,heatA:S.rep.heat,heatB:g.heat,mA:O.m0,mB:g.mass_g,on:false,mats:null};$('#vCmp').hidden=false;}
 }
-// 1차 ↔ 최적 비교 (같은 색 척도): 3 줄(흔들림 · 충격 · 온도) × 2 칸(1차 · 최적)
+// 초기 ↔ 최적 비교 (같은 색 척도): 3 줄(흔들림 · 충격 · 온도) × 2 칸(초기 · 최적)
 const CMP_ROWS=[['shake','흔들림'],['stress','충격 때 걸리는 힘'],['temp','폰 온도 상승']];
 function cmpToggle(on){
   const C=V3.cmp;if(!C)return;C.on=on;$('#vCmp').classList.toggle('on',on);
@@ -978,8 +991,8 @@ function cmpToggle(on){
       const bb=new THREE.Box3();[C.geoA,C.geoB].forEach(gg=>{gg.computeBoundingBox();bb.union(gg.boundingBox);});C.box=bb;C.mc=bb.getCenter(new THREE.Vector3());}
     const u=f=>f.unit?' '+f.unit:'',cell=(r,w)=>{const f=(w==='a'?C.heatA:C.heatB).fields[r.k],f0=C.heatA.fields[r.k];
       return `<div class="cc" data-k="${r.k}" data-w="${w}"><span class="lab">${r.t}</span><div class="leg"><div class="ends"><span>${f0.lo}${u(f0)}</span><span>최대 <b>${f.max}${u(f)}</b></span><span>${f0.hi}${u(f0)}</span></div><div class="bar"></div></div></div>`;};
-    ov.innerHTML=`<div class="ch">1차 설계<small>${fmt(C.mA)} g</small></div><div class="ch b">최적 설계<small>${fmt(C.mB)} g</small></div>`+C.mats.map(r=>cell(r,'a')+cell(r,'b')).join('');
-    guide('1차 설계 ↔ 최적 설계','같은 조건 · 같은 색 척도로 비교 (빨강일수록 불리)');
+    ov.innerHTML=`<div class="ch">초기 설계<small>${fmt(C.mA)} g</small></div><div class="ch b">최적 설계<small>${fmt(C.mB)} g</small></div>`+C.mats.map(r=>cell(r,'a')+cell(r,'b')).join('');
+    guide('초기 설계 ↔ 최적 설계','같은 조건 · 같은 색 척도로 비교 (빨강일수록 불리)');
   }else if(S.optLast&&S.optLast.mf!=null)guide('4 물리 최적화 완료',`무게 ${fmt(S.optLast.m0)} → ${fmt(S.optLast.mf)} g`);
 }
 function cmpRender(){
@@ -1016,6 +1029,10 @@ $('#optimize').onclick=async()=>{
   S.opt.hist=[{it:0,v:histPoint(0,true)}];spark();$('#optPhase').textContent='① AI 탐색 ·';setPhase('AI가 찾는 중','AI 예측');$('#pTitle').textContent='AI 예측 성능';setStep(3);
   document.body.classList.add('opting');requestAnimationFrame(()=>spark());
   V3.optBox=null;if(V3.cmp){cmpToggle(false);V3.cmp=null;}$('#vCmp').hidden=true;V3.firstGeo=V3.mount.geometry.clone();
+  // 처음 형상을 반투명으로 겹쳐 둠 (메인 창만) — AI 가 형상을 어디서 어떻게 바꾸는지 보이게
+  if(V3.ghost){V3.scene.remove(V3.ghost);V3.ghost.material.dispose();}
+  V3.ghost=new THREE.Mesh(V3.firstGeo,new THREE.MeshBasicMaterial({color:0xffc04d,transparent:true,opacity:0.38,depthWrite:false,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));
+  V3.ghost.position.copy(V3.mount.position);V3.ghost.quaternion.copy(V3.mount.quaternion);V3.ghost.scale.copy(V3.mount.scale);V3.ghost.renderOrder=2;V3.scene.add(V3.ghost);
   // 물리 AI 는 흔들림 분포를 예측하지 않음 → 탐색 · 정밀 최적화 동안 흔들림 창은 회색 (마지막 검증에서 정밀 계산 분포로 채움)
   V3.small.forEach((s,i)=>{if(s.key!=='shake')return;if(s.mat&&s.mat!==V3.grayMat){s.mat.userData.tex.dispose();s.mat.dispose();}
     s.mat=V3.grayMat||(V3.grayMat=new THREE.MeshStandardMaterial({color:0xc3c8cf,roughness:0.6,metalness:0}));
@@ -1027,6 +1044,9 @@ $('#optimize').onclick=async()=>{
     // 재생: AI 탐색 전체를 OPT_AI_MS(50 s)에 걸쳐 보여 줌 — 반복 it 의 장면은 (it/전체) × 50 s 에 나옴.
     // 장면 사이(10회 간격)에는 단계 숫자 · 막대만 시간에 맞춰 이어서 올라감.
     const play=new Promise(res=>{let t0=null,last=null;const h=setInterval(()=>{const o=S.opt,now=performance.now();
+      // 영상 녹화용 한 장씩 재생 (window.FP_STEP): 녹화 도구가 FP_STEP_N=1 로 한 프레임씩 넘김 (그래픽 가속 없는 녹화 환경에서 프레임이 밀리지 않게)
+      if(window.FP_STEP){if(o.queue.length&&window.FP_STEP_N>0){const f=o.queue.shift();if(o.m0==null)o.m0=f.mass_g;applyFrame(f);last=f;window.FP_STEP_N--;}
+        if(!o.queue.length&&o.done){clearInterval(h);res();}return;}
       while(o.queue.length){const f=o.queue[0];if(t0==null)t0=now-OPT_AI_MS*f.it/f.iters;
         if(now-t0<OPT_AI_MS*f.it/f.iters)break;o.queue.shift();if(o.m0==null)o.m0=f.mass_g;applyFrame(f);last=f;}
       if(last&&t0!=null){const it=Math.min(last.iters,Math.floor(last.iters*(now-t0)/OPT_AI_MS)),nx=o.queue.length?o.queue[0].it:(o.done?last.iters:last.it+9);
@@ -1048,7 +1068,7 @@ $('#optimize').onclick=async()=>{
 };
 function setCommon(rep, massG){
   const t=rep.template;
-  setPhase('1차 설계','1차 설계');$('#pTitle').textContent='1차 설계 성능';
+  setPhase('초기 설계','초기 설계');$('#pTitle').textContent='초기 설계 성능';
   $('#tplTag').className='tag blue';$('#tplTag').textContent=noPres(t.name).replace(/\s*\([^)]*\)/g,'').replace(/\s*—\s*/,' · ');
   $('#imgDraw').src=rep.files['design_1st_drawing.png']||'';
   $('#kMass').textContent=massG>=1000?`${fmt(massG/1000,2)} kg`:`${fmt(massG)} g`;
@@ -1103,7 +1123,7 @@ function render(rep){
   return renderTemplate(rep);
 }
 // ---------- 영상 모드 (?video=1): 예시 목록 숨김. 1 · 2 · 3 키 = 폰 거치대 · TV 스탠드 · AI 글래스를 실제로 치고 그리는 모습
-// (&auto=1 이면 이어서 설계 사양 → 확정 → 1차 설계까지 자동). 콘솔에서 playDemo(0) 도 됨
+// (&auto=1 이면 이어서 설계 사양 → 확정 → 초기 설계까지 자동). 콘솔에서 playDemo(0) 도 됨
 const QS=new URLSearchParams(location.search);
 if(QS.has('video'))$('#example').style.display='none';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));

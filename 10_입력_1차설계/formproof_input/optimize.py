@@ -1,11 +1,11 @@
-"""간이 물리 최적화 (CPU) — 1차 설계에서 시작해 형상이 바뀌어 가는 과정을 보여 주는 단계.
+"""간이 물리 최적화 (CPU) — 초기 설계에서 시작해 형상이 바뀌어 가는 과정을 보여 주는 단계.
 
 입력 단계 출력(spec.json + initial_design.npy)을 그대로 받아, 같은 격자 · 같은 하중(폰 강체 충격 위아래 · 앞뒤) ·
 같은 경계(핸들 고정 · 대칭면)로 3D SIMP 강성 최적화를 돌린다.
 
   물리 모델 : hex8 선형 정적 FEM (팀 fem3d.hex8_KB, formproof_input.fem 과 같은 요소), 절반 모델 S/A 경우
   목적      : 충격 하중 경우들의 컴플라이언스 합 최소 (같은 무게에서 가장 단단한 형상)
-  제약      : 설계 영역 부피 = 목표 (기본 0.15, 또는 1차 설계 무게의 vol_ratio 배)
+  제약      : 설계 영역 부피 = 목표 (기본 0.15, 또는 초기 설계 무게의 vol_ratio 배)
   갱신      : 밀도 필터(반경 rmin) + OC(최적성 조건) — 팀 엔진(SIMP + MMA, 진동수 · 흔들림 제약)의 간이판
   판정      : eval_every 반복마다 0/1 형상으로 formproof_input.fem.evaluate (진동수 · 흔들림 · 응력 · 층간 · 연결)
 
@@ -80,11 +80,11 @@ class SimpleOptimizer:
             self.V = float(vol_frac) * nvar
         else:
             self.V = max(float(vol_ratio) * x0.sum(), 0.02 * nvar)
-        # 시작 = 1차 설계(1) + 나머지 설계 영역에 남은 부피를 고르게 (1차 설계가 보이는 상태에서 출발)
+        # 시작 = 초기 설계(1) + 나머지 설계 영역에 남은 부피를 고르게 (초기 설계가 보이는 상태에서 출발)
         rest = max(self.V - x0.sum(), 0.0)
         bg = min(rest / max((x0 < 0.5).sum(), 1), 0.9)
         self.x = np.where(x0 > 0.5, 1.0, max(bg, 1e-3))
-        if self.x.sum() > self.V:                                   # 목표가 1차 설계보다 가벼우면 비율로 줄여 시작
+        if self.x.sum() > self.V:                                   # 목표가 초기 설계보다 가벼우면 비율로 줄여 시작
             self.x *= self.V / self.x.sum()
         self.p, self.move, self.drop = p, move, drop
         self.H, self.Hs = _filter_matrix(P, self.var, rmin)
@@ -297,7 +297,7 @@ def run(src, out=None, iters=40, vol_ratio=1.0, vol_frac=0.15, eval_every=10, fr
     init_p = os.path.join(d, "initial_design.npy")
     x_init = np.load(init_p) if os.path.exists(init_p) else None
     if "load_cases" not in spec:
-        raise ValueError("이 1차 설계(P01 발표 사례 형식)는 팀 엔진 opt_int.py 로 최적화합니다 (engine_env.json · initial_design.npy). "
+        raise ValueError("이 초기 설계(P01 발표 사례 형식)는 팀 엔진 opt_int.py 로 최적화합니다 (engine_env.json · initial_design.npy). "
                          "간이 최적화는 T 템플릿 · 외형 템플릿(G · L) 형식만 받습니다")
     out = out or os.path.join(d, "opt")
     os.makedirs(os.path.join(out, "frames"), exist_ok=True)
@@ -317,7 +317,7 @@ def run(src, out=None, iters=40, vol_ratio=1.0, vol_frac=0.15, eval_every=10, fr
     _font()
     if render:
         fp = os.path.join(out, "frames", "iter_000.png")
-        render_frame(P, opt.full_density(), fp, "반복 0 (1차 설계에서 시작)")
+        render_frame(P, opt.full_density(), fp, "반복 0 (초기 설계에서 시작)")
         frames.append(fp)
     for k in range(1, iters + 1):
         progress.step(f"간이 최적화 {k}/{iters}", "")
@@ -386,7 +386,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--iters", type=int, default=40)
     ap.add_argument("--vol-frac", type=float, default=0.15, help="목표 부피 비율 (설계 영역 대비, 기본 0.15)")
-    ap.add_argument("--vol-ratio", type=float, help="대신 목표 무게 = 1차 설계 × 이 값 (주면 --vol-frac 무시)")
+    ap.add_argument("--vol-ratio", type=float, help="대신 목표 무게 = 초기 설계 × 이 값 (주면 --vol-frac 무시)")
     ap.add_argument("--eval-every", type=int, default=10)
     ap.add_argument("--frame-every", type=int, default=5)
     ap.add_argument("--rmin", type=float, default=1.5)

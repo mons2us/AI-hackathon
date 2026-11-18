@@ -167,7 +167,7 @@ def route_product(text="", sketch=None, image=None, template=None, product=None)
 
 
 def bike_pick(text="", sketch=None, image=None, template=None, params_override=None):
-    """템플릿 거치대: 문장 · 스케치 → 템플릿 · 설계 명세 (설계 사양 표와 1차 설계가 같은 것을 씀)."""
+    """템플릿 거치대: 문장 · 스케치 → 템플릿 · 설계 명세 (설계 사양 표와 초기 설계가 같은 것을 씀)."""
     parsed = text_rules.parse(text)
     match = None
     if sketch is not None or image is not None:
@@ -195,8 +195,8 @@ def bike_pick(text="", sketch=None, image=None, template=None, params_override=N
 
 
 def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None, spec=None, attach=None):
-    """1차 설계. spec = 설계 사양 표에서 사용자가 고친 값 {행 id: 값} (확정한 사양):
-    형상 값(렌즈 폭 · 화면 크기 · 화면 높이)은 템플릿 선택에, 판정 수치는 1차 설계 판정 기준에 들어감.
+    """초기 설계. spec = 설계 사양 표에서 사용자가 고친 값 {행 id: 값} (확정한 사양):
+    형상 값(렌즈 폭 · 화면 크기 · 화면 높이)은 템플릿 선택에, 판정 수치는 초기 설계 판정 기준에 들어감.
     rep['spec_table'] = 확정한 설계 사양 표 (spec_table.py, design_spec_confirmed.json 으로도 저장 · handoff.zip 에 포함),
     rep['spec_rows']  = 설계 사양 행 (제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
     from . import spec_table
@@ -267,22 +267,22 @@ def _design(text="", sketch=None, image=None, template=None, out="out", with_mes
     before = os.listdir(out)
     H = memo.get(mkey, out)
     if H is None:
-        progress.step("1차 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소 — 이 명세는 처음 (다음부터 DB)")
+        progress.step("초기 성능 계산 (FEM · 진동 전달)", f"{int(dens.sum()):,} 요소 — 이 명세는 처음 (다음부터 DB)")
         check = evaluate(P, dens, fields=with_mesh)
         fields = check.pop("fields", None)
         progress.step("CAD · STEP · STL · 도면")
         stl = write_stl(P, dens, os.path.join(out, "design_1st.stl"))
-        side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 1차 설계 / 설계 영역")
+        side_preview(P, dens, os.path.join(out, "side_view.png"), f"{tid} {tpl['name']} — 초기 설계 / 설계 영역")
         body, cad_info = export_step(spec, os.path.join(out, "design_1st.step"))
         drawing = make_drawing(spec, body, os.path.join(out, "design_1st_drawing.dxf"),
-                               os.path.join(out, "design_1st_drawing.pdf"), title="자전거 폰 거치대 — 1차 설계",
+                               os.path.join(out, "design_1st_drawing.pdf"), title="자전거 폰 거치대 — 초기 설계",
                                check=check, mass_g=cad_info["mass_g"])
         H = memo.put(mkey, out, memo.new_files(out, before),
                      dict(check=check, stl=stl, cad_info=cad_info, drawing=drawing,
                           mesh=mesh_payload(body) if with_mesh else None,
                           heat=bike_heat(P, spec, fields) if (with_mesh and fields) else None))
     else:
-        progress.step("템플릿 결과 DB에서 1차 설계 · 성능 불러오기", f"{tid}")
+        progress.step("템플릿 결과 DB에서 초기 설계 · 성능 불러오기", f"{tid}")
     check = H["check"]
     rep["first_design_check"] = check
     rep["handoff_requirements"] = requirements.handoff_summary(spec, P)

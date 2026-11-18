@@ -1,14 +1,14 @@
 """물리 기반 최적화 (P01 일체형 거치대) — 역설계: 형상 AI(잠재 코드 z → 형상) × 물리 AI(형상 → 성능).
 
 sosopapa 11_구현패키지 ai/latent_search.trace_run 과 같은 방식:
-  1) 1차 설계(처음 설계)에 z 를 맞춘다 (형상 AI fit)
+  1) 초기 설계(처음 설계)에 z 를 맞춘다 (형상 AI fit)
   2) 목적 = 무게 + w · (Σ 고른 기준의 정규화 위반 × 10)² + 1e-3 ‖z‖², Adam 으로 z 를 고침
   3) every 회마다 형상 · 예측값 · 벌점을 프레임으로 기록 → GUI 가 형상이 바뀌는 것을 재생
   4) 마지막 형상을 FEM(팀 엔진)으로 다시 계산 (검증 관문)
 
 모델 두 가지 (같은 인터페이스: fit(처음 형상) → z0, trace(z0, 기준) → 프레임들):
   - fp11  : 학습된 가중치. models/results_fp11.zip (runs/sdf.pt · runs/fno.pt) + models/grid_meta.npz 가 있고 PyTorch 가 있으면 자동 사용
-  - anchor: 가중치가 없을 때. 형상 = 1차 설계 → 최종 최적 구조(위상 최적화 int35f95g2) 사이 부호거리장 경로(새 부재가 자라고
+  - anchor: 가중치가 없을 때. 형상 = 초기 설계 → 최종 최적 구조(위상 최적화 int35f95g2) 사이 부호거리장 경로(새 부재가 자라고
             필요 없는 판이 깎임), 성능 = 두 형상의 실제 FEM 값 사이 보간(무게는 점유 칸 수로 정확히). 같은 탐색 루프로 돈다.
 
 명령: python -m formproof_input.inverse check      (어느 모델을 쓰는지 · 가중치 읽기 · 몇 회 시험)
@@ -177,7 +177,7 @@ def mesh_payload(full, soft=None):
 
 
 def heat_payload(full, F):
-    """분포 3개(흔들림 · 충격 응력 · 온도) — 1차 설계 화면과 같은 색 척도 · 같은 격자 정보. 값이 없는 분포는 뺌."""
+    """분포 3개(흔들림 · 충격 응력 · 온도) — 초기 설계 화면과 같은 색 척도 · 같은 격자 정보. 값이 없는 분포는 뺌."""
     from ..heat import grid_info, pack_nodes
     from ..templates.bike_mount import Y_SYM
     valid = I.node_valid(full)
@@ -195,7 +195,7 @@ def heat_payload(full, F):
 
 # ------------------------------------------------------------------ 실행
 def start_shape():
-    """1차 설계 (P01 처음 설계, 판 + 기둥) — 전체 격자 0/1."""
+    """초기 설계 (P01 처음 설계, 판 + 기둥) — 전체 격자 0/1."""
     return I.full_density(I.shape("base")) > 0.5
 
 
@@ -206,7 +206,9 @@ def hybrid_pack(sel, B=None):
     """models/hybrid_p01.json.gz (13_AI학습_일체형/make_hybrid_pack.py 로 만듦) — 고른 기준과 학습 모델이 같을 때만 사용.
     경로: ① AI 탐색 (형상 AI × 물리 AI) → 탐색 형상 정밀 계산 · 통과 후보 선택 → ② 정밀 최적화 (구조 최적화 + FEM) → 최종 형상.
     FP_OPT_HYBRID=0 이면 쓰지 않음."""
-    path = os.path.join(MODELS, "hybrid_p01.json.gz")
+    path = os.path.join(MODELS, "hybrid_p01_e2.json.gz")             # v2: AI 탐색 2회마다 (형상 · 분포 매 프레임)
+    if not os.path.exists(path):
+        path = os.path.join(MODELS, "hybrid_p01.json.gz")            # v1: 10회마다
     if os.environ.get("FP_OPT_HYBRID", "1") == "0" or not os.path.exists(path):
         return None
     st = os.path.getmtime(path)
@@ -317,7 +319,7 @@ def gate(res, out=None, timeout=3600):
     return g
 
 
-DEFAULT_SELECTIONS = (("f1", "Tmax", "touch", "interlayer", "shake"), KEYS)   # 1차 설계에서 미충족 5개 · 전부
+DEFAULT_SELECTIONS = (("f1", "Tmax", "touch", "interlayer", "shake"), KEYS)   # 초기 설계에서 미충족 5개 · 전부
 
 
 def precompute(log=print):

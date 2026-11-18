@@ -58,7 +58,7 @@ def side_preview(P, dens, path, title=""):
     sup = P.supports[next(iter(P.supports))]
     ax.plot(P.nodes[sup, 0], P.nodes[sup, 2], ".", ms=2, color="crimson", label="고정(핸들바)")
     from matplotlib.patches import Patch
-    ax.legend(handles=[Patch(color=(0.90, 0.93, 0.98), label="설계 영역"), Patch(color=(0.25, 0.45, 0.85), label="1차 설계"),
+    ax.legend(handles=[Patch(color=(0.90, 0.93, 0.98), label="설계 영역"), Patch(color=(0.25, 0.45, 0.85), label="초기 설계"),
                        Patch(color=(0.35, 0.35, 0.35), label="지킬 곳"), Patch(color=(0.85, 0.55, 0.15), label="폰 클램프(강체)"),
                        ax.lines[0]], loc="lower right", fontsize=7)
     ax.set_xlabel("x (앞) mm"), ax.set_ylabel("z (위) mm"), ax.set_title(title, fontsize=10)

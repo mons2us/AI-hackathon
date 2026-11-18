@@ -2,7 +2,7 @@
    CHROME=/path/to/chrome python tests/e2e_gui.py   (screenshots -> <tmp>/formproof_e2e)
 
 확인: 한 화면(페이지 · 카드 스크롤 없음), 제품 버튼 없음 · 로고, 예시 3개(말 + 스케치 획) → [설계 사양] 표 → 수치 고치기 →
-[확정] → [1차 설계 만들기] (확정 전 · 입력 바뀐 뒤에는 꺼짐), 고친 사양이 판정 기준으로, 말만 · 사진 입력,
+[확정] → [초기 설계 만들기] (확정 전 · 입력 바뀐 뒤에는 꺼짐), 고친 사양이 판정 기준으로, 말만 · 사진 입력,
 메인 창을 돌리고 확대하면 아래 분포 창 카메라가 따라감, 도면 보기, TV · 글래스도 성능 항목 고르기(최적화 입력 묶음 저장),
 P01 역설계 재생 → FEM 검증 · optimize_input.zip, 영상 모드(?video=1, 키 2 → 치고 그리기 → TV01)."""
 import json, math, os, sys, tempfile, time, urllib.request
@@ -42,7 +42,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     no_scroll(page)
     assert page.locator("#prodSeg").count() == 0 and page.is_visible("header .brand-r"), "제품 버튼이 남았거나 로고가 없음"
-    assert page.is_disabled("#bConfirm") and page.is_disabled("#go"), "설계 사양 전에 확정 · 1차 설계 버튼이 켜져 있음"
+    assert page.is_disabled("#bConfirm") and page.is_disabled("#go"), "설계 사양 전에 확정 · 초기 설계 버튼이 켜져 있음"
     demos = json.load(urllib.request.urlopen(URL.rstrip("/") + "/api/demos"))
     assert [d["label"] for d in demos] == ["폰 거치대", "TV 스탠드", "AI 글래스"]
 
@@ -52,7 +52,7 @@ with sync_playwright() as p:
         page.wait_for_function("() => document.querySelector('#specs').classList.contains('on') && !document.querySelector('#bConfirm').disabled",
                                timeout=90000)
         n = page.locator("#specBody tr").count()
-        assert page.is_disabled("#go"), "확정 전에 1차 설계 버튼이 켜짐"
+        assert page.is_disabled("#go"), "확정 전에 초기 설계 버튼이 켜짐"
         if edit:
             k, v = edit
             page.fill(f"input[data-id={k}]", str(v)); page.locator(f"input[data-id={k}]").dispatch_event("change")
@@ -79,9 +79,9 @@ with sync_playwright() as p:
         assert page.input_value("#text") == demos[i]["prompt"], "예시를 골라도 말이 안 채워짐"
         n = spec_then_design(name, ("tilt", 8) if name == "TV" else None)
         assert n >= 8 and page.evaluate("() => S.rep.template.id") == tid, (name, n)
-        if name == "TV":                                   # 고친 사양(기울기 10 → 8°)이 1차 설계 판정 기준으로
+        if name == "TV":                                   # 고친 사양(기울기 10 → 8°)이 초기 설계 판정 기준으로
             assert "≥ 8 °" in page.locator("#metrics .metric").first.inner_text()
-    # 사양을 만든 뒤 말을 바꾸면 확정 · 1차 설계가 꺼짐
+    # 사양을 만든 뒤 말을 바꾸면 확정 · 초기 설계가 꺼짐
     page.click("#bSpec"); page.wait_for_timeout(2500)
     page.type("#text", " 더 가볍게"); page.wait_for_timeout(200)
     assert page.is_disabled("#bConfirm") and page.is_disabled("#go") and page.is_visible("#specStale")
