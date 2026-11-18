@@ -250,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
                         J["frames"].append(fr)
                         J.update(stage=f"역설계 반복 {fr['it']} / {fr['iters']}", detail=(f"무게 {fr['mass_g']:.1f} g" if fr.get('mass_g') is not None else "밀도 정리 중") + f" · 기준 벌점 {fr.get('pen') or 0:.2f}")
                     res = OPT.run(sel, on_frame, lim_override=lim)
-                    J.update(stage="FEM 검증 관문 (팀 엔진으로 마지막 형상 다시 계산)", detail="", ts=time.time())
+                    J.update(stage="정밀 시뮬레이션 검증 (마지막 형상 다시 계산)", detail="", ts=time.time())
                     g = OPT.gate(res, out=out)
                     with open(os.path.join(out, "optimize_targets.json"), "w", encoding="utf-8") as f:
                         json.dump(dict(run=rid, targets=sel, limits=res["limits"], created=time.strftime("%Y-%m-%d %H:%M:%S")), f, ensure_ascii=False, indent=2)

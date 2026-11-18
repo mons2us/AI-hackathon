@@ -52,7 +52,7 @@ for k, fn in enumerate(snaps):
     shown = V.attached(full)
     gray = r['beta'] == 1
     refine.append(dict(stage='refine', note=('후보 경계를 밀도로 풀어 재료를 다시 배치하는 중 (정밀 계산)' if gray else
-                                             '후보에서 출발한 구조 최적화 + 정밀 계산(FEM) · 3D 프린트 출력 조건(45°) 반영'),
+                                             '후보에서 출발한 구조 최적화 + 정밀 시뮬레이션 · 3D 프린트 출력 조건(45°) 반영'),
                        rit=k + 1, oit=it, mass_g=None if gray else round(float(r['mass_g']), 2),
                        fem=dict(f1=round(float(r['f'][0]), 1), Tmax=round(float(r['Tmax']), 2), touch=round(float(max(r['touch'])), 3)),
                        mesh=V.mesh_payload(shown), it=AI_ITERS + STEP * (k + 2), pen=0.0, pred={}, heat=None, sha=None))
@@ -68,7 +68,7 @@ pack = dict(old, version=3, pick_it=pk_it, frames=ai + [pick] + refine, refine_s
                         refine='13_AI학습_일체형/runs/ppt_from_al3_020 (발표 최종 형상 int35f95g2 와 같은 조건, 120회)',
                         final_fem=dict(mass_g=ev['mass_g'], f1=ev['f'][0], Tmax=ev['Tmax'], touch=ev['touch_mm'],
                                        shake=max(ev['fore']['peak'], ev['vert']['peak']))))
-out = os.path.join(ROOT, '10_입력_1차설계', 'models', 'hybrid_p01_v3.json.gz')
+out = os.path.join(ROOT, '10_입력_1차설계', 'models', 'hybrid_p01_v4.json.gz')   # v4: 화면 문구에서 FEM 표기 제거 (경로 · 수치는 v3 와 같음)
 with gzip.open(out, 'wt', encoding='utf-8') as fh:
     json.dump(pack, fh, ensure_ascii=False)
 print(json.dumps(dict(saved=out, ai=len(ai), refine=len(refine), pick=pk_it, refine_mass=[f['mass_g'] for f in refine],

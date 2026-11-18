@@ -206,7 +206,9 @@ def hybrid_pack(sel, B=None):
     """models/hybrid_p01.json.gz (13_AI학습_일체형/make_hybrid_pack.py 로 만듦) — 고른 기준과 학습 모델이 같을 때만 사용.
     경로: ① AI 탐색 (형상 AI × 물리 AI) → 탐색 형상 정밀 계산 · 통과 후보 선택 → ② 정밀 최적화 (구조 최적화 + FEM) → 최종 형상.
     FP_OPT_HYBRID=0 이면 쓰지 않음."""
-    path = os.path.join(MODELS, "hybrid_p01_v3.json.gz")             # v3: 후보 = 진동수 여유 최대(al3_020) → 발표 최종 형상과 같은 조건 정밀 최적화 120회
+    path = os.path.join(MODELS, "hybrid_p01_v4.json.gz")             # v4: v3 와 같은 경로 · 수치, 화면 문구에서 FEM 표기 제거
+    if not os.path.exists(path):
+        path = os.path.join(MODELS, "hybrid_p01_v3.json.gz")             # v3: 후보 = 진동수 여유 최대(al3_020) → 발표 최종 형상과 같은 조건 정밀 최적화 120회
     if not os.path.exists(path):
         path = os.path.join(MODELS, "hybrid_p01_e2.json.gz")         # v2: AI 탐색 2회마다 (형상 · 분포 매 프레임)
     if not os.path.exists(path):

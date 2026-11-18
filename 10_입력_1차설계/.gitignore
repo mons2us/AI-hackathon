@@ -10,3 +10,4 @@ models/*
 !models/hybrid_p01.json.gz
 !models/hybrid_p01_e2.json.gz
 !models/hybrid_p01_v3.json.gz
+!models/hybrid_p01_v4.json.gz
