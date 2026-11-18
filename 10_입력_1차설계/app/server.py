@@ -18,7 +18,7 @@ import uuid
 import webbrowser
 import numpy as np
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 APP = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(APP)
@@ -181,6 +181,10 @@ class Handler(BaseHTTPRequestHandler):
             if not d.startswith(os.path.realpath(RUNS) + os.sep) or not os.path.isfile(os.path.join(d, "opt", "history.npz")):
                 return self._send(404, {"error": "no optimisation history"})
             return self._send(200, _opt_frame(d, k))
+        if p == "/api/files":                         # 파일 입력 예시 (문서 · CAD)
+            d = os.path.join(EXAMPLES, "files")
+            fs = sorted(os.listdir(d)) if os.path.isdir(d) else []
+            return self._send(200, [f"/examples/files/{quote(f)}" for f in fs])
         if p == "/api/photos":                        # AI 글래스 예시 사진 (실제 제품 사진은 사용자가 넣음)
             d = os.path.join(EXAMPLES, "glasses")
             fs = sorted(f for f in os.listdir(d) if f.lower().endswith((".png", ".jpg", ".jpeg"))) if os.path.isdir(d) else []
@@ -268,6 +272,18 @@ class Handler(BaseHTTPRequestHandler):
         threading.Thread(target=work, daemon=True).start()
         return self._send(200, {"job": jid})
 
+    def _ingest(self):
+        """파일 입력 (문서 · CAD · 이미지) → 요청문 글 · 형상 그림 · 설계 사양 행 (formproof_input/file_input.py)."""
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            req = json.loads(self.rfile.read(n).decode("utf-8"))
+            from formproof_input import file_input
+            out = file_input.ingest(req.get("name") or "", file_input.decode(req.get("data") or ""))
+            return self._send(200, json.loads(json.dumps(out, ensure_ascii=False, default=float)))
+        except Exception as e:                                          # noqa: BLE001
+            traceback.print_exc()
+            return self._send(400, {"error": f"파일을 읽지 못했습니다: {e}"})
+
     def _spec(self):
         """'설계 사양' 버튼: 말 + 스케치 → 설계 사양 표 (1차 설계 전에, 사용자가 고친 뒤 확정). edits 가 있으면 고친 값 반영해 다시."""
         try:
@@ -282,7 +298,8 @@ class Handler(BaseHTTPRequestHandler):
             # 사양 표는 스케치 비교 + 규칙 표만 계산(그림 · CAD 없음) → 1차 설계 · 뒤 DB 채우기의 LOCK 을 기다리지 않는다.
             # (예전엔 LOCK 을 잡아, 서버 첫 실행 때 DB 를 채우는 동안 '설계 사양'이 수십 초 반응 없음)
             with SPEC_LOCK:
-                sp = spec_table.preview(req.get("text", ""), sketch, image, req.get("template") or None, None, edits=req.get("edits"))
+                sp = spec_table.preview(req.get("text", ""), sketch, image, req.get("template") or None, None, edits=req.get("edits"),
+                                        attach=req.get("attach") or None)
             sp["seconds"] = round(time.time() - t, 2)
             return self._send(200, json.loads(json.dumps(sp, ensure_ascii=False, default=float)))
         except Exception as e:                                          # noqa: BLE001
@@ -299,6 +316,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._opt_run()
         if urlparse(self.path).path == "/api/spec":
             return self._spec()
+        if urlparse(self.path).path == "/api/ingest":
+            return self._ingest()
         if urlparse(self.path).path != "/api/design":
             return self._send(404, {"error": "not found"})
         try:
@@ -328,7 +347,8 @@ class Handler(BaseHTTPRequestHandler):
                         note("입력 읽기 · 확정한 설계 사양")
                         try:
                             rep = pipeline.design(req.get("text", ""), sketch, image, req.get("template") or None, out, with_mesh=True,
-                                                  product=req.get("product") or None, spec=req.get("spec") or None)
+                                                  product=req.get("product") or None, spec=req.get("spec") or None,
+                                                  attach=req.get("attach") or None)
                         finally:
                             note("결과 보내는 중")
                             progress.set_listener(None)

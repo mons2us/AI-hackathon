@@ -139,5 +139,5 @@ if(window.V3&&V3.bike){
   lift(V3.bike);
 }
 window.NAV_BG=0x1b2433;window.NAV_INK='#cbd5e1';
-stage('input');guide('1 입력','만들 제품과 조건을 문장, 스케치, 사진으로 넣습니다');
+stage('input');guide('1 입력','만들 제품과 조건을 문장, 스케치, 사진, 문서, CAD 파일로 넣습니다');
 })();

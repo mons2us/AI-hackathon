@@ -61,7 +61,7 @@ body.pro table.st td.v input{background:#0f1520;color:var(--ink);border-color:#3
 body.pro table.st tr.ed td.v input{background:#3a2f12;border-color:var(--amber)}
 body.pro table.st td.v .lk,body.pro table.st td.v small,body.pro table.st td.v .tx{color:var(--ink)}
 body.pro table.st em.k0{background:var(--green-s);color:var(--green)}body.pro table.st em.k1{background:rgba(160,120,255,.18);color:#c4a8ff}
-body.pro table.st em.k2{background:var(--blue-s);color:#8fb3ff}body.pro table.st em.k3{background:var(--amber-s);color:var(--amber)}body.pro table.st em.k4{background:var(--red-s);color:var(--red)}
+body.pro table.st em.k2{background:var(--blue-s);color:#8fb3ff}body.pro table.st em.k3{background:var(--amber-s);color:var(--amber)}body.pro table.st em.k4{background:var(--red-s);color:var(--red)}body.pro table.st em.k5{background:rgba(56,200,210,.16);color:#6fdde6}
 body.pro .acts .btn{padding:13px 4px;font-size:16px}
 body.pro .acts .btn:disabled{background:#2a3444 !important;color:#6b778a}
 body.pro .acts .btn.done{background:#1f2b3b !important;color:var(--ink2)}
@@ -172,7 +172,7 @@ body.pro .cmpov .cc .leg b{color:var(--ink);font-size:14.5px}
 .reqmap .mr b{font-size:16px;color:var(--ink);font-weight:700}.reqmap .mr .src{display:block;font-size:12.5px;color:var(--ink3);font-weight:400;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .reqmap .mr em{font-style:normal;font-size:12.5px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
 .reqmap em.k0{background:var(--green-s);color:var(--green)}.reqmap em.k1{background:rgba(160,120,255,.18);color:#c4a8ff}.reqmap em.k2{background:var(--blue-s);color:#8fb3ff}
-.reqmap em.k3{background:var(--amber-s);color:var(--amber)}.reqmap em.k4{background:var(--red-s);color:var(--red)}
+.reqmap em.k3{background:var(--amber-s);color:var(--amber)}.reqmap em.k4{background:var(--red-s);color:var(--red)}.reqmap em.k5{background:rgba(56,200,210,.16);color:#6fdde6}
 .reqmap .mr.in{animation:rin .35s ease both}@keyframes rin{from{opacity:0;transform:translateY(6px)}}
 .pban[hidden],.resbar[hidden],.reqmap[hidden],.hbtn[hidden]{display:none !important}
 body.pro .grid>.views{grid-column:2;grid-row:1}
@@ -197,3 +197,9 @@ body.pro.st-design:not(.showleft) .rail,body.pro.st-opt:not(.showleft) .rail,bod
 .rail .ri i{writing-mode:horizontal-tb;font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--green);color:#0e131b;display:grid;place-items:center;font-size:12px}
 .rail .rx{margin-top:auto;font-size:18px;color:var(--ink3)}
 .rail:hover .ri{color:var(--ink)}
+
+/* 파일 입력 (문서 · CAD) */
+body.pro .fitem{background:var(--soft);border-color:#2c3646}
+body.pro .fitem .ft em{background:rgba(56,200,210,.16);color:#6fdde6}
+body.pro .fitem .ft span{color:var(--ink2)}
+body.pro .fdrop small{color:var(--ink3)}

@@ -194,13 +194,13 @@ def bike_pick(text="", sketch=None, image=None, template=None, params_override=N
     return dict(parsed=parsed, match=match, tid=tid, how=how, tpl=tpl, spec=spec)
 
 
-def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None, spec=None):
+def design(text="", sketch=None, image=None, template=None, out="out", with_mesh=False, product=None, spec=None, attach=None):
     """1차 설계. spec = 설계 사양 표에서 사용자가 고친 값 {행 id: 값} (확정한 사양):
     형상 값(렌즈 폭 · 화면 크기 · 화면 높이)은 템플릿 선택에, 판정 수치는 1차 설계 판정 기준에 들어감.
     rep['spec_table'] = 확정한 설계 사양 표 (spec_table.py, design_spec_confirmed.json 으로도 저장 · handoff.zip 에 포함),
     rep['spec_rows']  = 설계 사양 행 (제품 · 입력과 관계없이 같은 형식 — spec_view.py)."""
     from . import spec_table
-    sp = spec_table.preview(text, sketch, image, template, product, edits=spec)
+    sp = spec_table.preview(text, sketch, image, template, product, edits=spec, attach=attach)
     rep = _design(text, sketch, image, template, out, with_mesh, product, spec_params=spec_table.spec_params(sp["product"], sp["rows"]))
     lim = spec_table.limits([x for x in sp["rows"] if x.get("edited")])
     spec_table.apply_limits(rep, lim)
@@ -208,7 +208,8 @@ def design(text="", sketch=None, image=None, template=None, out="out", with_mesh
     try:
         import json as _json
         import zipfile
-        doc = dict(product=sp["product"], template=sp["template"], rows=sp["rows"], limits=spec_table.limits(sp["rows"]),
+        doc = dict(product=sp["product"], template=sp["template"], rows=sp["rows"],
+                   attachments=[dict(name=a.get("name"), kind=a.get("kind"), label=a.get("label")) for a in (attach or [])], limits=spec_table.limits(sp["rows"]),
                    edited={x["id"]: x["value"] for x in sp["rows"] if x.get("edited")})
         with open(os.path.join(out, "design_spec_confirmed.json"), "w", encoding="utf-8") as f:
             _json.dump(doc, f, ensure_ascii=False, indent=1)

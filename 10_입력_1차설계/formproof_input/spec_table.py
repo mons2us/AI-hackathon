@@ -15,7 +15,7 @@
 설계 전에 바로 만들 수 있어야 함: 형상 · 계산 결과에 기대지 않고 말 · 스케치 메모 · 제품 상수 · 템플릿 선택만 씀."""
 import re
 
-BASES = ("근거 DB", "스케치", "목표", "가정", "질문")
+BASES = ("근거 DB", "스케치", "목표", "가정", "질문", "CAD", "문서")
 
 
 def R(item, op="", value=None, unit="", keys=(), param=None, edit=None, text=None):
@@ -198,8 +198,22 @@ def _bike_rules(spec):
 
 
 # ------------------------------------------------------------------ 진입점
-def preview(text="", sketch=None, image=None, template=None, product=None, edits=None):
-    """'설계 사양' 버튼: 말 + 스케치 → {product, template, rows}. edits({id: 값})가 있으면 고친 값으로 다시 (형상 값은 템플릿 다시 고름)."""
+def attach_rows(attach):
+    """첨부 파일(file_input.ingest 결과 [{name, kind, label, rows}])에서 읽은 행 — 판정 기준은 바꾸지 않는 참고 · 확인 행."""
+    out = []
+    for a in attach or []:
+        grp = ("CAD · " if a.get("kind") == "cad" else "문서 · ") + str(a.get("name", "파일"))
+        for i, r in enumerate(a.get("rows") or []):
+            out.append(dict(R(str(r.get("item", "")), text=str(r.get("text", "")), edit=False),
+                            id=f"file:{a.get('name')}:{i}", group=grp, quote=a.get("name") if i == 0 else None,
+                            **{"from": [a.get("label") or ("CAD" if a.get("kind") == "cad" else "문서")]},
+                            basis=r.get("basis") or "CAD", source=str(r.get("source", ""))))
+    return out
+
+
+def preview(text="", sketch=None, image=None, template=None, product=None, edits=None, attach=None):
+    """'설계 사양' 버튼: 말 + 스케치 → {product, template, rows}. edits({id: 값})가 있으면 고친 값으로 다시 (형상 값은 템플릿 다시 고름).
+    attach = 첨부 파일에서 읽은 행 (CAD 치수 · 구멍 · 무게, 첨부 문서) — 표 끝에 붙임."""
     from . import pipeline, demo_inputs, integral
     edits = {k: float(v) for k, v in (edits or {}).items() if v is not None and v != ""}
     prod = pipeline.route_product(text, sketch, image, template, product)
@@ -230,6 +244,7 @@ def preview(text="", sketch=None, image=None, template=None, product=None, edits
             pk = pipeline.bike_pick(text, sketch, image, template)
             rows = _build(_bike_rules(pk["spec"]), text, "")
             tpl = dict(id=pk["tid"], name=pk["tpl"]["name"])
+    rows += attach_rows(attach)
     for x in rows:                                       # 고친 값 표시 (형상 값은 템플릿에 맞춘 값으로 다시 계산됨)
         if x["id"] in edits and x["edit"]:
             if not x["param"]:
