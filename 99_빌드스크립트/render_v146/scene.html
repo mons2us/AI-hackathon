@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}</style></head><body>
+<script src="three.min.js"></script><script>
+const W=1600,H=1000; const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true}); r.setSize(W,H); r.setClearColor(0xffffff); document.body.appendChild(r.domElement);
+const sc=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(22,W/H,1,5000);
+sc.add(new THREE.HemisphereLight(0xffffff,0x8090a0,0.75)); const dl=new THREE.DirectionalLight(0xffffff,0.75); dl.position.set(300,-500,700); sc.add(dl);
+const dl2=new THREE.DirectionalLight(0xffffff,0.3); dl2.position.set(-400,300,200); sc.add(dl2);
+const G={};
+function geo(b64){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(u.buffer),3));g.computeVertexNormals();return g;}
+fetch('meshes.json').then(r=>r.json()).then(M=>{
+ const part=new THREE.MeshStandardMaterial({color:0x5fb3b0,roughness:0.55,metalness:0.05});
+ G.base=new THREE.Mesh(geo(M.base),part); G.body=new THREE.Mesh(geo(M.body),part.clone());
+ G.phone=new THREE.Mesh(geo(M.phone),new THREE.MeshStandardMaterial({color:0x2a2f38,transparent:true,opacity:0.10,roughness:0.4}));
+ const pe=new THREE.LineSegments(new THREE.EdgesGeometry(G.phone.geometry),new THREE.LineBasicMaterial({color:0x2a2f38,transparent:true,opacity:0.55})); G.phone.add(pe);
+ const bar=new THREE.Mesh(new THREE.CylinderGeometry(15.9,15.9,170,64),new THREE.MeshStandardMaterial({color:0xc5ccd4,roughness:0.35,metalness:0.4}));
+ G.bar=bar; // cylinder axis = y already
+ [['base','_col','_c'],['body','_col','_c'],['base','_trms','_R'],['body','_trms','_R'],['base','_vm','_V'],['body','_vm','_V'],['base','_T','_T'],['body','_T','_T'],['llm_A','_trms','_R'],['llm_B','_trms','_R'],['llm_C','_trms','_R'],['formproof','_trms','_R']].forEach(([k,src,dst])=>{const g=geo(M[k]); const bin=atob(M[k+src]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(u.buffer),3)); G[k+dst]=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,metalness:0.0}));});
+ Object.values(G).forEach(m=>sc.add(m)); window.ready=true;});
+window.proj=(pts)=>pts.map(p=>{const v=new THREE.Vector3(...p).project(cam);return [(v.x+1)/2*W,(1-v.y)/2*H];});
+window.shot=(show,pos,tgt,fov)=>{Object.entries(G).forEach(([k,m])=>m.visible=show.includes(k)); cam.fov=fov; cam.up.set(0,0,1); cam.position.set(...pos); cam.lookAt(...tgt); cam.updateProjectionMatrix(); r.render(sc,cam);};
+</script></body></html>

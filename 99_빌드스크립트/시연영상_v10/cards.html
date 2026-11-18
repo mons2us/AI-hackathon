@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;width:1600px;height:1010px;font-family:"Noto Sans CJK KR","Noto Sans KR",sans-serif;background:#172033;color:#fff;display:flex;align-items:center;justify-content:center}
+.c{width:1300px}.k{font-size:22px;color:#8fb3ff;font-weight:700;letter-spacing:.5px}
+h1{font-size:84px;margin:10px 0 18px;letter-spacing:-1px}h2{font-size:52px;margin:6px 0 28px}
+p{font-size:30px;line-height:1.55;color:#d6deeb;margin:0 0 30px}.s{font-size:22px;color:#93a1b8}
+table{border-collapse:collapse;width:100%;font-size:30px}td{padding:13px 10px;border-bottom:1px solid #2c3850}
+td.a{color:#93a1b8;text-align:right}td.b{color:#5fd3a6;font-weight:700;text-align:right}td.r{width:60px;text-align:center;color:#93a1b8}
+.e{margin-top:28px;font-size:26px;color:#ffd166}
+</style></head><body><div class="c" id="c"></div>
+<script>
+const P=new URLSearchParams(location.search).get('p');
+document.getElementById('c').innerHTML=P==='in'?`<div class="k">FormProof 시연</div><h1>FormProof</h1>
+<p>누구나 어떤 형태의 아이디어든 입력하면, AI가 형상을 만들고<br>물리 계산으로 성능을 확인하며 기준을 충족하는 설계로 완성</p>
+<div class="s">사례: 자전거 폰 거치대 · 해커톤 구현 화면 녹화</div>`:
+`<div class="k">결과 · 같은 조건 정밀 시뮬레이션</div><h2>1차 설계 → 최적 설계</h2><table>
+<tr><td>목표 충족</td><td class="a">1 / 5</td><td class="r">→</td><td class="b">5 / 5</td></tr>
+<tr><td>무게 (해석 격자 기준)</td><td class="a">94.9 g</td><td class="r">→</td><td class="b">83.9 g</td></tr>
+<tr><td>흔들림 (길 진동)</td><td class="a">5.58배</td><td class="r">→</td><td class="b">1.36배</td></tr>
+<tr><td>떨림 주파수</td><td class="a">30.5 Hz</td><td class="r">→</td><td class="b">153.1 Hz</td></tr>
+<tr><td>폰 온도 상승</td><td class="a">32.57 °C</td><td class="r">→</td><td class="b">20.96 °C</td></tr>
+<tr><td>화면 누를 때 휨</td><td class="a">0.967 mm</td><td class="r">→</td><td class="b">0.039 mm</td></tr></table>
+<div class="e">AI가 형상 300회 탐색, 정밀 계산은 후보 31개만 · A3 제작 도면 · 3D 프린트 파일 자동 출력</div>`;
+</script></body></html>

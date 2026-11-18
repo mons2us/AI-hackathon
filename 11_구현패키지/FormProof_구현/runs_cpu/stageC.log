@@ -1,0 +1,13 @@
+sdf Mon Nov 16 15:40:20 KST 2026
+/tmp/claude-0/-home-claude/e964ed80-ee1b-5f91-abd3-3081682a3ad7/scratchpad/pkg/FormProof_impl/ai/deepsdf.py:61: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  print(json.dumps(dict(it=it, loss=float(loss), train_IoU=round(mi, 3), t=round(time.time() - t0, 1))), flush=True)
+{"it": 0, "loss": 0.6930142641067505, "train_IoU": 0.038, "t": 10.7}
+{"it": 250, "loss": 0.23257572948932648, "train_IoU": 0.203, "t": 424.0}
+{"it": 500, "loss": 0.21781298518180847, "train_IoU": 0.342, "t": 963.5}
+{"it": 750, "loss": 0.11165833473205566, "train_IoU": 0.37, "t": 1691.6}
+{"it": 1000, "loss": 0.09955750405788422, "train_IoU": 0.426, "t": 2483.1}
+{"it": 1250, "loss": 0.10542463511228561, "train_IoU": 0.455, "t": 3407.6}
+{"it": 1500, "loss": 0.08781173825263977, "train_IoU": 0.471, "t": 4321.9}
+{"it": 1750, "loss": 0.07411815226078033, "train_IoU": 0.522, "t": 5369.5}
+{"it": 2000, "loss": 0.06919601559638977, "train_IoU": 0.497, "t": 6620.4}

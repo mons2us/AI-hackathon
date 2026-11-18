@@ -54,6 +54,8 @@ def train(a):
         z = Z(torch.as_tensor(idx, device=dev)); lg = torch.stack([dec(z[b:b + 1], P[pidx[b]])[0] for b in range(len(idx))])
         loss = F.binary_cross_entropy_with_logits(lg, yt) + a.wz * (z ** 2).mean()
         opt.zero_grad(); loss.backward(); opt.step(); sch.step()
+        if it and it % 1000 == 0:   # 중간 저장 (실행 시간 제한 · 중단 대비)
+            torch.save(dict(cfg=dict(ld=a.ld, nf=a.nf, hid=a.hid), state=dec.state_dict(), z=Z.weight.detach().cpu().numpy(), names=list(D['names'])), a.out)
         if it % a.log_every == 0 or it == a.steps - 1:
             with torch.no_grad():
                 k = rng.choice(N, min(16, N), replace=False); pr = torch.cat([torch.sigmoid(dec(Z(torch.as_tensor(k, device=dev)), P[i:i + 20000])) for i in range(0, len(P), 20000)], 1).cpu()

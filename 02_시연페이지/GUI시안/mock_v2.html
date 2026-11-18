@@ -1,0 +1,117 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--bg:#0f141c;--panel:#161d28;--panel2:#1b2431;--line:#263142;--ink:#e6ecf5;--ink2:#9aa8bc;--ink3:#64748b;--acc:#3fb8c4;--acc2:#2563eb;--ok:#22c38e;--bad:#f0606e;--warn:#f5b942;--vp:radial-gradient(ellipse at 50% 40%,#243246 0%,#121925 75%)}
+body.light{--bg:#e9edf2;--panel:#ffffff;--panel2:#f5f7fa;--line:#dde3eb;--ink:#141b26;--ink2:#566275;--ink3:#97a2b3;--acc:#0f8f9c;--acc2:#2563eb;--ok:#0f9f6e;--bad:#d33a4b;--warn:#c47a12;--vp:radial-gradient(ellipse at 50% 40%,#ffffff 0%,#dfe5ec 80%)}
+*{box-sizing:border-box}body{margin:0;width:1600px;height:900px;background:var(--bg);color:var(--ink);font:13px/1.4 "Noto Sans CJK KR",sans-serif;display:grid;grid-template-rows:40px 46px 1fr 196px 24px;overflow:hidden}
+.mono{font-family:"DejaVu Sans Mono",monospace;font-variant-numeric:tabular-nums}
+.menu{display:flex;align-items:center;gap:18px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:15px}.logo i{width:24px;height:24px;border-radius:6px;background:var(--acc2);display:grid;place-items:center}
+.menu .m{color:var(--ink2);font-size:13px}.proj{margin-left:10px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;color:var(--ink2)}.proj b{color:var(--ink)}
+.menu .r{margin-left:auto;display:flex;gap:10px;align-items:center}.pill{font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink2)}.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.sr{height:13px;filter:var(--srf,none)}body:not(.light){--srf:brightness(0) invert(1)}body.light{--srf:brightness(0)}
+.tb{display:flex;align-items:center;gap:4px;padding:0 10px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.tbtn{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:7px;color:var(--ink2);font-size:13px;font-weight:600}
+.tbtn svg{width:17px;height:17px}.tbtn.done{color:var(--ink)}.tbtn.done .n{background:var(--ok)}.tbtn.on{background:color-mix(in srgb,var(--acc2) 18%,transparent);color:var(--ink);box-shadow:inset 0 -2px 0 var(--acc2)}
+.tbtn .n{width:18px;height:18px;border-radius:50%;background:var(--ink3);color:#fff;font-size:11px;display:grid;place-items:center}
+.sep{width:1px;height:24px;background:var(--line);margin:0 6px}.tb .r{margin-left:auto;display:flex;gap:6px}
+.btn{padding:6px 12px;border-radius:7px;border:1px solid var(--line);color:var(--ink);font-weight:600;font-size:12.5px;display:flex;gap:6px;align-items:center}.btn.p{background:var(--acc2);border-color:var(--acc2);color:#fff}
+.main{display:grid;grid-template-columns:250px 1fr 370px;min-height:0}
+.pn{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}.pn.r{border-right:0;border-left:1px solid var(--line)}
+.ph{height:34px;display:flex;align-items:center;padding:0 12px;font-size:11.5px;font-weight:700;letter-spacing:.6px;color:var(--ink2);text-transform:uppercase;border-bottom:1px solid var(--line);gap:8px}.ph .x{margin-left:auto;font-weight:600;letter-spacing:0}
+.tree{padding:6px 0}.nd{display:flex;align-items:center;gap:8px;padding:5px 12px;font-size:13px}.nd.c{padding-left:30px}.nd.sel{background:color-mix(in srgb,var(--acc2) 16%,transparent);box-shadow:inset 2px 0 0 var(--acc2)}
+.nd .s{width:14px;height:14px;border-radius:50%;display:grid;place-items:center;font-size:9px;color:#fff;flex:none}.nd .s.ok{background:var(--ok)}.nd .s.w{background:var(--warn)}
+.nd .v{margin-left:auto;color:var(--ink3);font-size:11.5px}
+.inp{margin:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:8px;font-size:12px;color:var(--ink2)}.inp img{width:100%;border-radius:6px;margin-top:8px;background:#fff;border:1px solid var(--line)}
+.vp{position:relative;background:var(--vp);overflow:hidden}
+.vtabs{position:absolute;left:12px;top:10px;display:flex;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px}
+.vtabs span{padding:4px 11px;border-radius:6px;font-size:12.5px;color:var(--ink2);font-weight:600}.vtabs span.on{background:var(--acc2);color:#fff}
+.vtool{position:absolute;left:12px;top:52px;display:flex;flex-direction:column;gap:4px}.vtool i{width:30px;height:30px;border-radius:7px;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);display:grid;place-items:center}
+.vtool svg{width:16px;height:16px;stroke:var(--ink2)}
+.cube{position:absolute;right:16px;top:12px;width:74px;height:74px}
+.model{position:absolute;left:50%;top:50%;transform:translate(-50%,-48%);width:78%;max-height:80%;object-fit:contain}
+.ghost{position:absolute;left:50%;top:50%;transform:translate(-48%,-50%);height:470px;opacity:.0}
+.triad{position:absolute;left:14px;bottom:12px}
+.vlab{position:absolute;left:58px;bottom:16px;font-size:12px;color:var(--ink2)}.vlab b{color:var(--ink)}
+.leg{position:absolute;right:16px;bottom:14px;width:220px;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:11.5px;color:var(--ink2)}
+.leg .bar{height:8px;border-radius:4px;margin:5px 0 3px;background:linear-gradient(90deg,#30123b,#4662d7,#36aaf9,#1ae4b6,#72fe5e,#c8ef34,#faba39,#f66b19,#ca2a04,#7a0403)}.leg .e{display:flex;justify-content:space-between}
+.kp{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 12px}.k{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.k small{color:var(--ink2);font-size:11.5px}.k b{display:block;font-size:20px;margin-top:2px}.k s{color:var(--ink3);font-size:12px;font-weight:400;margin-right:4px}.k .d{color:var(--ok);font-size:11.5px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th{white-space:nowrap;text-align:left;color:var(--ink3);font-weight:600;font-size:11px;padding:5px 12px;border-bottom:1px solid var(--line)}td{padding:7px 10px;white-space:nowrap;border-bottom:1px solid var(--line)}
+td.v{text-align:right}td .was{color:var(--ink3);text-decoration:line-through;font-size:11px;margin-right:6px}.ok{color:var(--ok)}.b{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.src{font-size:10.5px;color:var(--acc);margin-left:5px}
+.thumbs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px}.thumbs div{border:1px solid var(--line);border-radius:7px;overflow:hidden;background:#fff;position:relative}.thumbs img{width:100%;display:block}.thumbs span{position:absolute;left:5px;top:4px;font-size:10.5px;font-weight:700;color:#334;background:rgba(255,255,255,.85);border-radius:4px;padding:0 5px}
+.bot{display:grid;grid-template-columns:1fr 470px;background:var(--panel);border-top:1px solid var(--line);min-height:0}
+.tabs{display:flex;gap:2px;height:32px;align-items:end;padding:0 10px;border-bottom:1px solid var(--line)}.tabs span{padding:6px 12px;font-size:12px;color:var(--ink2);font-weight:600}.tabs span.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--acc2)}
+.gw{padding:6px 12px;position:relative}.gl{position:absolute;right:16px;top:8px;display:flex;gap:12px;font-size:11px;color:var(--ink2)}.gl i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.log{border-left:1px solid var(--line);overflow:hidden}.lg{padding:6px 12px;font-size:12px}.lg div{display:flex;gap:10px;padding:2.5px 0;color:var(--ink2)}.lg .t{color:var(--ink3);width:62px;flex:none}.lg .o{color:var(--ok);flex:none;width:14px}.lg b{color:var(--ink);font-weight:600}
+.st{display:flex;align-items:center;gap:16px;padding:0 12px;background:var(--panel2);border-top:1px solid var(--line);font-size:11.5px;color:var(--ink2)}.st .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}.st .r{margin-left:auto;display:flex;gap:16px}
+.ctr{display:grid;grid-template-columns:1fr 400px;gap:1px;background:var(--line);min-height:0}
+.lay{position:absolute;right:100px;top:10px;display:flex;background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px}.lay span{padding:4px 10px;border-radius:6px;font-size:12px;color:var(--ink2);font-weight:600}.lay span.on{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--acc2)}
+.fcol{display:grid;grid-template-rows:1fr 1fr 1fr;gap:1px;background:var(--line);min-height:0}
+.fv{position:relative;background:radial-gradient(ellipse at 50% 45%,#2b384c 0%,#18202d 80%);display:flex;flex-direction:column;min-height:0;padding:8px 10px}
+body.light .fv{background:radial-gradient(ellipse at 50% 45%,#fff 0%,#e3e8ef 85%)}
+.fh{display:flex;gap:8px;align-items:baseline;font-size:12px;color:var(--ink2)}.fh b{font-size:13.5px;color:var(--ink)}.fh .mx{margin-left:auto;color:var(--ink);font-weight:700}
+.fv img{flex:1;min-height:0;width:100%;object-fit:contain;margin:2px 0}
+.fl{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink2)}.fl .bar{flex:1;height:7px;border-radius:4px;background:linear-gradient(90deg,#30123b,#4662d7,#36aaf9,#1ae4b6,#72fe5e,#c8ef34,#faba39,#f66b19,#ca2a04,#7a0403)}
+.model{width:86% !important;max-height:74% !important}
+</style></head><body>
+<div class="menu"><div class="logo"><i><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></i>FormProof</div>
+<span class="m">파일</span><span class="m">편집</span><span class="m">보기</span><span class="m">해석</span><span class="m">도움말</span>
+<span class="proj">프로젝트 <b>P01 자전거 폰 거치대 (일체형)</b></span>
+<div class="r"><span class="pill ok">● 형상 AI · 물리 AI 준비됨</span><img class="sr" src="sr.png"></div></div>
+<div class="tb">
+<span class="tbtn done"><span class="n">✓</span>입력</span><span class="tbtn done"><span class="n">✓</span>설계 사양</span><span class="tbtn done"><span class="n">✓</span>1차 설계</span><span class="tbtn done on"><span class="n">✓</span>물리 최적화</span><span class="tbtn"><span class="n">5</span>내보내기</span>
+<span class="sep"></span><span class="tbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>기준 편집</span><span class="tbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>1차 비교</span>
+<div class="r"><span class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>도면 (A3)</span><span class="btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>STL · STEP</span><span class="btn p"><svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M6 4l14 8-14 8z"/></svg>최적화 실행</span></div></div>
+<div class="main">
+ <div class="pn"><div class="ph">작업 트리</div><div class="tree">
+  <div class="nd"><span class="s ok">✓</span>입력<span class="v">문장 + 스케치</span></div>
+  <div class="nd"><span class="s ok">✓</span>설계 사양<span class="v">항목마다 근거</span></div>
+  <div class="nd"><span class="s ok">✓</span>1차 설계<span class="v mono">94.9 g · 1/5</span></div>
+  <div class="nd"><span class="s ok">✓</span>물리 최적화</div>
+  <div class="nd c"><span class="s ok">✓</span>AI 탐색<span class="v mono">300회</span></div>
+  <div class="nd c"><span class="s ok">✓</span>후보 정밀 계산<span class="v mono">31개</span></div>
+  <div class="nd c"><span class="s ok">✓</span>정밀 최적화<span class="v">구조 최적화</span></div>
+  <div class="nd c sel"><span class="s ok">✓</span>검증<span class="v mono">5/5</span></div>
+  <div class="nd"><span class="s ok">✓</span>제작 파일<span class="v">A3 도면 · STL</span></div></div>
+  <div class="ph" style="border-top:1px solid var(--line)">입력</div>
+  <div class="inp">자전거 핸들바 가운데에 다는 폰 거치대. 울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야…<img src="sketch.png"></div></div>
+ <div class="ctr"><div class="vp"><div class="vtabs"><span class="on">형상</span><span>1차 비교</span></div>
+  <div class="lay"><span>단일</span><span class="on">형상 + 분포</span><span>4분할</span></div>
+  <div class="vtool"><i><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></i><i><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M8 11h6M11 8v6"/></svg></i><i><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12h18M12 3v18"/></svg></i><i><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/></svg></i></div>
+  <svg class="cube" viewBox="0 0 74 74"><g stroke="var(--ink3)" stroke-width="1.2" fill="color-mix(in srgb,var(--panel) 80%,transparent)"><path d="M37 8 63 22v30L37 66 11 52V22z"/><path d="M11 22 37 36 63 22M37 36v30" fill="none"/></g><text x="37" y="25" font-size="8" fill="var(--ink2)" text-anchor="middle">위</text><text x="24" y="50" font-size="8" fill="var(--ink2)" text-anchor="middle">정면</text><text x="50" y="50" font-size="8" fill="var(--ink2)" text-anchor="middle">우측</text></svg>
+  <img class="model" src="fl_shape.png">
+  <svg class="triad" width="40" height="40" viewBox="0 0 40 40"><path d="M8 32h22" stroke="#f0606e" stroke-width="2"/><path d="M8 32V10" stroke="#22c38e" stroke-width="2"/><path d="M8 32l12-10" stroke="#4d8dff" stroke-width="2"/><text x="31" y="35" font-size="8" fill="#f0606e">x</text><text x="5" y="8" font-size="8" fill="#22c38e">z</text><text x="21" y="21" font-size="8" fill="#4d8dff">y</text></svg>
+  <div class="vlab"><b>최적 설계</b> · 해석 형상 · 격자 2 mm · 83.9 g</div></div>
+ <div class="fcol">
+  <div class="fv"><div class="fh"><b>응력</b><span>충격 48.5 g · 위아래</span><span class="mx mono">최대 4.93 MPa</span></div><img src="fl_stress.png"><div class="fl"><span class="mono">0</span><div class="bar"></div><span class="mono">15 MPa</span></div></div>
+  <div class="fv"><div class="fh"><b>흔들림</b><span>길 진동 10–100 Hz</span><span class="mx mono">최대 1.2배</span></div><img src="fl_shake.png"><div class="fl"><span class="mono">1.0</span><div class="bar"></div><span class="mono">3.5배</span></div></div>
+  <div class="fv"><div class="fh"><b>온도</b><span>폰 발열 4 W</span><span class="mx mono">최대 20.95 °C</span></div><img src="fl_temp.png"><div class="fl"><span class="mono">0</span><div class="bar"></div><span class="mono">33 °C</span></div></div>
+ </div></div>
+ <div class="pn r"><div class="ph">결과 · 최적 설계<span class="x"><span class="b">5/5 충족</span></span></div>
+  <div class="kp"><div class="k"><small>무게 (해석 격자)</small><b class="mono"><s>94.9</s>83.9 g</b><span class="d">−11.6 %</span></div><div class="k"><small>출력용 몸체</small><b class="mono">87.4 g</b><span style="color:var(--ink3);font-size:11.5px">PETG · A3 도면</span></div></div>
+  <table><tr><th>항목</th><th style="text-align:right">값</th><th style="text-align:right">기준</th><th></th></tr>
+  <tr><td>떨림 주파수<span class="src">정밀</span></td><td class="v mono"><span class="was">30.5</span>153.1 Hz</td><td class="v mono">≥ 95</td><td class="ok">✓</td></tr>
+  <tr><td>흔들림</td><td class="v mono"><span class="was">5.58</span>1.36배</td><td class="v mono">≤ 1.5</td><td class="ok">✓</td></tr>
+  <tr><td>폰 온도 상승</td><td class="v mono"><span class="was">32.57</span>20.96 °C</td><td class="v mono">≤ 26</td><td class="ok">✓</td></tr>
+  <tr><td>화면 누를 때 휨</td><td class="v mono"><span class="was">0.967</span>0.039 mm</td><td class="v mono">≤ 0.3</td><td class="ok">✓</td></tr>
+  <tr><td>충격 때 걸리는 힘</td><td class="v mono"><span class="was">17.4</span>3.3 MPa</td><td class="v mono">≤ 26</td><td class="ok">✓</td></tr></table>
+  <div class="ph" style="margin-top:4px">근거</div><div style="padding:8px 12px;font-size:12px;color:var(--ink2);line-height:1.6">떨림 주파수 ≥ 95 Hz · ISBS 2020 조약돌길 실측<br>흔들림 ≤ 1.5배 · 근거 DB<br>폰 온도 상승 ≤ 26 °C · 4 W 발열 가정</div></div></div>
+</div>
+<div class="bot"><div><div class="tabs"><span class="on">수렴 그래프</span><span>기준별 추이</span><span>비교</span></div><div class="gw"><svg id="g" width="100%" height="150"></svg><div class="gl"><span><i style="background:#6fc3ff"></i>무게 (g)</span><span><i style="background:#22c38e"></i>목표 달성률 (최소 항목)</span></div></div></div>
+ <div class="log"><div class="tabs"><span class="on">계산 로그</span><span>경고 0</span></div><div class="lg mono" style="font-family:'Noto Sans CJK KR'">
+  <div><span class="o">✓</span>설계 사양 확정 · 항목마다 근거 표시</div>
+  <div><span class="o">✓</span>1차 설계 정밀 시뮬레이션 · <b>미충족 4</b></div>
+  <div><span class="o">✓</span>AI 탐색 <b>300회</b> · 형상 AI × 물리 AI <span style="color:var(--warn)">(기록 재생)</span></div>
+  <div><span class="o">✓</span>후보 <b>31개</b> 정밀 계산 → 89.4 g 선택</div>
+  <div><span class="o">✓</span>정밀 최적화 · 진동수 목표 95 → 150 Hz</div>
+  <div><span class="o">✓</span>최종 검증 <b>5/5</b> · 83.9 g</div>
+  <div><span class="o">✓</span>A3 제작 도면 생성 <b>20.8 s</b> · 출력용 몸체 87.4 g</div></div></div></div>
+<div class="st"><span><span class="dot"></span>준비됨</span><span>모델 fp11 · DeepSDF × FNO</span><span>CPU</span><div class="r"><span>단위 mm</span><span>격자 2 mm · 88 × 20 × 37</span><span>PETG</span></div></div>
+<script>
+const G={"mass": "40.0,71.8 50.7,51.9 61.4,65.7 72.1,60.7 82.7,59.8 93.4,61.2 104.1,63.6 114.8,67.2 125.5,71.5 136.2,75.2 146.8,80.1 157.5,84.0 168.2,89.2 178.9,96.5 189.6,101.9 200.3,104.5 210.9,104.2 221.6,105.1 232.3,105.0 243.0,105.4 253.7,105.9 264.4,106.3 275.0,107.1 285.7,107.3 296.4,108.0 307.1,108.8 317.8,109.3 328.5,110.2 339.1,110.8 349.8,111.6 360.5,112.8 366.9,90.6 540.0,109.5", "ratio": "40.0,98.7 50.7,51.0 61.4,20.0 72.1,20.0 82.7,20.0 93.4,20.0 104.1,20.0 114.8,20.0 125.5,20.0 136.2,20.0 146.8,20.0 157.5,20.0 168.2,20.0 178.9,20.0 189.6,25.5 200.3,24.9 210.9,22.3 221.6,22.4 232.3,21.8 243.0,21.8 253.7,21.7 264.4,21.6 275.0,21.6 285.7,21.4 296.4,21.3 307.1,21.2 317.8,21.1 328.5,21.1 339.1,21.1 349.8,21.2 360.5,21.2 366.9,20.0 373.3,84.3 379.7,20.0 386.2,20.0 392.6,20.0 399.0,20.0 405.4,50.3 411.8,20.0 418.2,20.0 424.6,20.3 431.0,20.6 437.4,20.0 443.8,21.9 450.3,20.8 456.7,21.0 463.1,21.5 469.5,21.0 475.9,129.8 482.3,46.1 488.7,20.0 495.1,20.0 501.5,20.0 507.9,20.0 514.4,20.0 520.8,20.0 527.2,20.0 533.6,20.0 540.0,20.0", "xai": 360.51282051282055, "xpick": 366.9230769230769, "W": 560, "H": 150};const s=document.getElementById('g');const W=s.clientWidth,H=150,sx=W/G.W;
+const tr=p=>p.split(' ').map(q=>{const[a,b]=q.split(',');return (a*sx).toFixed(1)+','+b}).join(' ');
+const css=getComputedStyle(document.body),c=v=>css.getPropertyValue(v);
+s.innerHTML=`<rect x="${40*sx}" y="20" width="${(G.xai-40)*sx}" height="${H-30}" fill="rgba(77,141,255,.07)"/><rect x="${G.xpick*sx}" y="20" width="${(G.W-20-G.xpick)*sx}" height="${H-30}" fill="rgba(255,179,107,.08)"/>
+<line x1="${40*sx}" x2="${(G.W-20)*sx}" y1="20" y2="20" stroke="${c('--ok')}" stroke-dasharray="4 3"/><text x="${42*sx}" y="15" font-size="10" fill="${c('--ok')}">목표 달성</text>
+<text x="${(40+G.xai)/2*sx}" y="${H}" font-size="10.5" fill="${c('--ink2')}" text-anchor="middle">① AI 탐색 (300회)</text><text x="${(G.xpick+G.W-20)/2*sx}" y="${H}" font-size="10.5" fill="${c('--warn')}" text-anchor="middle">② 정밀 최적화 → ③ 검증</text>
+<polyline points="${tr(G.ratio)}" fill="none" stroke="#22c38e" stroke-width="1.8"/><polyline points="${tr(G.mass)}" fill="none" stroke="#6fc3ff" stroke-width="1.8"/>`;
+</script></body></html>

@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;width:1600px;height:140px;background:#111a2b;font-family:"Noto Sans CJK KR","Noto Sans KR",sans-serif;color:#fff;display:flex;align-items:center;padding:0 44px;box-sizing:border-box;gap:30px}
+.n{flex:none;min-width:270px}.n i{font-style:normal;display:inline-grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#2563eb;font-size:26px;font-weight:800;margin-right:14px;vertical-align:middle}
+.n b{font-size:32px;vertical-align:middle}.n small{display:block;font-size:20px;color:#8fb3ff;font-weight:700;margin:6px 0 0 62px}
+.d{flex:1;font-size:30px;line-height:1.4;color:#e8eef8;border-left:2px solid #2c3850;padding-left:30px}.d em{font-style:normal;color:#5fd3a6;font-weight:700}
+.t{flex:none;font-size:17px;color:#ffd166;border:1px solid #6b5a26;border-radius:999px;padding:5px 14px}
+</style></head><body><div class="n" id="n"></div><div class="d" id="d"></div><div class="t" id="t"></div>
+<script>
+const C={
+ in:['1','입력','','만들 제품과 조건을 문장 · 스케치 · 사진으로 입력 — 이번 예시는 요청 문장 + 손 스케치',''],
+ spec:['2','설계 사양','','AI가 요청을 물리 조건(진동 · 충격 · 열 · 무게)으로 바꾸고, 수치마다 근거 자료를 붙임',''],
+ first:['3','1차 설계','','3D 형상을 자동으로 만들고 정밀 시뮬레이션으로 판정 → <em>5개 기준 중 4개 미달</em>',''],
+ ai:['4','물리 최적화','AI 탐색','AI가 형상을 바꿔 가며 성능을 바로 예측 — 형상 300개를 탐색해 후보를 찾음','계산 기록 재생'],
+ ref:['4','물리 최적화','정밀 최적화','AI 후보 31개만 정밀 계산 → 기준을 넘는 가장 가벼운 후보를 정밀하게 다듬음','계산 기록 재생'],
+ done:['4','물리 최적화','완료','최종 형상을 정밀 시뮬레이션으로 판정 → <em>5개 기준 모두 충족 · 무게 94.9 → 83.9 g</em>',''],
+ cmp:['✓','결과 비교','같은 조건 · 같은 색 척도','1차 vs 최적 — 빨강일수록 불리 · 흔들림 <em>5.58배 → 1.36배</em> · 폰 온도 <em>32.6 → 21.0 °C</em>',''],
+ draw:['✓','제작 파일','','최적 설계 도면 · 3D 프린트 파일(STL) 출력 — 도면의 87.4 g은 출력용 몸체 기준','']};
+const c=C[new URLSearchParams(location.search).get('k')];
+document.getElementById('n').innerHTML=`<i>${c[0]}</i><b>${c[1]}</b>${c[2]?`<small>${c[2]}</small>`:''}`;
+document.getElementById('d').innerHTML=c[3];const t=document.getElementById('t');t.textContent=c[4];t.style.display=c[4]?'':'none';
+</script></body></html>
