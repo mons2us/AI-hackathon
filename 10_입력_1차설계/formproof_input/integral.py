@@ -46,7 +46,11 @@ ORIGIN = (-24.0, 0.0, -36.0)
 XR, PL, ZB = -10.0, 150.0, 24.0          # plate x' in [XR, XR+PL] (grid stops at 140), z' in [24, 30]; phone back z' = 30
 MATERIAL = dict(name="PETG (Prusament)", E=1700.0, nu=0.38, rho=1.27e-9, yield_mpa=39.0, density_g_cm3=1.27)
 PAYLOAD = dict(mass_kg=0.311, box_mm=[165.0, 80.0, 15.0], cg=[XR + 75.0, 0.0, ZB + 6 + 7.5])
-ENGINE_ENV = dict(GRIP="2", NX="88", MSYS="0.311", AM="1", RF="8", ETAE="0.7", TILT="35", FT="95", TLIM="21", DLIM="0.3",
+# 11-18 sosopapa: 일체형(한 번에 출력, 핀 · 볼트 없음) 모드 — FP_ONEPIECE=1 (app\start_onepiece.bat) 이면 팀 엔진을 GRIP=3
+# (C자 스냅 클립 + 탄성 집게, 세워서 출력 BUILD=x-) 으로 판정하고, 최적 설계 파일은 11_구현패키지 cad/onepiece.py 로 만듦.
+ONEPIECE = os.environ.get("FP_ONEPIECE", "0") == "1"
+_SFX = "_g3" if ONEPIECE else ""
+ENGINE_ENV = dict(GRIP="3" if ONEPIECE else "2", NX="88", MSYS="0.311", AM="1", RF="8", ETAE="0.7", TILT="35", FT="95", TLIM="21", DLIM="0.3",
                   ITERS="120", SCHED='{"0":1,"20":2,"40":4,"60":8,"80":16,"100":32}')
 
 PRESENTATION_TEXT = "울퉁불퉁한 길에서도 폰이 안 흔들리게, 최대한 가볍게. 3D 프린터로 뽑을 거야"
@@ -369,7 +373,7 @@ def _sha(r):
 def evaluate(rho, tag="p01", use_cache=True, timeout=1800):
     """팀 엔진 MODE=eval (opt_int.py) 그대로: 진동 전달 · 고유진동수 · 충격 · 층간 · 터치 · 폰 온도 · 무게.
     결과는 형상 해시로 캐시 (templates/db/integral_eval.json)."""
-    key = _sha(rho)
+    key = _sha(rho) + _SFX
     cache = json.load(open(EVAL_DB, encoding="utf-8")) if os.path.exists(EVAL_DB) else {}
     if use_cache and key in cache:
         return cache[key]
@@ -385,7 +389,7 @@ def evaluate(rho, tag="p01", use_cache=True, timeout=1800):
         if p.returncode:
             raise RuntimeError("엔진 실패: " + (p.stderr or p.stdout)[-1500:])
         res = json.load(open(os.path.join(td, f"frfint_{tag}.json"), encoding="utf-8"))
-    res["engine"] = "11_구현패키지/FormProof_구현/engine/opt_int.py MODE=eval GRIP=2 NX=88 MSYS=0.311 TILT=35"
+    res["engine"] = f"11_구현패키지/FormProof_구현/engine/opt_int.py MODE=eval GRIP={ENGINE_ENV['GRIP']} NX=88 MSYS=0.311 TILT=35"
     cache = json.load(open(EVAL_DB, encoding="utf-8")) if os.path.exists(EVAL_DB) else {}
     cache[key] = res
     with open(EVAL_DB, "w", encoding="utf-8") as f:
@@ -400,7 +404,7 @@ FIELD_KEYS = ("trms", "vm", "T", "mode1")
 def fields(rho, tag="p01", use_cache=True, timeout=1800):
     """팀 엔진 MODE=field: 절점 분포 — trms(10–100 Hz 노면 진동 동안 핸들바 대비 흔들림 배율 RMS), vm(48.5 g 위아래 충격
     von Mises, MPa), T(판 · 폰 온도 상승 °C), mode1(1차 모드 진폭, 0–1). 발표 8쪽 그림과 같은 계산. 형상 해시로 캐시."""
-    key = _sha(rho)
+    key = _sha(rho) + _SFX
     db = dict(np.load(FIELDS_DB)) if os.path.exists(FIELDS_DB) else {}
     if use_cache and f"{key}_trms" in db:
         out = {k: db[f"{key}_{k}"].astype(np.float32) for k in FIELD_KEYS}
@@ -409,7 +413,7 @@ def fields(rho, tag="p01", use_cache=True, timeout=1800):
     with tempfile.TemporaryDirectory() as td:
         rp = os.path.join(td, "rho.npy")
         np.save(rp, np.asarray(rho, float).ravel())
-        env = dict(os.environ, GRIP="2", NX="88", MSYS="0.311", TILT="35", MODE="field", RHO=rp, TAG=tag, FF="30.5", PYTHONUTF8="1")
+        env = dict(os.environ, GRIP=ENGINE_ENV["GRIP"], NX="88", MSYS="0.311", TILT="35", MODE="field", RHO=rp, TAG=tag, FF="30.5", PYTHONUTF8="1")
         p = subprocess.run([sys.executable, ENGINE], cwd=td, env=env, capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=timeout)
         if p.returncode:

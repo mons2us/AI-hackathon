@@ -1,9 +1,10 @@
 """python -m formproof_input.inverse check       — 어느 모델로 도는지, 가중치 · 격자 읽기, 시작 형상 맞춤, 몇 회 시험
-python -m formproof_input.inverse precompute  — 기본 선택(초기 설계 미충족 5개 · 전부)의 최적화 경로 + FEM 검증을 미리 계산"""
+python -m formproof_input.inverse precompute  — 기본 선택(초기 설계 미충족 5개 · 전부)의 최적화 경로 + FEM 검증을 미리 계산
+python -m formproof_input.inverse onepiece <폴더> — 일체형(GRIP=3) 최적화 결과 폴더 → models/onepiece_p01.json.gz (11-18)"""
 import sys
 import time
 
-from . import backend, limits, model_files, precompute, start_shape, KEYS
+from . import backend, limits, model_files, precompute, start_shape, make_onepiece_pack, KEYS
 
 
 def check():
@@ -25,4 +26,7 @@ def check():
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
-    check() if cmd == "check" else precompute()
+    if cmd == "onepiece":
+        make_onepiece_pack(sys.argv[2])
+    else:
+        check() if cmd == "check" else precompute()

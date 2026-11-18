@@ -234,6 +234,15 @@ def run(selection, on_frame=None, use_cache=True, iters=None, every=None, lim_ov
     lim = limits()
     ov = {k: (str(v[0]), float(v[1])) for k, v in (lim_override or {}).items() if k in KEYS and (str(v[0]), float(v[1])) != lim[k]}
     lim.update(ov)
+    op = onepiece_pack() if I.ONEPIECE else None
+    if op is not None:                                           # 일체형: 위상 최적화(GRIP=3, 세워서 출력) 기록 재생
+        for fr in op["frames"]:
+            if on_frame:
+                on_frame(fr)
+        res = {k: v for k, v in op.items() if k != "frames"}
+        res.update(frames=op["frames"], backend_name="일체형 위상 최적화 (GRIP=3)", selection=sel, limits={k: list(v) for k, v in lim.items()},
+                   seconds=0.0, cached=True, hybrid=False, onepiece=True)
+        return res
     hp = hybrid_pack(sel, B)
     if hp is not None and use_cache:                             # AI 탐색 → 후보 정밀 계산 → 정밀 최적화 경로 (미리 계산)
         for fr in hp["frames"]:
@@ -299,6 +308,17 @@ def gate(res, out=None, timeout=3600):
     g = dict(rows=j["rows"], pass_=j["pass_"], mass_g=round(float(r["mass_g"]), 2), heat=heat_payload(full > 0.5, F))
     if res.get("hybrid"):                               # 화면: 미리 계산한 경로임을 표시 · AI 효과(탐색 횟수 · 정밀 계산 후보 수)
         g["hybrid"] = dict(candidates=res.get("candidates"), ai_iters=res.get("ai_iters"), pick_it=res.get("pick_it"))
+    if out and res.get("onepiece"):                     # 일체형: 출력 자세 STL (서포트 없이 세워서 출력) + 세 방향 그림
+        os.makedirs(out, exist_ok=True)
+        np.save(os.path.join(out, "opt_final_rho.npy"), full)
+        progress.step("일체형 출력 파일 (0.5 mm, 45° 재검사)")
+        g["print"] = onepiece_files(full, out)
+        with open(os.path.join(out, "optimize_result.json"), "w", encoding="utf-8") as fh:
+            json.dump(dict(mode="onepiece GRIP=3 BUILD=x-", selection=res["selection"], limits=res["limits"], source=res.get("source"),
+                           path=[dict(it=f["it"], mass_g=f["mass_g"], fem=f.get("fem")) for f in res["frames"]],
+                           fem=dict(rows=j["rows"], pass_=j["pass_"], mass_g=r["mass_g"], print=r.get("print")), print_file=g["print"]),
+                      fh, ensure_ascii=False, indent=1, default=float)
+        return g
     if out:
         os.makedirs(out, exist_ok=True)
         np.save(os.path.join(out, "opt_final_rho.npy"), full)
@@ -317,6 +337,77 @@ def gate(res, out=None, timeout=3600):
                            hybrid=dict(candidates=res.get("candidates"), pick_it=res.get("pick_it"), source=res.get("source")) if res.get("hybrid") else None,
                            fem=dict(rows=j["rows"], pass_=j["pass_"], mass_g=r["mass_g"])), fh, ensure_ascii=False, indent=1, default=float)
     return g
+
+
+# ------------------------------------------------------------------ 일체형 (11-18 sosopapa)
+ONEPIECE_PACK = os.path.join(MODELS, "onepiece_p01.json.gz")
+ONEPIECE_CAD = os.path.join(INPUT_ROOT, "..", "11_구현패키지", "FormProof_구현", "cad")
+_OP = {}
+
+
+def onepiece_pack():
+    """models/onepiece_p01.json.gz (python -m formproof_input.inverse onepiece <결과 폴더> 로 만듦) — 없으면 None"""
+    if not os.path.exists(ONEPIECE_PACK):
+        return None
+    st = os.path.getmtime(ONEPIECE_PACK)
+    if _OP.get("mtime") != st:
+        with gzip.open(ONEPIECE_PACK, "rt", encoding="utf-8") as fh:
+            _OP.update(mtime=st, pack=json.load(fh))
+    return _OP["pack"]
+
+
+def onepiece_files(full, out):
+    """11_구현패키지 cad/onepiece.py: 0.5 mm 몸체 + 클립 · 탄성 집게 · 케이블타이 귀 → 출력 자세 STL. GUI 파일 이름에 맞춰 복사"""
+    import shutil
+    import sys as _sys
+    if ONEPIECE_CAD not in _sys.path:
+        _sys.path.insert(0, ONEPIECE_CAD)
+    import onepiece as OP
+    rp = os.path.join(out, "opt_final_rho.npy")
+    pre = os.path.join(out, "onepiece")
+    rep = OP.main(rp, pre)
+    shutil.copy(pre + "_print.stl", os.path.join(out, "opt_final.stl"))           # 출력 자세 (뱀부 스튜디오에 바로)
+    shutil.copy(pre + "_phoneframe.stl", os.path.join(out, "opt_final_body.stl"))  # 폰 좌표
+    if os.path.exists(pre + "_views.png"):
+        shutil.copy(pre + "_views.png", os.path.join(out, "opt_final_drawing.png"))
+    return rep
+
+
+def make_onepiece_pack(src, log=print):
+    """src: 일체형 최적화 결과 폴더 (snap_g3_*.npy · g3_opt.log · onepiece_rho.npy · onepiece_eval.json) → models/onepiece_p01.json.gz
+    프레임 = 정밀 최적화(stage 'refine') — 반복마다 엔진이 계산한 무게 · 진동수 · 온도 · 터치 (FEM 값), 마지막 = 출력 보정 형상"""
+    import glob
+    import re
+    recs = {}
+    for ln in open(os.path.join(src, "g3_opt.log"), encoding="utf-8"):
+        if ln.startswith("{"):
+            d = json.loads(ln)
+            recs[d["it"]] = d
+    snaps = sorted(glob.glob(os.path.join(src, "snap_g3_*.npy")))
+    iters = max(recs) + 1
+    frames = []
+    for p in snaps:
+        it = int(re.findall(r"(\d+)\.npy$", p)[0])
+        rn = np.load(p).astype(float).ravel()
+        full = attached(rn > 0.5)
+        d = recs.get(it, {})
+        frames.append(dict(it=it, iters=iters, stage="refine", rit=it, note="일체형 위상 최적화 · 세워서 출력(45°, 서포트 없음)",
+                           mass_g=round(float(d.get("mass_g", 0)), 1), pen=0.0, pred={},
+                           fem=dict(f1=d["f"][0], Tmax=d["Tmax"], touch=d["touch"][0]) if d else {},
+                           mesh=mesh_payload(full, rn), heat=None, sha=_sha(full)))
+    fin = np.load(os.path.join(src, "onepiece_rho.npy")).ravel() > 0.5
+    ev = json.load(open(os.path.join(src, "onepiece_eval.json"), encoding="utf-8"))
+    frames.append(dict(it=iters, iters=iters, stage="refine", rit=iters, note="출력 보정: 클립 · 고정부까지 서포트 없이 쌓이게",
+                       mass_g=round(float(ev["mass_g"]), 1), pen=0.0, pred={},
+                       fem=dict(f1=ev["f"][0], Tmax=ev["Tmax"], touch=ev["touch_mm"][0]), mesh=mesh_payload(fin), heat=None, sha=_sha(fin)))
+    pack = dict(version=1, backend="onepiece-g3", source=dict(opt="11_구현패키지/FormProof_구현/scripts/run_onepiece.sh (GRIP=3 BUILD=x-, 120회)"),
+                final_rho=base64.b64encode(np.packbits(fin)).decode(), final_sha=_sha(fin), fit=dict(note="일체형: 형상 AI 없이 위상 최적화 기록"),
+                frames=frames)
+    os.makedirs(MODELS, exist_ok=True)
+    with gzip.open(ONEPIECE_PACK, "wt", encoding="utf-8") as fh:
+        json.dump(pack, fh, ensure_ascii=False)
+    log(f"일체형 경로 {len(frames)} 프레임 → {ONEPIECE_PACK}")
+    return pack
 
 
 DEFAULT_SELECTIONS = (("f1", "Tmax", "touch", "interlayer", "shake"), KEYS)   # 초기 설계에서 미충족 5개 · 전부
