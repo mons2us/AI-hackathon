@@ -36,19 +36,21 @@ def load_meta(path):
     m = {k: d[k] for k in d.files}
     m['nx'], m['ny'], m['nz'] = int(m['nx']), int(m['ny']), int(m['nz'])
     m['ktop'] = int((ZB + 6 - float(m['origin'][2])) / H) - 1
+    if 'build' in m: m['build'] = str(m['build'])
     return m
 
 
 def meta_from(gm):
     """opt_int._gen_meta() / gen_frame 이 쓰는 dict(xc, yc, zc, design, solid, nx, ny, nz) -> 이 모듈의 meta
     (void 가 없으면 = 설계 영역도 고정 부품도 아닌 곳, opt_int 의 design = ~(void | solid) 와 같음)"""
-    if 'ktop' in gm and 'void' in gm: return gm
+    if 'ktop' in gm and 'void' in gm and 'build' in gm: return gm
     m = dict(gm); m['nx'], m['ny'], m['nz'] = int(gm['nx']), int(gm['ny']), int(gm['nz'])
     d, s_ = np.asarray(gm['design'], bool), np.asarray(gm['solid'], bool)
     m['design'], m['solid'] = d, s_
     m['void'] = np.asarray(gm['void'], bool) if 'void' in gm else ~(d | s_)
     zc = np.asarray(gm['zc'], float); z0 = float(zc.min()) - H / 2
     m['ktop'] = int((ZB + 6 - z0) / H) - 1
+    if 'build' in gm: m['build'] = str(gm['build'])
     return m
 
 
@@ -59,10 +61,28 @@ def _occ(rho, meta):
     return occ
 
 
+def _build(meta):
+    b = meta.get('build', None)
+    if b is None or (hasattr(b, 'shape') and b.shape == () and str(b) == ''): b = os.environ.get('BUILD', 'z-')
+    return str(b)
+
+
 def layers(occ, meta):
-    """(층, y, x) bool, 층 0 = 베드 쪽"""
-    v = occ.reshape(meta['nz'], meta['ny'], meta['nx'])
-    return v[meta['ktop']::-1].copy(), v[meta['ktop'] + 1:].any()
+    """(층, y, 다른 축) bool, 층 0 = 베드. 출력 방향 meta['build'] (opt_int.py BUILD 와 같음)
+    z-: 받침판 윗면이 베드, 층 = z' (위로 갈수록 -z')  /  x-: 세움 · 폰 위쪽 끝이 베드, 층 = x' (위로 갈수록 -x')
+    두 경우 모두 층 안 첫 축이 y (y=0 대칭면 거울). 반환 (층 배열, 베드 아래로 나간 칸이 있는지)"""
+    v = np.asarray(occ).reshape(meta['nz'], meta['ny'], meta['nx'])
+    if _build(meta) == 'x-':
+        return v.transpose(2, 1, 0)[::-1].copy(), False
+    return v[meta['ktop']::-1].copy(), bool(v[meta['ktop'] + 1:].any())
+
+
+def unlayers(X, base, meta):
+    """layers 의 반대: 층 배열 X 를 요소 배열(base 모양)로"""
+    v = np.asarray(base).reshape(meta['nz'], meta['ny'], meta['nx']).copy()
+    if _build(meta) == 'x-':
+        return np.ascontiguousarray(X[::-1].transpose(2, 1, 0)).reshape(-1)
+    v[meta['ktop']::-1] = X; return v.reshape(-1)
 
 
 def support(L):
@@ -160,7 +180,6 @@ def make_self_supporting(rho, meta, bridge_mm=BRIDGE_MM, fixed_ok=True, passes=6
     반환: (0/1 밀도(설계 영역), 추가 칸 수, 깎은 칸 수)"""
     design = meta['design'].astype(bool)
     occ = _occ(rho, meta)
-    nz, ny, nx, kt = meta['nz'], meta['ny'], meta['nx'], meta['ktop']
     X, _ = layers(occ, meta); D, _ = layers(design, meta); F, _ = layers(_fixed(meta), meta)
     nb = int(round(bridge_mm / H)); added = 0; trimmed = 0
     for _ in range(passes):
@@ -168,7 +187,7 @@ def make_self_supporting(rho, meta, bridge_mm=BRIDGE_MM, fixed_ok=True, passes=6
         if not stuck: break
         for j, y, x in stuck:
             if D[j, y, x] and X[j, y, x]: X[j, y, x] = False; trimmed += 1
-    v = occ.reshape(nz, ny, nx).copy(); v[kt::-1] = X; out = v.reshape(-1) & (design | meta['solid'].astype(bool))
+    out = unlayers(X, occ, meta) & (design | meta['solid'].astype(bool))
     return np.where(design, out, 0.).astype(float), added, trimmed
 
 
@@ -202,3 +221,46 @@ if __name__ == '__main__':
         for nm, r in _load_many(p, meta, key, int(os.environ['LIMIT']) if os.environ.get('LIMIT') else None):
             rep, _ = check(r, meta, fixed_ok=os.environ.get('FIXED_OK') == '1')
             print(json.dumps(dict(name=nm, **rep), ensure_ascii=False))
+
+
+# ==== 11-18 추가: 임의 출력 방향 (전체 몸체, 대칭면 거울로 펼침) =========================================================
+BUILD_DIRS = {'z-': (0, -1), 'z+': (0, 1), 'y': (1, 1), 'x+': (2, 1), 'x-': (2, -1)}
+BUILD_KO = {'z-': '받침판 윗면(폰 쪽)이 베드', 'z+': '클램프 쪽이 베드(판이 맨 위)', 'y': '옆으로 눕힘(핸들바 축 세로)',
+            'x+': '세움: 클램프 끝이 베드', 'x-': '세움: 폰 위쪽 끝이 베드'}
+
+
+def full_volume(occ, meta):
+    """(nz, 2ny, nx) bool, y 거울로 펼친 전체 몸체"""
+    v = np.asarray(occ, bool).reshape(meta['nz'], meta['ny'], meta['nx'])
+    return np.concatenate([v[:, ::-1], v], 1)
+
+
+def layers_dir(V, build):
+    """V(z,y,x) -> (층, a, b) 층 0 = 베드. 빈 층은 앞에서 잘라 냄 (물체를 베드에 내려놓음)"""
+    ax, sg = BUILD_DIRS[build]
+    L = np.moveaxis(V, ax, 0)
+    if sg < 0: L = L[::-1]
+    nz_ = np.where(L.any((1, 2)))[0]
+    return L[nz_[0]:] if len(nz_) else L, (nz_[0] if len(nz_) else 0)
+
+
+def _sup_full(L):
+    P = np.pad(L, 1)
+    return P[1:-1, 1:-1] | P[:-2, 1:-1] | P[2:, 1:-1] | P[1:-1, :-2] | P[1:-1, 2:]
+
+
+def check_dir(rho, meta, build='z-', fixed_ok=False):
+    """전체 몸체(대칭 펼침)를 build 방향으로 쌓을 때 떠 있는 칸. 브리지 없음(45°)."""
+    occ = _occ(rho, meta); fx = _fixed(meta)
+    X, k0 = layers_dir(full_volume(occ, meta), build)
+    Fv = np.moveaxis(full_volume(fx, meta), BUILD_DIRS[build][0], 0)
+    if BUILD_DIRS[build][1] < 0: Fv = Fv[::-1]
+    F = Fv[k0:k0 + len(X)]
+    P = np.zeros_like(X); P[0] = X[0]
+    for j in range(1, len(X)):
+        P[j] = X[j] & (_sup_full(P[j - 1]) | (F[j] if fixed_ok else False))
+    need = X & ~P
+    g = lambda c: round(float(c.sum() * H ** 3 * 1.27e-3), 2)              # 전체 몸체라 ×2 없음
+    return dict(build=build, desc=BUILD_KO[build], cells=int(X.sum()), need_support=int(need.sum()), need_support_g=g(need),
+                need_in_fixed=int((need & F).sum()), need_in_design=int((need & ~F).sum()), total_g=g(X),
+                height_mm=int(len(X) * H), bed_contact_mm2=int(X[0].sum() * H * H))

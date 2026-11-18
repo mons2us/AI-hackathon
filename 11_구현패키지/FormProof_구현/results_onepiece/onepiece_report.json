@@ -1,0 +1,19 @@
+{
+ "mass_g": 98.5,
+ "voxel_mass_g": 98.6,
+ "size_print_mm": [
+  79.5,
+  64.0,
+  180.5
+ ],
+ "print_height_mm": 180.5,
+ "bed_contact_mm2": 1161.0,
+ "overhang_before_fine_fill_g": 5.08,
+ "fine_fill_added_g": 1.24,
+ "overhang_cells_0p5mm": 0,
+ "overhang_g": 0.0,
+ "rule": "45deg, no bridge, build x- (phone top on bed)",
+ "res_mm": 0.5,
+ "triangles": 391330,
+ "rho": "onepiece_rho.npy"
+}

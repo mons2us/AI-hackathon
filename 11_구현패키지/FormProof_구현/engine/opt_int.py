@@ -14,7 +14,7 @@ E,nu,rho=1700.,0.38,1.27e-9; h=2.
 TILT=np.radians(float(env('TILT','35'))); ct,st=np.cos(TILT),np.sin(TILT)
 FT=float(env('FT','95')); LT=(2*np.pi*FT)**2; TLIM=float(env('TLIM','22'))
 ITERS=int(env('ITERS','160')); AMF=env('AM','1')=='1'; TAG=env('TAG','int'); MODE=env('MODE','opt')
-XR=float(env('XR','-10')); PL=150.; ZB=24.                     # 판: x' ∈ [XR, XR+150], z' ∈ [24, 30], 폰 z' ∈ [30, 38]
+XR=float(env('XR','-10')); PL=160. if env('GRIP','0')=='3' else 150.; ZB=24.   # GRIP=3(일체형): 판이 폰 길이(160) 전체를 받침                     # 판: x' ∈ [XR, XR+150], z' ∈ [24, 30], 폰 z' ∈ [30, 38]
 x0,y0,z0=-24.,0.,-36.; nx,ny,nz=int(env('NX','83')),20,37
 KE,C,B0,xi=hex8_KB(E,nu,h)
 ei=np.array([[i,j,k] for k in range(nz) for j in range(ny) for i in range(nx)]); I,J,K=ei.T
@@ -26,8 +26,31 @@ foot=(xc>XR)&(xc<XR+PL); xl=xc-XR                              # xl: 판 아래 
 plate=foot&(zc>ZB)&(zc<ZB+6); phone=foot&(zc>ZB+6)&(zc<ZB+14)
 jaw=plate&(yc>32)&(xl>62)&(xl<88); ledge=plate&(xl<8)&(yc<16); band=plate&(zc<ZB+4)&(xl>66)&(xl<84)
 toppad=plate&(xl>136)&(yc<16)                                 # 폰 위쪽 끝 뒷면 받침점(고정)
-GRIP=env('GRIP','0'); GRIP2=GRIP=='2'; GRIP=GRIP in('1','2')
-if GRIP:   # 제작형: 레일 하우징(스프링 집게 2개가 끼워짐) + 하단 걸이 기둥 — cad/parts.py 와 같은 치수
+GRIP=env('GRIP','0'); GRIP3=GRIP=='3'; GRIP2=GRIP=='2'; GRIP=GRIP in('1','2')
+BUILD=env('BUILD','x-' if GRIP3 else 'z-')   # 출력(적층) 방향: z- = 받침판 윗면이 베드(기존), x- = 세움 · 폰 위쪽 끝이 베드 (11-18)
+if GRIP3:   # 11-18 일체형(한 번에 출력, 핀 · 볼트 없음): C자 스냅 클립 + 탄성 옆 집게 + 45° 아래 턱 + 위쪽 멈춤 턱. BUILD=x- 기준으로 서포트 없이 쌓이게 설계
+    TH=np.arctan2(zc,xc)                                                # 클립 각도 (x' 축 0°, 판 쪽 +z' = 90°)
+    CLIPW=float(env('CLIPW','10'))                                      # 클립 반폭 (yc < 10 → 폭 20 mm)
+    OPEN=np.radians(float(env('CLIP_OPEN','65')))                       # 입구 반각 65° → 감싸는 각 230°, 입구 폭 2·16.1·sin65° = 29.2 mm < 핸들바 31.8 (2.6 mm 벌어지며 끼움)
+    dia=lambda r_: (xc<-r_/np.sqrt(2))&(np.abs(xc)+np.abs(zc)<r_*np.sqrt(2))   # 물방울(teardrop): 원의 45° 접점 바깥만 -x' 쪽(출력 시 위)으로 뾰족
+    bore=(rr<16.1)|dia(16.1)
+    CDIR=np.radians(float(env('CLIP_DIR','-120')))                      # 입구 방향 -120° = 세계 아래쪽(TILT 35): 무게 · 범프 · 제동 하중은 닫힌 쪽이 받음. 11-18 방향 탐색에서 고정부 전부 서포트 없이 출력되는 값
+    mouth=(np.abs(np.angle(np.exp(1j*(TH-CDIR))))<OPEN)&(rr<30)          # 클립 입구 (핸들바가 들어오는 자리, 물방울 끝까지 포함)
+    _al=xc*np.cos(CDIR)+zc*np.sin(CDIR); _pp=np.abs(-xc*np.sin(CDIR)+zc*np.cos(CDIR))
+    entry=(_al>0)&(_pp<15.1)&(rr<46)                                     # 입구 바깥 통로: 핸들바가 지나갈 길은 비움
+    contact=((rr<20.6)|dia(20.6))&~bore&~mouth&(yc<CLIPW)
+    ears=np.zeros(len(ei),bool); slit=np.zeros(len(ei),bool)
+    YJ=float(env('PHONE_W','76'))/2                                     # 폰 반폭 38
+    phone=phone&(yc<YJ)                                                 # 폰 공간 (옆 집게 자리는 제외)
+    jaw=foot&(yc>YJ)&(zc>ZB)&(zc<ZB+14)&(xl>50)&(xl<110)                 # 옆 집게 x' 40..100 (cad/onepiece.py 탄성 벽 + 폰 앞면 걸이 턱과 같은 구간): 판 가장자리에서 폰 옆면을 따라 위로
+    ledge=(xc>-18)&(xc<-10)&(zc>ZB)&(zc<32+(-11-xc))&(yc<16)            # 아래 턱: 판 아래 끝, 폰 쪽 면이 45° 경사 (출력 시 천장이 되지 않게)
+    topstop=(xc>150)&(zc>ZB)&(zc<ZB+14)&(yc<YJ)                          # 위쪽 멈춤 벽: 폰 위 끝, 폭 전체 · 두께 2 mm (출력 시 베드에 닿는 면 → 넓은 바닥)
+    band=plate&(zc<ZB+4)&(xl>66)&(xl<84); toppad=np.zeros(len(ei),bool)
+    hook=np.zeros(len(ei),bool)
+    void=bore|mouth|entry|phone|(((zc>ZB)&~plate)&~(ledge|topstop))
+    solid=(contact|jaw|ledge|band|topstop)&~void
+    attach_el=np.where(((jaw&(zc>ZB+6))|(ledge&(zc>ZB+6))|(topstop&(zc>ZB+6)))&~void)[0]
+elif GRIP:   # 제작형: 레일 하우징(스프링 집게 2개가 끼워짐) + 하단 걸이 기둥 — cad/parts.py 와 같은 치수
     hous=(xc>55)&(xc<75)&(zc>18)&(zc<30)
     chan=(xc>60)&(xc<70)&(zc>20)&(zc<28)&(yc>5); slot=(xc>63)&(xc<67)&(zc>27)&(zc<30)&(yc>26)
     hook=(xc>-14)&(xc<-10)&(yc<15)&(zc>ZB)
@@ -60,7 +83,7 @@ didx=np.where(design)[0]; nd=len(didx); pos=np.c_[xc,yc,zc][didx]; R=float(env('
 print('design',nd,'solid',solid.sum(),'attach nodes',len(topn),flush=True)
 # ---- 강체 폰 (절반: 질량/2), 대칭 자유도 (ux, uz, θy) ----
 MT=float(env('MSYS','0.300'))*1e-3/2; Lx,Ly,Lz=165.,80.,15.
-CG=np.array([XR+75.,0.,ZB+6+Lz/2])
+CG=np.array([XR+PL/2,0.,ZB+6+Lz/2])
 Pr=np.c_[nxc,nzc][topn]-CG[[0,2]]; nt=len(topn); TT=np.zeros((2*nt,3))
 for q,(rx,rz) in enumerate(Pr): TT[2*q]=[1,0,rz]; TT[2*q+1]=[0,1,-rx]
 Tp=np.linalg.pinv(TT); Mrb=np.diag([MT,MT,MT*(Lx**2+Lz**2)/12])
@@ -102,12 +125,19 @@ tr=cKDTree(pos); pr=tr.query_pairs(R,output_type='ndarray'); a=np.r_[np.arange(n
 Hf=sp.coo_matrix((R-np.linalg.norm(pos[a]-pos[b],axis=1),(a,b)),shape=(nd,nd)).tocsr(); Hs=np.asarray(Hf.sum(1)).ravel()
 proj=lambda x,be,et=.5:(np.tanh(be*et)+np.tanh(be*(x-et)))/(np.tanh(be*et)+np.tanh(be*(1-et)))
 dproj=lambda x,be,et=.5:be*(1-np.tanh(be*(x-et))**2)/(np.tanh(be*et)+np.tanh(be*(1-et)))
-KTOP=int((ZB+6-z0)/h)-1                                         # 판 맨 윗층 k (바닥)
+KTOP=int((ZB+6-z0)/h)-1                                         # 판 맨 윗층 k (바닥, BUILD=z-)
 PP=40.; NS=5; QA=PP+np.log(NS)/np.log(0.5); EPS=1e-4
 fixval=np.where(solid,1.0,0.0); fixed=~design
-def grid(v): return v.reshape(nz,ny,nx)[KTOP::-1].copy()
-def ungrid(g,base):
-    out=base.reshape(nz,ny,nx).copy(); out[KTOP::-1]=g; return out.reshape(-1)
+# 층 배열 (층, y, 다른 축): 층 0 = 베드. 두 방향 모두 층 안 첫 축이 y → nsum 의 y=0 거울이 그대로 맞음
+if BUILD=='z-':
+    def grid(v): return v.reshape(nz,ny,nx)[KTOP::-1].copy()
+    def ungrid(g,base):
+        out=base.reshape(nz,ny,nx).copy(); out[KTOP::-1]=g; return out.reshape(-1)
+elif BUILD=='x-':
+    def grid(v): return v.reshape(nz,ny,nx).transpose(2,1,0)[::-1].copy()     # (x 큰 쪽부터, y, z)
+    def ungrid(g,base): return np.ascontiguousarray(g[::-1].transpose(2,1,0)).reshape(-1)
+else: raise SystemExit('BUILD 는 z- 또는 x-')
+ILC={'z-':2,'x-':0}[BUILD]                                       # 층간(적층 방향) 응력 성분: z' → σzz, x' → σxx
 FX=grid(fixed.astype(float))>0.5; FV=grid(fixval)
 def nsum(L):   # 가운데 + 면내 4이웃, y=0 쪽은 대칭(거울)
     P_=np.pad(L,1); P_[0,1:-1]=L[0]; return P_[1:-1,1:-1]+P_[:-2,1:-1]+P_[2:,1:-1]+P_[1:-1,:-2]+P_[1:-1,2:]
@@ -167,13 +197,13 @@ def frf(r,neig=10,zeta=0.03):
         Fr=Mrb@np.array([dvec[0],dvec[1],0.])*48.5*9810.; fn=Tp.T@Fr; F=np.zeros(3*nn); F[dd]=fn
         U=np.zeros(3*nn); U[free]=ps.solve(A,F[free]); on=np.where((r>0.5)&active)[0]; on=on[rr[on]>19]
         s_=(C@B0@U[edof[on]].T).T; vm=np.sqrt(0.5*((s_[:,0]-s_[:,1])**2+(s_[:,1]-s_[:,2])**2+(s_[:,2]-s_[:,0])**2)+3*(s_[:,3:]**2).sum(1))
-        szt=np.maximum(s_[:,2],0)                                     # 층간: 적층 방향 = z'
+        szt=np.maximum(s_[:,ILC],0)                                   # 층간: 적층 방향 성분 (BUILD)
         stress[nm]=dict(vm999=round(float(np.percentile(vm,99.9)),1),interlayer999=round(float(np.percentile(szt,99.9)),1))
     res['shock']=stress; ps.free_memory(everything=True); return res
 # ==== 11-16 추가: 프레임 생성기(gen_frame) 학습 데이터 — 구조(label3) · 열 전용(tlabel) ===================
-GRIPN = 2 if GRIP2 else (1 if GRIP else 0)
+GRIPN = 3 if GRIP3 else (2 if GRIP2 else (1 if GRIP else 0))
 def _gen_meta():
-    return dict(xc=xc, yc=yc, zc=zc, design=design, solid=solid, plate=plate, nx=nx, ny=ny, nz=nz)
+    return dict(xc=xc, yc=yc, zc=zc, design=design, solid=solid, plate=plate, nx=nx, ny=ny, nz=nz, void=void, build=BUILD)
 def thermal_T(r):
     """열만 (수반 해석 없이): 폰 온도장. thermal() 과 같은 식"""
     ke=np.where(phone[the],K_PH,K_AIR+r[the]**3*(K_PETG-K_AIR))
@@ -204,7 +234,7 @@ def label_full(r, neig=int(env('NEIG','10')), zeta=0.03):
         Fr=Mrb@np.array([dvec[0],dvec[1],0.])*48.5*9810.; fn=Tp.T@Fr; F=np.zeros(3*nn); F[dd]=fn
         U=np.zeros(3*nn); U[free]=ps.solve(A,F[free]); on=np.where((r>0.5)&active)[0]; _LASTU['shock_'+nm]=U
         s_=(C@B0@U[edof[on]].T).T; vm=np.sqrt(0.5*((s_[:,0]-s_[:,1])**2+(s_[:,1]-s_[:,2])**2+(s_[:,2]-s_[:,0])**2)+3*(s_[:,3:]**2).sum(1))
-        szt=np.maximum(s_[:,2],0); k_=rr[on]>19
+        szt=np.maximum(s_[:,ILC],0); k_=rr[on]>19
         sh[nm]=(float(np.percentile(vm[k_],99.9)) if k_.any() else 0., float(np.percentile(szt[k_],99.9)) if k_.any() else 0.)
         if nm=='vert': vm_el[on]=vm
     ps.free_memory(everything=True)
@@ -333,7 +363,7 @@ if MODE=='tlabel':  # 열 전용: 받침판 패턴만 바꿔 폰 온도장. 판 
     print('done',len(O),'중복 건너뜀',dup,round(time.time()-t0),flush=True); sys.exit()
 if MODE=='meta':    # 학습 코드가 쓰는 격자 정보 (설계 · 고정 · 빈 영역, 좌표)
     np.savez(env('OUT','grid_meta.npz'),nx=nx,ny=ny,nz=nz,h=h,origin=np.array([x0,y0,z0]),didx=didx,solid=solid,void=void,design=design,
-             phone=phone,plate=plate,xc=xc,yc=yc,zc=zc); print('meta ok',env('OUT','grid_meta.npz')); sys.exit()
+             phone=phone,plate=plate,xc=xc,yc=yc,zc=zc,build=BUILD,grip=GRIPN); print('meta ok',env('OUT','grid_meta.npz')); sys.exit()
 if MODE=='label2':  # 학습 데이터 v2: 형상 → 스칼라 7개 + 분포 2개(온도 · 충격 응력). SRC 가 있으면 그 파일들(위상 최적화 기록), 없으면 생성기
     import gen_int, glob; rng=np.random.default_rng(int(env('SEED','0'))); t0=time.time()
     src=None; SR=env('SRC')
@@ -406,10 +436,11 @@ if MODE=='eval':
     out.update(mass_g=round(massg(r),1),Tmax=round(float(T[phn].max()),2),tilt=float(env('TILT','35')))
     try:   # 11-18 추가: 3D 프린터(FDM) 출력 가능성 — printability.py (몸체 팔·판만 / 고정 부품 포함 전체)
         import printability as _pr; _pm=_pr.meta_from(dict(_gen_meta(),void=void))
-        _a,_=_pr.check(r,_pm,fixed_ok=True); _b,_=_pr.check(r,_pm)
-        out['print']=dict(rule='45deg, plate top on bed, build -z\'',design_need_support=_a['need_support_in_design'],
+        _pm['build']=BUILD; _a,_=_pr.check(r,_pm,fixed_ok=True); _b,_=_pr.check(r,_pm)
+        out['print']=dict(rule='45deg no bridge, build '+BUILD,design_need_support=_a['need_support_in_design'],
                           body_need_support=_b['need_support'],body_need_support_g=_b['need_support_g'],fixed_parts_need_support=_b['need_support_in_fixed_parts'],
-                          below_bed_cells=int(r.reshape(nz,ny,nx)[KTOP+1:].__gt__(0.5).sum()),printable_design=_a['need_support_in_design']==0)
+                          below_bed_cells=int(r.reshape(nz,ny,nx)[KTOP+1:].__gt__(0.5).sum()) if BUILD=='z-' else 0,printable_design=_a['need_support_in_design']==0,
+                          printable_body=_b['need_support']==0)
     except Exception as _e: out['print']=dict(error=str(_e))
     json.dump(out,open('frfint_%s.json'%TAG,'w')); print(json.dumps({k:v for k,v in out.items() if k not in('freq',)},default=str)[:1500]); sys.exit()
 if MODE=='fd':

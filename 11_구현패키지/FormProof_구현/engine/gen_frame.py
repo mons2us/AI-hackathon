@@ -53,6 +53,8 @@ def targets(grip):
         return dict(mid=(65.0, 25.0), bot=(-6.0, 25.0), top=(133.0, 25.0))
     if grip == 1:
         return dict(mid=(65.0, 19.0), bot=(-12.0, 25.0), top=(133.0, 25.0))
+    if grip == 3:   # 11-18 일체형: 판 가운데 밑면 · 아래 턱(45° 경사) · 위쪽 멈춤 턱 (opt_int.py GRIP=3)
+        return dict(mid=(65.0, 23.0), bot=(-13.0, 25.0), top=(145.0, 25.0))
     return dict(mid=(65.0, 19.0), bot=(-12.0, 25.0), top=(126.0, 13.0))
 
 
@@ -284,12 +286,13 @@ def make_printable(occ, meta):
     import printability as pr
     pm = pr.meta_from(meta); design = pm['design']
     r = np.where(design, occ.astype(float), 0.)
-    before, _ = pr.check(r, pm, fixed_ok=True)
-    r2, added, trimmed = pr.make_self_supporting(r, pm)
+    fo = pr._build(pm) == 'z-'
+    before, _ = pr.check(r, pm, fixed_ok=fo)
+    r2, added, trimmed = pr.make_self_supporting(r, pm, fixed_ok=pr._build(pm) == 'z-')   # x-(일체형)은 고정부까지 받쳐야 함
     occ2 = _keep_ring_connected((r2 > 0.5) & design, meta)
-    after, _ = pr.check(np.where(design, occ2.astype(float), 0.), pm, fixed_ok=True)
-    LAST_PRINT.clear(); LAST_PRINT.update(added=int(added), trimmed=int(trimmed), need_before=before['need_support_in_design'],
-                                          need_after=after['need_support_in_design'])
+    after, _ = pr.check(np.where(design, occ2.astype(float), 0.), pm, fixed_ok=fo)
+    LAST_PRINT.clear(); LAST_PRINT.update(added=int(added), trimmed=int(trimmed), need_before=before['need_support'] if not fo else before['need_support_in_design'],
+                                          need_after=after['need_support'] if not fo else after['need_support_in_design'])
     return occ2
 
 
