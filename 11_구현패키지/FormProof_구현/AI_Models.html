@@ -14,6 +14,7 @@ small{color:#6a6f78}
 </style></head><body>
 <div class="tag">FormProof · 2026-11-19 · 근거: 실제 체크포인트 <code>10_입력_1차설계/models/results_fp11.zip</code> (runs/sdf.pt · runs/fno.pt)를 열어 확인한 값</div>
 <h1>형상 AI · 물리 AI — 구조, 크기, 학습 데이터</h1>
+<p><small>더 자세한 판(물리 수식 · 학습 설정 · 능동 학습 회차별 오차)은 프로젝트 문서 <code>claude/AI_Models.html</code> 에 있다.</small></p>
 <p>지금 GUI(P01 자전거 거치대, 조립식 GRIP=2)가 쓰는 두 모델이다. 공동작업자가 <code>13_AI학습_일체형</code> 에서 <b>CPU 로 작게</b> 학습해 11-17 22:11 커밋으로 GUI 에 넣었다.
 일체형(GRIP=3)은 격자 · 고정부가 달라 이 모델을 쓰지 않는다(위상 최적화만).</p>
 
@@ -21,7 +22,7 @@ small{color:#6a6f78}
  <div><span class="tag">형상 AI</span><b class="big">DeepSDF 방식 오토디코더</b>
   잠재 벡터 16개 숫자 → 3D 형상(2 mm 격자 점유)<br>파라미터 <b>110,337개</b> · 파일 0.49 MB<br>학습 형상 <b>167개</b></div>
  <div><span class="tag">물리 AI</span><b class="big">3D FNO (푸리에 신경 연산자)</b>
-  형상 → 성능 7개 + 분포 2개(온도 · 응력)<br>가중치 <b>1,111,669개</b>(복소수 포함, 실수로 약 222만) · 파일 8.9 MB<br>FEM 정답 형상 <b>438개</b> (학습 389 · 시험 49)</div>
+  형상 → 성능 7개 + 분포 2개(온도 · 응력)<br>가중치 <b>1,111,669개</b>(복소수 포함, 실수로 약 222만) · 파일 8.9 MB<br>FEM 정답 형상 <b>389개</b> (생성기 160 · 최적화 기록 122 · 경로 45 · 능동 학습 62)</div>
 </div>
 
 <h2>1. 두 모델이 하는 일 (최적화 흐름)</h2>
@@ -86,9 +87,9 @@ small{color:#6a6f78}
 <tr><td>설정</td><td>폭 <code>width=12</code>, 푸리에 층 4개, 남기는 주파수 <code>modes=8×5×12</code>, 출력 숫자 7 + 분포 2</td></tr>
 <tr><td>크기</td><td>가중치 원소 <b>1,111,669</b> (텐서 34개). 그중 푸리에 가중치 1,105,920 개는 <b>복소수</b> → 실수로 세면 약 <b>222만</b> · 파일 8.9 MB</td></tr>
 <tr><td>학습</td><td>2,000회 · CPU 약 66분 (3,967 s) · 마지막 손실 0.178 · 능동 학습 미세조정 2회 (<code>finetune=2</code>)</td></tr>
-<tr><td>데이터</td><td>FEM 정답이 붙은 형상 <b>438개 = 학습 389 + 시험 49</b>. 정답 1개 = 팀 엔진 FEM 한 번(형상당 약 20 초대, CPU)</td></tr>
+<tr><td>데이터</td><td>FEM 정답이 붙은 형상 <b>389개</b>. 본 학습은 327개(학습 278 · 시험 49), 이어서 능동 학습 형상 62개를 더해 389개 전부로 미세조정 2회(능동 학습 형상 가중치 ×3). 정답 1개 = 팀 엔진 FEM 한 번(형상당 약 20 초대, CPU)</td></tr>
 </table>
-<h3>시험 형상 49개에서 예측 오차 (상대 오차, fno.pt 의 final 기록)</h3>
+<h3>시험 형상 49개에서 예측 오차 (상대 오차, fno.pt 의 final 기록 — 미세조정 <b>전</b> 본 학습 기준)</h3>
 <table>
 <tr><th>예측값</th><th>오차</th><th>판정</th></tr>
 <tr><td>폰 온도 상승</td><td>1.3 %</td><td class="ok">정확</td></tr>
@@ -107,18 +108,18 @@ small{color:#6a6f78}
 <tr><td>snap_half</td><td>122</td><td>위상 최적화 중간 형상</td><td rowspan="3">들어감 (11-17)</td></tr>
 <tr><td>gen_s1001 · s1002</td><td>160</td><td>프레임 생성기 형상</td></tr>
 <tr><td>path</td><td>45</td><td>GUI 초기 → 최종 경로 형상</td></tr>
-<tr><td>al_r1 ~ r5</td><td>31 × 5 = 155</td><td>능동 학습: AI 가 고른 탐색 형상을 FEM 으로 정답 달기 (r4 · r5 는 3D 출력 45° 필터 적용)</td><td>r1 ~ r2(일부 r3)까지로 추정 *</td></tr>
+<tr><td>al_r1 ~ r2</td><td>31 × 2 = 62</td><td>능동 학습: AI 가 고른 탐색 형상을 FEM 으로 정답 달기</td><td>들어감 (미세조정 2회)</td></tr>
+<tr><td>al_r3 ~ r5</td><td>31 × 3 = 93</td><td>능동 학습 3~5회차 (r4 · r5 는 3D 출력 45° 필터 적용)</td><td class="warn">아직 안 들어감</td></tr>
 <tr><td>print_c00 ~ c07</td><td>310</td><td>출력 조건(45° 돌출) 학습 데이터 (11-18)</td><td class="warn">아직 안 들어감</td></tr>
-<tr><th>합계</th><th>792</th><th colspan="2">배포된 모델은 이 중 438개로 학습 · 시험</th></tr>
+<tr><th>합계</th><th>792</th><th colspan="2">배포된 모델은 이 중 389개 (122 + 160 + 45 + 62 — 정확히 맞음)</th></tr>
 </table>
-<small>* 체크포인트에는 '학습 389 · 시험 49 · 미세조정 2회' 만 적혀 있고 묶음별 구성은 기록되어 있지 않다. 위 표의 묶음 크기 합(122+160+45+93 = 420)이 438 과 정확히 맞지 않아, 정확한 구성은 공동작업자 확인이 필요하다.
-GUI 의 results_fp11.zip 은 11-17 22:11 이후 바뀌지 않았다 → 11-18 의 출력 조건 데이터(print_c*) · 능동 학습 4 · 5회차는 배포 모델에 반영 전.</small>
+<small>근거: <code>13_AI학습_일체형/finetune.py</code> 는 저장소의 모든 묶음을 읽어 <code>n_train</code> 을 그 개수로 덮어씀(당시 389). 시험 49개는 본 학습(327개) 때 나눈 것이라 미세조정에는 섞여 들어갔고, 기록된 시험 오차는 미세조정 전 값이다 → 지금 모델의 독립 시험 오차는 기록이 없음. GUI 의 results_fp11.zip 은 11-17 22:11 이후 바뀌지 않았다 → 11-18 의 출력 조건 데이터(print_c*) · 능동 학습 3~5회차는 배포 모델에 반영 전.</small>
 
 <h2>5. 규모 감각 — 왜 '작다'고 하나</h2>
 <table>
 <tr><th></th><th>지금 (배포)</th><th>sosopapa 서버 계획 (11_구현패키지 handoff — 결과는 저장소에 아직 없음)</th></tr>
 <tr><td>형상 AI 학습 형상</td><td>167</td><td>프레임 생성기 5,000 + 위상 최적화 기록 245</td></tr>
-<tr><td>물리 AI FEM 정답</td><td>438</td><td>구조 + 열 5,000 (+ 열 전용 20,000)</td></tr>
+<tr><td>물리 AI FEM 정답</td><td>389</td><td>구조 + 열 5,000 (+ 열 전용 20,000)</td></tr>
 <tr><td>학습 장비</td><td>CPU 2코어</td><td>GPU 8장 서버</td></tr>
 </table>
 <p><small>같은 구조의 코드(deepsdf.py · surrogate.py)는 11_구현패키지 에도 있다(surrogate.py · data.py 는 똑같고, deepsdf.py 3줄 · latent_search.py 는 출력 조건 벌점 등으로 다름). 데이터를 늘리면 물리 AI 오차(특히 터치 · 충격)가 줄어들 것으로 기대하지만, 아직 확인된 값은 아니다.</small></p>
