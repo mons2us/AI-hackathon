@@ -1,0 +1,4 @@
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  tr.append(dict(it=it, mass=round(float(full.sum()) * 0.02032, 2), pen=round(float(p), 4), **{n: round(float(v), 3) for n, v in k.items()}))
+fno734 389.8 s {'it': 300, 'mass': 72.81, 'pen': 0.2936, 'f1': 93.99, 'Tmax': 21.393, 'touch': 0.121, 'stress': 15.45}
+gino734 1078.7 s {'it': 300, 'mass': 402.17, 'pen': 22.9559, 'f1': 30.562, 'Tmax': 20.719, 'touch': 0.785, 'stress': 6.511}

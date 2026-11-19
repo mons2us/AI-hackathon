@@ -1,0 +1,30 @@
+train 331 test 58
+{"it": 0, "loss": 10.570658683776855, "t": 4.0, "relerr_f1_hz": 2.882101535797119, "relerr_f2_hz": 3.3473451137542725, "relerr_phone_Tmax_rise_c": 0.061349838972091675, "relerr_touch_top_mm": 4.2482404708862305, "relerr_touch_bottom_mm": 3.293891191482544, "relerr_shock_vm999_mpa": 0.5810526609420776, "field_relL2_T": 0.9881775379180908, "field_relL2_vm": 1.0250704288482666}
+{"ck": 100, "t": 340.1}
+{"ck": 200, "t": 683.4}
+{"ck": 300, "t": 1017.2}
+{"ck": 400, "t": 1359.4}
+{"ck": 500, "t": 1694.7}
+{"it": 500, "loss": 1.2564438581466675, "t": 1697.8, "relerr_f1_hz": 0.39835619926452637, "relerr_f2_hz": 0.3786875903606415, "relerr_phone_Tmax_rise_c": 0.021954253315925598, "relerr_touch_top_mm": 2.405576705932617, "relerr_touch_bottom_mm": 0.9514083862304688, "relerr_shock_vm999_mpa": 0.3237159848213196, "field_relL2_T": 0.15228208899497986, "field_relL2_vm": 0.4377228617668152}
+{"ck": 600, "t": 2038.1}
+{"ck": 700, "t": 2382.0}
+{"ck": 800, "t": 2701.2}
+{"ck": 900, "t": 3023.7}
+{"ck": 1000, "t": 3347.0}
+{"it": 1000, "loss": 0.44271770119667053, "t": 3350.3, "relerr_f1_hz": 0.3231405019760132, "relerr_f2_hz": 0.4248886704444885, "relerr_phone_Tmax_rise_c": 0.015097593888640404, "relerr_touch_top_mm": 2.6163225173950195, "relerr_touch_bottom_mm": 1.1338369846343994, "relerr_shock_vm999_mpa": 0.3185916244983673, "field_relL2_T": 0.09955509752035141, "field_relL2_vm": 0.36289137601852417}
+{"ck": 1100, "t": 3684.1}
+{"ck": 1200, "t": 4021.8}
+{"ck": 1300, "t": 4366.2}
+{"ck": 1400, "t": 4708.2}
+{"ck": 1500, "t": 5041.8}
+budget stop 1500
+train 331 test 58
+resume 1500
+{"it": 1500, "loss": 0.48530885577201843, "t": 3.6, "relerr_f1_hz": 0.3099454343318939, "relerr_f2_hz": 0.35716429352760315, "relerr_phone_Tmax_rise_c": 0.012996128760278225, "relerr_touch_top_mm": 2.281637668609619, "relerr_touch_bottom_mm": 1.220854640007019, "relerr_shock_vm999_mpa": 0.29931026697158813, "field_relL2_T": 0.08803734928369522, "field_relL2_vm": 0.330567866563797}
+{"ck": 1600, "t": 326.9}
+{"ck": 1700, "t": 660.9}
+{"ck": 1800, "t": 992.9}
+{"ck": 1900, "t": 1339.1}
+{"it": 1999, "loss": 0.3647401034832001, "t": 1674.4, "relerr_f1_hz": 0.30638253688812256, "relerr_f2_hz": 0.3457208275794983, "relerr_phone_Tmax_rise_c": 0.012722153216600418, "relerr_touch_top_mm": 2.3079428672790527, "relerr_touch_bottom_mm": 1.2287917137145996, "relerr_shock_vm999_mpa": 0.3004106879234314, "field_relL2_T": 0.08611273765563965, "field_relL2_vm": 0.3270346224308014}
+{"ck": 2000, "t": 1678.6}
+saved /tmp/claude-0/-home-claude/e964ed80-ee1b-5f91-abd3-3081682a3ad7/scratchpad/gino/fno_base.pt

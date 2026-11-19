@@ -1,0 +1,302 @@
+{
+ "trace": [
+  {
+   "it": 0,
+   "mass": 94.89,
+   "pen": 27.2862,
+   "f1": 33.119,
+   "Tmax": 32.529,
+   "touch": 0.758,
+   "stress": 15.112
+  },
+  {
+   "it": 10,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 20,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 30,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 40,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 50,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 60,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 70,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 80,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 90,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 100,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 110,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 120,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 130,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 140,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 150,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 160,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 170,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 180,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 190,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 200,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 210,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 220,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 230,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 240,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 250,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 260,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 270,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 280,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 290,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  },
+  {
+   "it": 300,
+   "mass": 50.33,
+   "pen": NaN,
+   "f1": NaN,
+   "Tmax": NaN,
+   "touch": NaN,
+   "stress": NaN
+  }
+ ],
+ "seconds": 146.7,
+ "z": [
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  NaN
+ ]
+}

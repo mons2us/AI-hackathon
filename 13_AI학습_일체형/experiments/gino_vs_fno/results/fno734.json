@@ -1,0 +1,82 @@
+{
+ "final": {
+  "it": 1999,
+  "loss": 0.23605258762836456,
+  "t": 332.9,
+  "relerr_f1_hz": 0.3456653654575348,
+  "relerr_f2_hz": 0.46400898694992065,
+  "relerr_phone_Tmax_rise_c": 0.0111467270180583,
+  "relerr_touch_top_mm": 2.728175640106201,
+  "relerr_touch_bottom_mm": 0.8311869502067566,
+  "relerr_shock_vm999_mpa": 0.31887608766555786,
+  "field_relL2_T": 0.09282812476158142,
+  "field_relL2_vm": 0.37255552411079407
+ },
+ "log": [
+  {
+   "it": 0,
+   "loss": 14.00242805480957,
+   "t": 3.7,
+   "relerr_f1_hz": 1.4315317869186401,
+   "relerr_f2_hz": 2.0155978202819824,
+   "relerr_phone_Tmax_rise_c": 0.07312411069869995,
+   "relerr_touch_top_mm": 32.147804260253906,
+   "relerr_touch_bottom_mm": 12.170808792114258,
+   "relerr_shock_vm999_mpa": 0.667224645614624,
+   "field_relL2_T": 0.9879512786865234,
+   "field_relL2_vm": 1.0252398252487183
+  },
+  {
+   "it": 500,
+   "loss": 0.8928449749946594,
+   "t": 1799.3,
+   "relerr_f1_hz": 0.41984981298446655,
+   "relerr_f2_hz": 0.4705953299999237,
+   "relerr_phone_Tmax_rise_c": 0.016585849225521088,
+   "relerr_touch_top_mm": 2.367435932159424,
+   "relerr_touch_bottom_mm": 0.7517120838165283,
+   "relerr_shock_vm999_mpa": 0.3391723930835724,
+   "field_relL2_T": 0.13265176117420197,
+   "field_relL2_vm": 0.49667325615882874
+  },
+  {
+   "it": 1000,
+   "loss": 0.49761468172073364,
+   "t": 3511.5,
+   "relerr_f1_hz": 0.37934353947639465,
+   "relerr_f2_hz": 0.6323158740997314,
+   "relerr_phone_Tmax_rise_c": 0.012637357227504253,
+   "relerr_touch_top_mm": 2.5374159812927246,
+   "relerr_touch_bottom_mm": 0.7519232630729675,
+   "relerr_shock_vm999_mpa": 0.33203500509262085,
+   "field_relL2_T": 0.10086946934461594,
+   "field_relL2_vm": 0.40910351276397705
+  },
+  {
+   "it": 1500,
+   "loss": 0.28261277079582214,
+   "t": 5235.9,
+   "relerr_f1_hz": 0.3536267876625061,
+   "relerr_f2_hz": 0.46637699007987976,
+   "relerr_phone_Tmax_rise_c": 0.011449643410742283,
+   "relerr_touch_top_mm": 2.8139188289642334,
+   "relerr_touch_bottom_mm": 0.7954497337341309,
+   "relerr_shock_vm999_mpa": 0.3233352303504944,
+   "field_relL2_T": 0.09420211613178253,
+   "field_relL2_vm": 0.3765143156051636
+  },
+  {
+   "it": 1999,
+   "loss": 0.23605258762836456,
+   "t": 332.9,
+   "relerr_f1_hz": 0.3456653654575348,
+   "relerr_f2_hz": 0.46400898694992065,
+   "relerr_phone_Tmax_rise_c": 0.0111467270180583,
+   "relerr_touch_top_mm": 2.728175640106201,
+   "relerr_touch_bottom_mm": 0.8311869502067566,
+   "relerr_shock_vm999_mpa": 0.31887608766555786,
+   "field_relL2_T": 0.09282812476158142,
+   "field_relL2_vm": 0.37255552411079407
+  }
+ ]
+}

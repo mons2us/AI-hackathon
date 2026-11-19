@@ -1,0 +1,37 @@
+/tmp/claude-0/-home-claude/e964ed80-ee1b-5f91-abd3-3081682a3ad7/scratchpad/gino/train_gino.py:46: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:820.)
+  if it % 200 == 0: print(json.dumps(dict(it=it, loss=round(float(loss), 4), t=round(time.time() - t0, 1))), flush=True)
+{"it": 0, "loss": 11.5849, "t": 1.5}
+{"it": 200, "loss": 0.9077, "t": 206.4}
+{"it": 400, "loss": 1.1469, "t": 421.1}
+{"it": 600, "loss": 2.0081, "t": 626.6}
+{"it": 800, "loss": 1.4804, "t": 829.1}
+{"it": 1000, "loss": 0.5428, "t": 1035.4}
+{"it": 1200, "loss": 0.438, "t": 1247.0}
+{"it": 1400, "loss": 0.2513, "t": 1454.3}
+{"it": 1600, "loss": 0.6517, "t": 1658.1}
+{"it": 1800, "loss": 0.7328, "t": 1856.5}
+{"relerr_f1_hz": 0.5907671451568604, "relerr_f2_hz": 0.7106406688690186, "relerr_phone_Tmax_rise_c": 0.017911912873387337, "relerr_touch_top_mm": 1.6261595487594604, "relerr_touch_bottom_mm": 2.851468324661255, "relerr_shock_vm999_mpa": 0.40016040205955505, "field_relL2_T": 0.11567382514476776, "field_relL2_vm": 0.3551895320415497, "it": 2000, "t": 2267.9}
+{"it": 2000, "loss": 0.2244, "t": 2268.9}
+{"it": 2200, "loss": 0.9792, "t": 2454.2}
+{"it": 2400, "loss": 0.2078, "t": 2640.1}
+{"it": 2600, "loss": 0.4245, "t": 2828.1}
+{"it": 2800, "loss": 0.2591, "t": 3023.0}
+{"it": 3000, "loss": 0.5702, "t": 3214.5}
+{"it": 3200, "loss": 0.2893, "t": 3409.4}
+{"it": 3400, "loss": 0.2243, "t": 3601.7}
+{"it": 3600, "loss": 0.3487, "t": 3794.5}
+{"it": 3800, "loss": 0.1019, "t": 3989.2}
+{"relerr_f1_hz": 0.2597837746143341, "relerr_f2_hz": 0.26850035786628723, "relerr_phone_Tmax_rise_c": 0.009407658129930496, "relerr_touch_top_mm": 1.0777887105941772, "relerr_touch_bottom_mm": 1.1695319414138794, "relerr_shock_vm999_mpa": 0.26404428482055664, "field_relL2_T": 0.07012170553207397, "field_relL2_vm": 0.30503496527671814, "it": 4000, "t": 4395.8}
+{"it": 4000, "loss": 0.3645, "t": 4396.7}
+{"it": 4200, "loss": 0.2419, "t": 4587.2}
+{"it": 4400, "loss": 0.6033, "t": 4777.3}
+{"it": 4600, "loss": 0.1888, "t": 4974.7}
+{"it": 4800, "loss": 0.1072, "t": 5170.1}
+{"it": 5000, "loss": 0.2684, "t": 5367.0}
+{"it": 5200, "loss": 0.2739, "t": 5561.8}
+{"it": 5400, "loss": 0.4358, "t": 5753.4}
+{"it": 5600, "loss": 0.2417, "t": 5952.6}
+{"it": 5800, "loss": 0.226, "t": 6150.9}
+{"relerr_f1_hz": 0.2503296136856079, "relerr_f2_hz": 0.3460097014904022, "relerr_phone_Tmax_rise_c": 0.008144404739141464, "relerr_touch_top_mm": 0.9466204643249512, "relerr_touch_bottom_mm": 0.9544905424118042, "relerr_shock_vm999_mpa": 0.256560742855072, "field_relL2_T": 0.06622476875782013, "field_relL2_vm": 0.2958635985851288, "it": 6000, "t": 6566.7}
+saved /tmp/claude-0/-home-claude/e964ed80-ee1b-5f91-abd3-3081682a3ad7/scratchpad/gino/gino.pt
