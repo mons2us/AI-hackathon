@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>FormProof — 형상 AI · 물리 AI 모델 정리</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:-apple-system,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;max-width:1040px;margin:0 auto;padding:24px 20px 60px;color:#1d232b;line-height:1.6;background:#fbfbfa}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:34px 0 10px;padding-top:14px;border-top:1px solid #e3e3e0}h3{font-size:15px;margin:18px 0 6px}
+.tag{font-size:12px;color:#6a6f78}.box{background:#fff;border:1px solid #e3e3e0;border-radius:10px;padding:14px 18px;margin:12px 0}
+.k{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.k>div{background:#fff;border:1px solid #e3e3e0;border-radius:10px;padding:14px 16px}
+.k b.big{display:block;font-size:24px}.ok{color:#1a7f37}.bad{color:#c62828}.warn{color:#9a6700}
+table{border-collapse:collapse;width:100%;font-size:14px;background:#fff}th,td{border:1px solid #e3e3e0;padding:6px 9px;text-align:left;vertical-align:top}th{background:#f3f3f1}
+code{background:#f0f0ee;padding:1px 5px;border-radius:4px;font-size:13px}svg{max-width:100%;height:auto;background:#fff;border:1px solid #e3e3e0;border-radius:10px}
+.bar{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:6px 0 2px;font-size:11px;color:#fff}.bar span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+small{color:#6a6f78}
+</style></head><body>
+<div class="tag">FormProof · 2026-11-19 · 근거: 실제 체크포인트 <code>10_입력_1차설계/models/results_fp11.zip</code> (runs/sdf.pt · runs/fno.pt)를 열어 확인한 값</div>
+<h1>형상 AI · 물리 AI — 구조, 크기, 학습 데이터</h1>
+<p>지금 GUI(P01 자전거 거치대, 조립식 GRIP=2)가 쓰는 두 모델이다. 공동작업자가 <code>13_AI학습_일체형</code> 에서 <b>CPU 로 작게</b> 학습해 11-17 22:11 커밋으로 GUI 에 넣었다.
+일체형(GRIP=3)은 격자 · 고정부가 달라 이 모델을 쓰지 않는다(위상 최적화만).</p>
+
+<div class="k">
+ <div><span class="tag">형상 AI</span><b class="big">DeepSDF 방식 오토디코더</b>
+  잠재 벡터 16개 숫자 → 3D 형상(2 mm 격자 점유)<br>파라미터 <b>110,337개</b> · 파일 0.49 MB<br>학습 형상 <b>167개</b></div>
+ <div><span class="tag">물리 AI</span><b class="big">3D FNO (푸리에 신경 연산자)</b>
+  형상 → 성능 7개 + 분포 2개(온도 · 응력)<br>가중치 <b>1,111,669개</b>(복소수 포함, 실수로 약 222만) · 파일 8.9 MB<br>FEM 정답 형상 <b>438개</b> (학습 389 · 시험 49)</div>
+</div>
+
+<h2>1. 두 모델이 하는 일 (최적화 흐름)</h2>
+<svg viewBox="0 0 1000 170" xmlns="http://www.w3.org/2000/svg" font-family="Malgun Gothic, sans-serif" font-size="14">
+ <defs><marker id="a" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#555"/></marker></defs>
+ <rect x="15" y="55" width="130" height="60" rx="10" fill="#eef2f7" stroke="#8aa0b8"/><text x="80" y="80" text-anchor="middle">잠재 벡터 z</text><text x="80" y="100" text-anchor="middle" font-size="12" fill="#555">숫자 16개</text>
+ <rect x="190" y="45" width="170" height="80" rx="10" fill="#e7f0fd" stroke="#2f7de1"/><text x="275" y="78" text-anchor="middle" font-weight="bold">형상 AI</text><text x="275" y="100" text-anchor="middle" font-size="12">z → 3D 형상</text>
+ <rect x="405" y="55" width="140" height="60" rx="10" fill="#eef2f7" stroke="#8aa0b8"/><text x="475" y="80" text-anchor="middle">3D 형상</text><text x="475" y="100" text-anchor="middle" font-size="12" fill="#555">88×20×37 칸</text>
+ <rect x="590" y="45" width="170" height="80" rx="10" fill="#fdf1e3" stroke="#e08a1e"/><text x="675" y="78" text-anchor="middle" font-weight="bold">물리 AI</text><text x="675" y="100" text-anchor="middle" font-size="12">형상 → 성능 예측</text>
+ <rect x="805" y="45" width="180" height="80" rx="10" fill="#eef2f7" stroke="#8aa0b8"/><text x="895" y="72" text-anchor="middle">무게 · 진동수 · 온도</text><text x="895" y="92" text-anchor="middle">터치 처짐 · 충격</text><text x="895" y="112" text-anchor="middle" font-size="12" fill="#555">+ 온도 · 응력 분포</text>
+ <path d="M145,85 L188,85" stroke="#555" stroke-width="2" marker-end="url(#a)"/><path d="M360,85 L403,85" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+ <path d="M545,85 L588,85" stroke="#555" stroke-width="2" marker-end="url(#a)"/><path d="M760,85 L803,85" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+ <path d="M895,128 C895,165 80,165 80,118" fill="none" stroke="#1a7f37" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+ <text x="490" y="160" text-anchor="middle" fill="#1a7f37" font-size="13">기준을 만족하며 가벼워지도록 z 를 고침 (미분으로 300회) → 후보를 FEM 으로 다시 계산</text>
+</svg>
+
+<h2>2. 형상 AI — DeepSDF 방식 오토디코더</h2>
+<svg viewBox="0 0 1000 190" xmlns="http://www.w3.org/2000/svg" font-family="Malgun Gothic, sans-serif" font-size="13">
+ <defs><marker id="b" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#555"/></marker></defs>
+ <rect x="10" y="20" width="120" height="44" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="70" y="47" text-anchor="middle">z (16)</text>
+ <rect x="10" y="100" width="120" height="44" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="70" y="120" text-anchor="middle">칸 좌표 (x,y,z)</text><text x="70" y="136" text-anchor="middle" font-size="11" fill="#555">+ sin/cos 4주파수 → 27</text>
+ <rect x="170" y="55" width="70" height="56" rx="8" fill="#fff" stroke="#999"/><text x="205" y="80" text-anchor="middle">이어붙임</text><text x="205" y="98" text-anchor="middle" font-size="11">43</text>
+ <g fill="#e7f0fd" stroke="#2f7de1"><rect x="275" y="45" width="56" height="76" rx="6"/><rect x="341" y="45" width="56" height="76" rx="6"/><rect x="407" y="45" width="56" height="76" rx="6"/><rect x="473" y="45" width="56" height="76" rx="6"/>
+ <rect x="600" y="45" width="56" height="76" rx="6"/><rect x="666" y="45" width="56" height="76" rx="6"/><rect x="732" y="45" width="56" height="76" rx="6"/></g>
+ <g text-anchor="middle" font-size="11"><text x="303" y="88">128</text><text x="369" y="88">128</text><text x="435" y="88">128</text><text x="501" y="88">128</text><text x="628" y="88">128</text><text x="694" y="88">128</text><text x="760" y="88">128</text></g>
+ <rect x="545" y="60" width="40" height="46" rx="6" fill="#fff" stroke="#999"/><text x="565" y="88" text-anchor="middle" font-size="11">+입력</text>
+ <rect x="830" y="55" width="150" height="56" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="905" y="80" text-anchor="middle">이 칸에 재료가</text><text x="905" y="98" text-anchor="middle">있을 확률</text>
+ <path d="M130,42 L168,72" stroke="#555" stroke-width="1.6" marker-end="url(#b)"/><path d="M130,122 L168,96" stroke="#555" stroke-width="1.6" marker-end="url(#b)"/><path d="M240,83 L273,83" stroke="#555" stroke-width="1.6" marker-end="url(#b)"/>
+ <path d="M529,83 L543,83" stroke="#555" stroke-width="1.6"/><path d="M585,83 L598,83" stroke="#555" stroke-width="1.6" marker-end="url(#b)"/><path d="M788,83 L828,83" stroke="#555" stroke-width="1.6" marker-end="url(#b)"/>
+ <path d="M205,111 C205,160 565,160 565,108" fill="none" stroke="#2f7de1" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#b)"/><text x="385" y="172" text-anchor="middle" font-size="11" fill="#2f7de1">건너뛰기 연결 (4층 뒤에 입력을 다시 붙임 — DeepSDF 원 구조)</text>
+ <text x="530" y="30" text-anchor="middle" font-size="12">완전연결 7층 + 출력 1층 = 8층, 활성 softplus(β=100)</text>
+</svg>
+<table>
+<tr><th style="width:24%">항목</th><th>값 (sdf.pt 에서 확인)</th></tr>
+<tr><td>방식</td><td>오토디코더(auto-decoder): 인코더 없이 <b>형상마다 잠재 벡터 z 를 하나씩 두고</b> 디코더와 함께 학습 [1]. 원 논문은 거리(SDF)를 배우지만 여기서는 2 mm 격자 점유(0/1)를 BCE 손실로 배움</td></tr>
+<tr><td>설정</td><td>잠재 차원 <code>ld=16</code>, 위치 부호화 주파수 <code>nf=4</code>, 은닉 폭 <code>hid=128</code> (코드 기본값 32 · 6 · 256 보다 작게)</td></tr>
+<tr><td>크기</td><td>파라미터 <b>110,337</b> (가중치 텐서 16개) · 파일 489 KB · 학습된 z 표 167 × 16</td></tr>
+<tr><td>출력 격자</td><td>88 × 20 × 37 칸 (2 mm, 좌우 대칭 절반) — 설계 영역 칸마다 확률을 냄</td></tr>
+<tr><td>성능</td><td>GUI 초기 설계를 다시 그린 겹침 비율 IoU <b>0.997</b> (models/README). 참고: 프레임 생성기 형상만으로 학습하면 최종 구조를 IoU 0.14 로밖에 못 그림 (deepsdf.py 주석) → 위상 최적화 기록을 학습에 넣은 이유</td></tr>
+</table>
+<h3>학습 형상 167개 — 무엇으로 배웠나</h3>
+<div class="bar"><span style="width:73.1%;background:#2f7de1">위상 최적화 기록 122</span><span style="width:24.5%;background:#7aa9e8">GUI 경로 41</span><span style="width:2.4%;background:#999">4</span></div>
+<small>위상 최적화 기록 122 = 진동수 · 조건이 다른 최적화 11가지(int35, int35f95, f95g, f95g2, f95n, f120w, f140w …)의 중간 형상 · GUI 경로 41 = 초기 설계 → 최종 설계 사이를 0.025 간격으로 이은 형상 · 4 = GUI 기본 · FormProof 템플릿 + 기준 최종 형상 2개. <b>프레임 생성기 형상은 들어있지 않음.</b></small>
+
+<h2>3. 물리 AI — 3D FNO (푸리에 신경 연산자)</h2>
+<svg viewBox="0 0 1000 200" xmlns="http://www.w3.org/2000/svg" font-family="Malgun Gothic, sans-serif" font-size="13">
+ <defs><marker id="c" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#555"/></marker></defs>
+ <rect x="10" y="60" width="130" height="64" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="75" y="86" text-anchor="middle">입력 4채널</text><text x="75" y="106" text-anchor="middle" font-size="11" fill="#555">형상 점유 + x · y · z</text>
+ <rect x="170" y="66" width="80" height="52" rx="8" fill="#fff" stroke="#999"/><text x="210" y="90" text-anchor="middle">올림</text><text x="210" y="107" text-anchor="middle" font-size="11">4→12</text>
+ <g fill="#fdf1e3" stroke="#e08a1e"><rect x="280" y="50" width="95" height="84" rx="8"/><rect x="390" y="50" width="95" height="84" rx="8"/><rect x="500" y="50" width="95" height="84" rx="8"/><rect x="610" y="50" width="95" height="84" rx="8"/></g>
+ <g text-anchor="middle" font-size="12"><text x="327" y="80">푸리에 층 1</text><text x="437" y="80">푸리에 층 2</text><text x="547" y="80">푸리에 층 3</text><text x="657" y="80">푸리에 층 4</text>
+ <g font-size="10" fill="#7a4a00"><text x="327" y="100">FFT → 낮은 주파수</text><text x="327" y="114">8×5×12 만 곱함</text><text x="437" y="100">+ 1×1 합성곱</text><text x="547" y="100">폭 12</text><text x="657" y="100">GELU</text></g></g>
+ <rect x="745" y="20" width="235" height="62" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="862" y="45" text-anchor="middle">분포 2개 (칸마다)</text><text x="862" y="65" text-anchor="middle" font-size="11" fill="#555">폰 · 판 온도, 충격 응력 (12→64→2)</text>
+ <rect x="745" y="106" width="235" height="72" rx="8" fill="#eef2f7" stroke="#8aa0b8"/><text x="862" y="128" text-anchor="middle">성능 숫자 7개</text><text x="862" y="146" text-anchor="middle" font-size="11" fill="#555">평균+최대 풀링 24 → 128 → 7</text><text x="862" y="163" text-anchor="middle" font-size="11" fill="#555">무게 · f1 · f2 · 폰온도 · 터치 위/아래 · 충격</text>
+ <path d="M140,92 L168,92" stroke="#555" stroke-width="1.6" marker-end="url(#c)"/><path d="M250,92 L278,92" stroke="#555" stroke-width="1.6" marker-end="url(#c)"/>
+ <path d="M375,92 L388,92" stroke="#555" stroke-width="1.6"/><path d="M485,92 L498,92" stroke="#555" stroke-width="1.6"/><path d="M595,92 L608,92" stroke="#555" stroke-width="1.6"/>
+ <path d="M705,80 L743,55" stroke="#555" stroke-width="1.6" marker-end="url(#c)"/><path d="M705,104 L743,138" stroke="#555" stroke-width="1.6" marker-end="url(#c)"/>
+</svg>
+<table>
+<tr><th style="width:24%">항목</th><th>값 (fno.pt 에서 확인)</th></tr>
+<tr><td>방식</td><td>푸리에 신경 연산자(FNO) [2]: 3D 격자 전체를 FFT 로 바꿔 낮은 주파수 성분에만 학습 가중치를 곱하고 되돌림 → 형상 전체의 영향(진동 · 열 전달)을 한 번에 봄. 같은 폴더에 비교용 3D CNN 기준선도 있음(surrogate.py)</td></tr>
+<tr><td>설정</td><td>폭 <code>width=12</code>, 푸리에 층 4개, 남기는 주파수 <code>modes=8×5×12</code>, 출력 숫자 7 + 분포 2</td></tr>
+<tr><td>크기</td><td>가중치 원소 <b>1,111,669</b> (텐서 34개). 그중 푸리에 가중치 1,105,920 개는 <b>복소수</b> → 실수로 세면 약 <b>222만</b> · 파일 8.9 MB</td></tr>
+<tr><td>학습</td><td>2,000회 · CPU 약 66분 (3,967 s) · 마지막 손실 0.178 · 능동 학습 미세조정 2회 (<code>finetune=2</code>)</td></tr>
+<tr><td>데이터</td><td>FEM 정답이 붙은 형상 <b>438개 = 학습 389 + 시험 49</b>. 정답 1개 = 팀 엔진 FEM 한 번(형상당 약 20 초대, CPU)</td></tr>
+</table>
+<h3>시험 형상 49개에서 예측 오차 (상대 오차, fno.pt 의 final 기록)</h3>
+<table>
+<tr><th>예측값</th><th>오차</th><th>판정</th></tr>
+<tr><td>폰 온도 상승</td><td>1.3 %</td><td class="ok">정확</td></tr>
+<tr><td>온도 분포 (칸마다)</td><td>6.6 %</td><td class="ok">정확</td></tr>
+<tr><td>2차 진동수 f2</td><td>15.6 %</td><td class="warn">대략</td></tr>
+<tr><td>1차 진동수 f1</td><td>22.7 %</td><td class="warn">대략</td></tr>
+<tr><td>응력 분포 (칸마다)</td><td>28.6 %</td><td class="warn">대략</td></tr>
+<tr><td>충격 응력</td><td>37.9 %</td><td class="bad">거침</td></tr>
+<tr><td>터치 처짐 (위 / 아래)</td><td>128 % / 140 %</td><td class="bad">믿기 어려움</td></tr>
+</table>
+<div class="box"><b>그래서</b> GUI 는 AI 결과를 그대로 믿지 않는다: ① AI 탐색으로 후보를 만들고 → 후보 31개를 FEM 으로 다시 계산해 고르고 → ② 정밀 최적화(FEM) → ③ 검증 관문(FEM)에서 최종 판정. 물리 AI 는 '빠른 방향 찾기'용이고, 합격 여부는 언제나 FEM 이 정한다.</div>
+
+<h2>4. 학습 데이터 — 지금 저장소에 있는 것 (13_AI학습_일체형/data/shards)</h2>
+<table>
+<tr><th>묶음</th><th>형상 수</th><th>무엇</th><th>배포된 물리 AI 에?</th></tr>
+<tr><td>snap_half</td><td>122</td><td>위상 최적화 중간 형상</td><td rowspan="3">들어감 (11-17)</td></tr>
+<tr><td>gen_s1001 · s1002</td><td>160</td><td>프레임 생성기 형상</td></tr>
+<tr><td>path</td><td>45</td><td>GUI 초기 → 최종 경로 형상</td></tr>
+<tr><td>al_r1 ~ r5</td><td>31 × 5 = 155</td><td>능동 학습: AI 가 고른 탐색 형상을 FEM 으로 정답 달기 (r4 · r5 는 3D 출력 45° 필터 적용)</td><td>r1 ~ r2(일부 r3)까지로 추정 *</td></tr>
+<tr><td>print_c00 ~ c07</td><td>310</td><td>출력 조건(45° 돌출) 학습 데이터 (11-18)</td><td class="warn">아직 안 들어감</td></tr>
+<tr><th>합계</th><th>792</th><th colspan="2">배포된 모델은 이 중 438개로 학습 · 시험</th></tr>
+</table>
+<small>* 체크포인트에는 '학습 389 · 시험 49 · 미세조정 2회' 만 적혀 있고 묶음별 구성은 기록되어 있지 않다. 위 표의 묶음 크기 합(122+160+45+93 = 420)이 438 과 정확히 맞지 않아, 정확한 구성은 공동작업자 확인이 필요하다.
+GUI 의 results_fp11.zip 은 11-17 22:11 이후 바뀌지 않았다 → 11-18 의 출력 조건 데이터(print_c*) · 능동 학습 4 · 5회차는 배포 모델에 반영 전.</small>
+
+<h2>5. 규모 감각 — 왜 '작다'고 하나</h2>
+<table>
+<tr><th></th><th>지금 (배포)</th><th>sosopapa 서버 계획 (11_구현패키지 handoff — 결과는 저장소에 아직 없음)</th></tr>
+<tr><td>형상 AI 학습 형상</td><td>167</td><td>프레임 생성기 5,000 + 위상 최적화 기록 245</td></tr>
+<tr><td>물리 AI FEM 정답</td><td>438</td><td>구조 + 열 5,000 (+ 열 전용 20,000)</td></tr>
+<tr><td>학습 장비</td><td>CPU 2코어</td><td>GPU 8장 서버</td></tr>
+</table>
+<p><small>같은 구조의 코드(deepsdf.py · surrogate.py)는 11_구현패키지 에도 있다(surrogate.py · data.py 는 똑같고, deepsdf.py 3줄 · latent_search.py 는 출력 조건 벌점 등으로 다름). 데이터를 늘리면 물리 AI 오차(특히 터치 · 충격)가 줄어들 것으로 기대하지만, 아직 확인된 값은 아니다.</small></p>
+
+<h2>참고 자료</h2>
+<ol style="font-size:14px">
+<li>J. J. Park et al., "DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation", CVPR 2019. <a href="https://arxiv.org/abs/1901.05103">arXiv:1901.05103</a></li>
+<li>Z. Li et al., "Fourier Neural Operator for Parametric Partial Differential Equations", ICLR 2021. <a href="https://arxiv.org/abs/2010.08895">arXiv:2010.08895</a></li>
+<li>저장소: <code>10_입력_1차설계/models/README.md</code>, <code>13_AI학습_일체형/ai/deepsdf.py · surrogate.py</code>, 체크포인트 <code>results_fp11.zip</code> (runs/sdf.pt · runs/fno.pt)</li>
+</ol>
+</body></html>
