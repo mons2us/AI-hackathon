@@ -29,3 +29,4 @@
 - `pages/arch_review_v1.html`: 물리 AI 아키텍처 지도 (신경 연산자 · 트랜스포머 · 그래프 · 물리 정보 계열, NVIDIA PhysicsNeMo 모델 · 예제)
 - `pages/arch_review_v2.html`: 아키텍처 지도 v2 — 8단계 프레임워크별 적용 자리(클릭) · 단계×방법 표 · 아키텍처 14개 구조 그림
 - `pages/arch_review_v3.html`: 아키텍처 지도 v3 — 우리 형상을 각 구조가 보는 방식(복셀 · 푸리에 모드 · 표면 점 · 그래프 전달 범위 등)과 정밀 시뮬레이션 · AI 분포 · 능동학습 그림 추가 (`viz_arch.py`)
+- `pages/cad_cae_ai_framework_v1.html`: CAD·CAE 와 물리 AI 통합 프레임워크 v1 — 기존 흐름 비교, BLU(CAD에서 해석까지 v12 · 3단계)와 FormProof 를 같은 계층(A~E + 신뢰도 · 재학습)으로
