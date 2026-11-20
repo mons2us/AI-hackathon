@@ -1,0 +1,136 @@
+<title>물리 AI 아키텍처 지도</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F6F7F9;--fg:#18202B;--mut:#5E6B7A;--line:#D9DEE5;--card:#FFFFFF;--acc:#1D7F69;--ng:#C8453B;--warn:#B7791F;--chip:#E9EEF3;--nv:#5B8C00;
+--sans:'Noto Sans KR',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--acc:#4CC3A3;--ng:#F07A6E;--warn:#E0B054;--chip:#222C38;--nv:#9BCB3C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--acc:#4CC3A3;--ng:#F07A6E;--warn:#E0B054;--chip:#222C38;--nv:#9BCB3C;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.65;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+main{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:30px}
+h1{font-size:26px;margin:0;text-wrap:balance} h2{font-size:18px;margin:0 0 10px} h3{font-size:15px;margin:0 0 6px}
+p{margin:0;max-width:76ch} .mut{color:var(--mut);font-size:.88em} ul{margin:0;padding-left:20px} li{margin-bottom:5px}
+.key{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:8px;padding:14px 16px}
+.fix{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:12px 16px}
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} thead th{font-size:12px;color:var(--mut);font-weight:500;white-space:nowrap}
+td:first-child{font-weight:500;white-space:nowrap} tr.fam td{background:var(--chip);font-weight:700;font-size:12.5px;color:var(--mut)}
+.nv{color:var(--nv);font-weight:700} .y{color:var(--acc);font-weight:500} .n{color:var(--ng);font-weight:500} .p{color:var(--warn);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.tag{font-family:var(--mono);font-size:11px;color:var(--mut)}
+.mapw{overflow-x:auto} svg text{font-family:var(--sans)}
+a{color:var(--acc)} .src li{font-size:13px}
+</style>
+<main>
+<header><h1>물리 AI 아키텍처 지도</h1>
+<p class="mut">신경 연산자 · 트랜스포머 · 그래프 · 물리 정보(Physics-informed) 계열과 NVIDIA PhysicsNeMo 정리 · v1 · 2026-11-20 · 논문 초록 · 본문 · NVIDIA 공식 문서에서 확인한 내용만 적음</p></header>
+
+<section class="fix"><h2>이전 조사 범위</h2><p>문헌 조사 v1 은 "탐색이 AI 오차로 빠지는 문제를 어떻게 막나"(루프 구조)에 맞춰 찾아서, 아키텍처 자체(PINO · 물리 정보 GINO 계열 · PhysicsNeMo 모델들)는 거의 다루지 않았음. 이 페이지가 그 부분을 보완함.</p></section>
+
+<section class="key"><h2>요약</h2><ul>
+<li><b>아키텍처는 크게 6계열:</b> 신경 연산자(FNO · GINO · DeepONet · DoMINO), 트랜스포머(Transolver · GeoTransolver · UPT), 그래프(MeshGraphNet), 합성곱(3D U-Net · FigConvUNet), 생성 모델(확산), 물리 정보 모델(PINN · PINO · PI-DeepONet · PI-GANO).</li>
+<li><b>"물리 정보"는 별도 구조라기보다 학습 방식:</b> 어떤 구조든 출력 분포에 지배 방정식 잔차를 손실로 더하면 됨(PhysicsNeMo 의 PhysicsInformer 가 FNO · DeepONet · CNN · GNN · 확산 모델 지원).</li>
+<li><b>GINO 원 논문은 물리 손실 없이 데이터로만 학습</b>했고, 물리 정보 방식은 향후 과제로 남김. 형상이 바뀌는 문제에 물리 손실을 쓴 연산자는 PI-GANO(2D, 데이터 없이 학습) 등이 있음. 3D 구조 문제에 GINO + 물리 손실을 쓴 사례는 이번에 찾지 못함 (확인 필요).</li>
+<li><b>GINO · Transolver · GeoTransolver 논문은 예측 정확도까지만 보였고 설계 최적화 루프는 돌리지 않음</b> (GINO · GeoTransolver 는 "향후 과제"로 명시). 최적화까지 한 사례는 따로 봐야 함.</li>
+<li><b>우리 문제의 걸림돌:</b> 지금 FNO 는 진동수를 숫자 하나로 바로 출력해서 물리 손실을 걸 분포가 없음. 물리 정보 방식을 쓰려면 변위 · 모드 형상 같은 분포를 출력하도록 바꿔야 함.</li>
+</ul></section>
+
+<section><h2>계열 한눈에</h2>
+<div class="mapw"><svg viewBox="0 0 1000 300" width="100%" style="min-width:720px;max-width:1000px" role="img" aria-label="입력 형태에 따른 아키텍처 계열 지도">
+<g font-size="13" fill="currentColor">
+<text x="10" y="22" font-weight="700">입력 형태 →</text>
+<text x="190" y="22" fill="var(--mut)">규칙 격자 (복셀 · 이미지)</text><text x="450" y="22" fill="var(--mut)">점 구름 · 표면</text><text x="720" y="22" fill="var(--mut)">메시 · 그래프</text>
+<text x="10" y="70" font-weight="700">데이터로 학습</text>
+<text x="10" y="200" font-weight="700">물리 손실 추가</text>
+</g>
+<g font-size="12.5">
+<rect x="180" y="45" width="230" height="110" rx="8" fill="var(--chip)"/>
+<text x="192" y="68" fill="currentColor">FNO · AFNO · Nested FNO</text><text x="192" y="90" fill="currentColor">3D U-Net</text><text x="192" y="112" fill="currentColor">DeepONet (FNO 가지)</text><text x="192" y="134" fill="var(--acc)" font-weight="700">← 우리 FNO</text>
+<rect x="440" y="45" width="250" height="110" rx="8" fill="var(--chip)"/>
+<text x="452" y="68" fill="currentColor">GINO (점 → 잠재 격자 → 점)</text><text x="452" y="90" fill="currentColor">DoMINO · FigConvUNet</text><text x="452" y="112" fill="currentColor">Transolver · GeoTransolver · UPT</text><text x="452" y="134" fill="var(--acc)" font-weight="700">← 우리 GINO</text>
+<rect x="710" y="45" width="270" height="110" rx="8" fill="var(--chip)"/>
+<text x="722" y="68" fill="currentColor">MeshGraphNet · X-MeshGraphNet</text><text x="722" y="90" fill="currentColor">Hybrid MeshGraphNet</text><text x="722" y="112" fill="currentColor">Transolver (메시 점도 가능)</text>
+<rect x="180" y="175" width="230" height="100" rx="8" fill="none" stroke="var(--warn)" stroke-width="1.5"/>
+<text x="192" y="198" fill="currentColor">PINO (FNO + 방정식 잔차)</text><text x="192" y="220" fill="currentColor">PI-DeepONet</text><text x="192" y="242" fill="currentColor">유한차분 · 스펙트럼 미분</text>
+<rect x="440" y="175" width="250" height="100" rx="8" fill="none" stroke="var(--warn)" stroke-width="1.5"/>
+<text x="452" y="198" fill="currentColor">PI-GANO (형상 인코딩 + 잔차)</text><text x="452" y="220" fill="currentColor">PINN (점별 자동미분)</text><text x="452" y="242" fill="currentColor">무격자 유한차분</text>
+<rect x="710" y="175" width="270" height="100" rx="8" fill="none" stroke="var(--warn)" stroke-width="1.5"/>
+<text x="722" y="198" fill="currentColor">MGN 학습 → PINN 미세조정</text><text x="722" y="220" fill="currentColor">(PhysicsNeMo Stokes 예제)</text><text x="722" y="242" fill="currentColor">최소제곱 미분 (비정렬 메시)</text>
+</g></svg></div>
+<p class="mut">생성 모델(확산 · TopoDiff)은 예측기가 아니라 형상을 만드는 쪽이라 지도에서 뺌 — 우리 구조로 치면 DeepSDF 자리.</p></section>
+
+<section><h2>아키텍처별 정리</h2>
+<div class="tw"><table><thead><tr><th>모델</th><th>핵심 아이디어</th><th>형상 처리</th><th>물리 손실</th><th>Physics<br>NeMo</th><th>확인한 성능 · 비고</th></tr></thead><tbody>
+<tr class="fam"><td colspan="6">신경 연산자</td></tr>
+<tr><td>FNO</td><td>푸리에 공간에서 전역 합성곱 → 함수 공간 사이 사상</td><td>규칙 격자 (복셀은 점유 0/1 채널)</td><td>PINO 로 확장</td><td class="nv">✓</td><td>우리: 진동수 50~200 Hz MAPE 17.5%, 예측 0.05초</td></tr>
+<tr><td>GINO</td><td>그래프 연산자로 점 구름 → 잠재 격자, 격자에서 FNO, 다시 임의 점으로</td><td>점 구름 + SDF</td><td class="n">원 논문 없음 (향후 과제)</td><td class="mut">neuraloperator 라이브러리</td><td>자동차 압력 오차 7.1~8.3% (UNet · FNO 대비 개선). 우리: MAPE 10.9%, 예측 2.4초</td></tr>
+<tr><td>DeepONet</td><td>가지망(입력 함수) × 줄기망(위치) 내적</td><td>가지망 입력에 따라</td><td>PI-DeepONet</td><td class="nv">✓</td><td>PhysicsNeMo Darcy 예제: 가지망 = FNO</td></tr>
+<tr><td>DoMINO</td><td>다중 스케일 반복 연산자, 점 구름에서 표면 · 부피 분포</td><td>STL · 점 구름</td><td class="n">—</td><td class="nv">✓</td><td>자동차 공력용 사전학습 모델(NIM) 제공. 설계 민감도 워크플로 있음 (아래)</td></tr>
+<tr class="fam"><td colspan="6">트랜스포머</td></tr>
+<tr><td>Transolver</td><td>물리 상태가 비슷한 점끼리 "조각(slice)"으로 묶고 조각 사이에 주의(attention) → 선형 복잡도</td><td>임의 메시 · 점</td><td class="n">—</td><td class="nv">✓</td><td>표준 벤치마크 6개에서 평균 22% 개선 (ICML 2024)</td></tr>
+<tr><td>GeoTransolver</td><td>Transolver + 형상 · 경계조건 공유 문맥과의 교차 주의 + 다중 반경 이웃 특징</td><td>임의 메시 · 점</td><td class="n">—</td><td class="nv">✓</td><td>SHIFT-SUV 항력 R² 0.98 (Transolver 0.95, DoMINO 0.67). 최적화는 향후 과제</td></tr>
+<tr><td>UPT / AB-UPT</td><td>격자 · 입자 상관없이 잠재 표현으로 압축해 확장</td><td>임의</td><td class="n">—</td><td class="mut">—</td><td>NeurIPS 2024. GeoTransolver 비교에서 날개 압력 일부 지표 최고</td></tr>
+<tr class="fam"><td colspan="6">그래프 · 합성곱</td></tr>
+<tr><td>MeshGraphNet</td><td>메시 노드 · 간선 메시지 전달</td><td>메시</td><td class="p">PINN 미세조정 예제</td><td class="nv">✓</td><td>구조: 변형 판 · 충돌 예제. X-MGN 은 큰 메시 분할</td></tr>
+<tr><td>3D U-Net</td><td>복셀 인코더-디코더</td><td>복셀</td><td class="n">—</td><td class="nv">✓</td><td>미분 가능 형상 최적화 파이프라인(Tesseract)에서 사용, 최종 CFD 검증 없음</td></tr>
+<tr><td>FigConvUNet</td><td>점 구름을 여러 평면 격자로 투영해 합성곱</td><td>점 구름</td><td class="n">—</td><td class="nv">✓</td><td>자동차 공력 예제</td></tr>
+<tr class="fam"><td colspan="6">물리 정보 (학습 방식)</td></tr>
+<tr><td>PINN</td><td>신경망 = 해, 방정식 잔차 최소화</td><td>좌표 입력 (형상 변수 추가 가능)</td><td class="y">핵심</td><td class="nv">✓ sym</td><td>방열판 매개변수 PINN: 최고 온도 77.41 °C vs OpenFOAM 72.68 °C (아래)</td></tr>
+<tr><td>PINO</td><td>FNO 에 데이터 손실(저해상도) + 방정식 손실(고해상도)</td><td>격자</td><td class="y">핵심</td><td class="nv">✓</td><td>데이터 없이 방정식만으로도 학습 가능, 해상도 올려도 정확도 유지 (논문)</td></tr>
+<tr><td>PI-GANO</td><td>형상 점들을 평균 풀링한 형상 특징 + DCON(DeepONet 계열) + 방정식 손실</td><td>경계 점 샘플</td><td class="y">핵심 (데이터 없이)</td><td class="mut">—</td><td>형상 · 매개변수가 동시에 바뀌는 문제를 데이터 없이 푼 첫 연산자라고 주장. Darcy · 2D 판</td></tr>
+<tr><td>레일리 몫 고유치망</td><td>고유모드 = 신경망, 레일리 몫 최소화 + 직교화</td><td>좌표 (+ 형상 변수)</td><td class="y">데이터 없이</td><td class="mut">—</td><td>2D 다재료 구조 1차 진동수 FEM 대비 1.4% 오차. 고차 모드일수록 나빠짐</td></tr>
+</tbody></table></div></section>
+
+<section><h2>물리 정보(Physics-informed) 를 붙이는 3가지 방식</h2>
+<div class="grid">
+<div class="card"><span class="tag">PINO · PhysicsNeMo Darcy</span><h3>① 데이터 + 방정식 함께 학습</h3><p>데이터 손실에 방정식 잔차 손실을 가중치로 더함. 데이터가 적은 영역에서 방정식이 해를 붙잡아 줌.</p></div>
+<div class="card"><span class="tag">PhysicsNeMo Stokes 예제</span><h3>② 데이터 학습 후 물리 미세조정</h3><p>MeshGraphNet 을 데이터로 학습 → 그 예측에 맞추는 손실 + 방정식 · 경계조건 손실로 PINN 미세조정. 예제 문서는 개선 수치를 제시하지 않음.</p></div>
+<div class="card"><span class="tag">PI-GANO · 레일리 몫</span><h3>③ 데이터 없이 방정식만</h3><p>정밀 계산 데이터 없이 학습. 대신 매 학습 단계가 방정식 잔차 계산이라 비싸고, 문제가 복잡하면 수렴이 어려움 (PINO 논문이 지적).</p></div>
+</div>
+<p class="mut" style="margin-top:10px">PhysicsNeMo 의 잔차 계산 방식: 자동미분(정확 · 비쌈, ReLU 부적합) · 무격자 유한차분(점 구름) · 유한차분(규칙 격자) · 스펙트럼(주기 영역) · 최소제곱(비정렬 메시). 우리 복셀 격자는 유한차분이 맞는 경우.</p></section>
+
+<section><h2>NVIDIA PhysicsNeMo 에서 우리와 관련된 것</h2>
+<div class="tw"><table><thead><tr><th>항목</th><th>내용</th><th>우리와의 관계</th></tr></thead><tbody>
+<tr><td>능동학습 예제 (공력)</td><td>GeoTransolver + 변분 가우시안 과정 머리로 불확실성 → 불확실성 · 균형 무작위 · 잠재 새로움 중 골라 다음 계산 대상 선택. 데이터 SHIFT-SUV</td><td>문헌 조사의 "불확실성 + 능동학습"을 NVIDIA 가 예제로 제공. 결과 수치는 전체 README 에 있다고만 되어 있어 확인 필요</td></tr>
+<tr><td>DoMINO 설계 민감도</td><td>학습된 DoMINO 를 자동미분해 표면 점별 항력 기울기 계산, 유한차분으로 검증하는 노트북 포함</td><td>주의사항이 우리에게도 해당: <b>작고 매끄러운 변형에서만 기울기 신뢰</b>, 대리모델은 매끄러운 활성화(SiLU · GELU) 권장, ReLU · max pooling · top-k 피하기</td></tr>
+<tr><td>TopoDiff (MIT 기여)</td><td>확산 모델 + 컴플라이언스 회귀기 + 떠 있는 재료 분류기로 2D 위상 최적화</td><td>끊긴 형상 억제 방법 그대로 참고 가능</td></tr>
+<tr><td>방열판 매개변수 PINN (구 Modulus Sym)</td><td>핀 치수 6개를 입력으로 넣은 PINN 하나로 설계 공간 전체 학습 → 압력강하 ≤ 2.5 조건에서 최저 온도 선택. 단일 형상 OpenFOAM 대비 압력강하 2.016 vs 2.195, 최고 온도 77.41 vs 72.68 °C</td><td>매개변수가 적을 때(6개) 물리 정보 모델로 최적화한 공식 사례. 형상 자유도가 큰 우리(DeepSDF 16개 · 복셀)와는 규모 차이</td></tr>
+<tr><td>구조 예제</td><td>변형 판(MeshGraphNet), 자동차 충돌(GeoTransolver · Transolver · MGN · FigConvUNet)</td><td>정적 처짐 · 진동수 예제는 찾지 못함</td></tr>
+<tr><td>역설계 · 최적화 예제</td><td>예제 목록(README)에 해당 분류 없음</td><td>최적화 루프는 사용자가 구성해야 함. NVIDIA 블로그도 "대리모델로 후보 탐색 → 정밀 해석기로 검증" 권장</td></tr>
+</tbody></table></div></section>
+
+<section><h2>우리 문제에 대입</h2>
+<div class="tw"><table><thead><tr><th>우리 물리 량</th><th>지배 방정식</th><th>지금 출력</th><th>물리 손실을 쓰려면</th></tr></thead><tbody>
+<tr><td>폰 온도</td><td>정상 열전도</td><td class="y">온도 분포 있음</td><td>복셀 유한차분으로 열전도 잔차 계산 가능 → 가장 먼저 시험해볼 수 있는 곳 (온도는 이미 R² 0.98~0.995 로 잘 맞음)</td></tr>
+<tr><td>휨 (터치 처짐)</td><td>선형 탄성 정적</td><td class="p">숫자만</td><td>변위 분포 출력 추가 → 강성 행렬 잔차 또는 에너지 최소화</td></tr>
+<tr><td>1차 진동수 <b>(탐색이 속는 곳)</b></td><td>일반 고유치 문제</td><td class="n">숫자만</td><td>모드 형상 출력 추가 → 실제 강성 · 질량으로 잔차 ‖Kφ − λMφ‖ 를 불확실성 지표로. 레일리 몫은 실제 값보다 <b>항상 크거나 같아서</b> 과대평가를 막아주지는 않음 — 확인 필요</td></tr>
+<tr><td>충격 응력</td><td>동적 응답</td><td class="p">응력 분포 있음</td><td>동적 문제라 잔차 계산 비용 큼</td></tr>
+</tbody></table></div></section>
+
+<section><h2>다음 실험 후보 (갱신)</h2><ul>
+<li><b>1 · 앙상블 불확실성 벌점</b> (그대로 1순위): FNO 5개 진동수 예측 차이를 목적식 벌점에. 구조 변경 없음, 하루 안 확인 가능.</li>
+<li><b>2 · 아키텍처 비교에 Transolver 추가</b>: PhysicsNeMo 에 구현 있음. 우리 GINO 구현과 같은 표면 점 입력으로 비교 가능. 탐색 결과가 달라질지는 확인 필요 (지금까지 구조 교체로는 개선 없었음).</li>
+<li><b>3 · 물리 정보 시험 (온도부터)</b>: 온도 분포에 열전도 잔차 손실 추가 → 학습 데이터 밖 형상에서 오차가 줄어드는지 확인. 효과 있으면 변위 · 모드 형상 출력으로 확장.</li>
+<li><b>4 · 매끄러운 활성화 확인</b>: DoMINO 주의사항대로 우리 FNO · GINO 의 활성화가 기울기 탐색에 적합한지 점검 (구현 확인 필요).</li>
+</ul></section>
+
+<section><h2>출처</h2><ul class="src">
+<li><a href="https://docs.nvidia.com/physicsnemo/latest/user-guide/model_architectures.html">NVIDIA PhysicsNeMo — Model Architectures</a></li>
+<li><a href="https://github.com/NVIDIA/physicsnemo/blob/main/examples/README.md">NVIDIA PhysicsNeMo — Examples README</a></li>
+<li><a href="https://docs.nvidia.com/physicsnemo/25.08/user-guide/physics_addition.html">NVIDIA PhysicsNeMo — Physics addition (PhysicsInformer)</a></li>
+<li><a href="https://docs.nvidia.com/physicsnemo/latest/physicsnemo/examples/active_learning/active_learning_aero/README.html">NVIDIA PhysicsNeMo — Active Learning for Surface-CFD Aerodynamic Surrogates</a></li>
+<li><a href="https://github.com/NVIDIA/physicsnemo-cfd/blob/main/workflows/domino_design_sensitivities/README.md">NVIDIA physicsnemo-cfd — DoMINO design sensitivities</a></li>
+<li><a href="https://docs.nvidia.com/physicsnemo/26.05/physicsnemo/examples/generative/topodiff/README.html">NVIDIA PhysicsNeMo — TopoDiff</a></li>
+<li><a href="https://docs.nvidia.com/physicsnemo/26.05/physicsnemo/examples/cfd/stokes_mgn/README.html">NVIDIA PhysicsNeMo — Stokes flow (MGN + physics-informed fine-tuning)</a></li>
+<li><a href="https://docs.nvidia.com/deeplearning/modulus/modulus-sym/user_guide/advanced/parametrized_simulations.html">NVIDIA Modulus Sym — Parameterized 3D Heat Sink</a></li>
+<li><a href="https://arxiv.org/abs/2111.03794">Li et al., Physics-Informed Neural Operator for Learning PDEs</a></li>
+<li><a href="https://ar5iv.labs.arxiv.org/html/2309.00583">Li et al., Geometry-Informed Neural Operator for Large-Scale 3D PDEs (NeurIPS 2023)</a></li>
+<li><a href="https://arxiv.org/html/2408.01600v3">Zhong &amp; Meidani, Physics-Informed Geometry-Aware Neural Operator</a></li>
+<li><a href="https://arxiv.org/abs/2402.02366">Wu et al., Transolver (ICML 2024)</a></li>
+<li><a href="https://arxiv.org/html/2512.20399v1">GeoTransolver</a></li>
+<li><a href="https://arxiv.org/abs/2402.12365">Universal Physics Transformers (NeurIPS 2024)</a></li>
+<li><a href="https://arxiv.org/html/2506.04375v1">Solving engineering eigenvalue problems with neural networks using the Rayleigh quotient</a></li>
+<li><a href="https://arxiv.org/html/2511.10761">Surrogate-Based Differentiable Pipeline for Shape Optimization (3D U-Net, PhysicsNeMo 기반)</a></li>
+</ul></section>
+</main>
