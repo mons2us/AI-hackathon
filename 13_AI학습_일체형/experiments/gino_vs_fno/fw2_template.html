@@ -1,0 +1,248 @@
+<title>CAD·CAE 물리 AI 통합 프레임워크</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F5F6F8;--fg:#18202B;--mut:#5E6B7A;--line:#D9DEE5;--card:#FFFFFF;--soft:#EDF1F5;
+--old:#8A94A3;--oldbg:#F0F2F5;--hum:#C8453B;--humbg:#FBE9E7;--ai:#1D7F69;--aibg:#E3F3EE;--opt:#1E5FA8;--optbg:#E4EEF9;--str:#B7791F;--strbg:#FBF1DE;--lat:#6A60C9;--latbg:#ECEAFB;
+--sans:'Noto Sans KR',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--soft:#222C38;--old:#8D98A8;--oldbg:#1E252F;--hum:#F07A6E;--humbg:#3F2120;--ai:#4CC3A3;--aibg:#173A31;--opt:#7EB3EE;--optbg:#1A2C42;--str:#E0B054;--strbg:#3A2E16;--lat:#A39BF0;--latbg:#2B2850;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--soft:#222C38;--old:#8D98A8;--oldbg:#1E252F;--hum:#F07A6E;--humbg:#3F2120;--ai:#4CC3A3;--aibg:#173A31;--opt:#7EB3EE;--optbg:#1A2C42;--str:#E0B054;--strbg:#3A2E16;--lat:#A39BF0;--latbg:#2B2850;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+main{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:34px}
+h1{font-size:27px;margin:0;text-wrap:balance} h2{font-size:19px;margin:0 0 4px;text-wrap:balance} h3{font-size:15px;margin:0 0 4px}
+.lead{color:var(--mut);font-size:14px;margin:0 0 12px;max-width:80ch} p{margin:0;max-width:80ch} .mut{color:var(--mut);font-size:.88em}
+ul{margin:0;padding-left:18px} li{margin-bottom:4px}
+.key{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ai);border-radius:8px;padding:14px 18px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.sv{overflow-x:auto} .sv svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--sans);fill:var(--fg)}
+.t-m{fill:var(--mut)} .t-h{fill:var(--hum)} .t-a{fill:var(--ai)} .t-o{fill:var(--opt)} .t-s{fill:var(--str)} .t-l{fill:var(--lat)}
+.r-old{fill:var(--oldbg);stroke:var(--old)} .r-hum{fill:var(--humbg);stroke:var(--hum)} .r-ai{fill:var(--aibg);stroke:var(--ai)} .r-opt{fill:var(--optbg);stroke:var(--opt)} .r-str{fill:var(--strbg);stroke:var(--str)} .r-lat{fill:var(--latbg);stroke:var(--lat)} .r-soft{fill:var(--soft);stroke:var(--line)} .r-card{fill:var(--card);stroke:var(--line)}
+.ln{stroke:var(--mut);stroke-width:1.5;fill:none} .ln-h{stroke:var(--hum);stroke-width:1.6;fill:none;stroke-dasharray:5 4} .ln-a{stroke:var(--ai);stroke-width:1.6;fill:none} .ln-s{stroke:var(--str);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top} thead th{font-size:12px;color:var(--mut);font-weight:500;white-space:nowrap}
+td:first-child{font-weight:500;white-space:nowrap}
+.chip{display:inline-block;font-size:11px;border-radius:4px;padding:0 6px;margin:1px 2px 1px 0;font-weight:500;white-space:nowrap}
+.c-ok{background:var(--aibg);color:var(--ai)} .c-part{background:var(--strbg);color:var(--str)} .c-plan{background:var(--optbg);color:var(--opt)} .c-no{background:var(--humbg);color:var(--hum)} .c-old{background:var(--oldbg);color:var(--old);outline:1px solid var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px} .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.card .k{font-family:var(--mono);font-size:11px;color:var(--mut)}
+figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;min-width:0} figure img{display:block;width:100%;height:auto;cursor:zoom-in} figcaption{font-size:12px;color:#5E6B7A;margin-top:6px}
+.lb{position:fixed;inset:0;background:rgba(10,14,20,.86);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;cursor:zoom-out} .lb[hidden]{display:none} .lb img{max-width:100%;max-height:100%;background:#fff;border-radius:8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px} .tabs button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:20px;padding:5px 14px;cursor:pointer} .tabs button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.lesson{display:grid;grid-template-columns:1fr 24px 1fr;gap:8px;align-items:stretch;margin-bottom:8px} .lesson .arrow{display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.lesson .a{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--str);border-radius:8px;padding:9px 12px;font-size:13px;min-width:0} .lesson .b{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--opt);border-radius:8px;padding:9px 12px;font-size:13px;min-width:0}
+.lesson b.h{display:block;font-size:11px;color:var(--mut);font-weight:500;margin-bottom:2px}
+a{color:var(--ai)} .src li{font-size:12.5px}
+@media (max-width:760px){.grid2,.grid3{grid-template-columns:1fr}.lesson{grid-template-columns:1fr}.lesson .arrow{transform:rotate(90deg);height:18px}}
+</style>
+<main>
+<div class="lb" id="lb" hidden><img alt="확대 그림"></div>
+<header><h1>CAD·CAE 와 물리 AI 통합 프레임워크 v2 — 모든 제품에 같은 틀</h1>
+<p class="mut">"CAD에서 해석까지 v12"(LCD BLU) · "BLU 3단계 프레임워크"(다층 박막 대화) · FormProof 형상 실험을 하나로 · v2 · 2026-11-20 · v1 은 별도 링크로 유지 · 형상 실험 수치는 저장소 기록, BLU 수치는 v12 문서 기준</p></header>
+
+<section class="key"><h2>결론</h2><ul>
+<li><b>목표는 광학 하나가 아니라 모든 제품 · 모든 물리에 같은 방법론을 넣는 것.</b> 그래서 프레임워크를 "공통 뼈대 + 제품별 교체 부품"으로 나눔 — 형상 변환 · 역설계 · 신뢰도 · 판정 루프 · CAD 재출력은 공통, 솔버 · 물리 AI(지배 방정식) · 제조 제약은 제품마다 갈아 끼움.</li>
+<li><b>기존 CAD · CAE 도구는 그대로</b> 두고 사람이 반복하던 단순화 · 메시 · 설정 · 대안 비교를 AI 가 잇는다 (v12 모듈 A~E). 솔버는 학습 데이터 생성과 최종 판정 역할로 남음.</li>
+<li><b>형상까지 설계 변수가 되면 "신뢰도 판단 + 솔버 판정 → 재학습 루프"가 필수.</b> FormProof(구조 · 열)에서 AI 단독 탐색 9회 모두 정밀 판정 불합격, 하이브리드 경로로 합격(85.6 g · 151.1 Hz). 이 교훈은 제품과 무관하게 공통 뼈대에 들어감.</li>
+<li>지금 끝까지 한 번 돌린 제품은 FormProof 하나, 계획이 구체화된 것은 LCD BLU · 센서 내장 디스플레이. 나머지 영역은 프로젝트에 적힌 확장 계획 수준.</li>
+</ul></section>
+
+<section><h2>1. 기존 방식 vs 물리 AI 방식 — 같은 설계 반복을 비교</h2>
+<p class="lead">위: 기존 CAD → CAE 루프 (v12 메인 1). 아래: 통합 프레임워크. 빨간 점선 = 사람이 반복하는 일, 초록 = AI 가 대신하는 일, 파랑 = 솔버(그대로 씀).</p>
+<div class="box sv"><svg viewBox="0 0 1100 430" style="min-width:860px" role="img" aria-label="기존 방식과 물리 AI 방식 흐름 비교">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--mut)"/></marker>
+<marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--hum)"/></marker>
+<marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ai)"/></marker>
+<marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--str)"/></marker></defs>
+<text x="10" y="24" font-size="14" font-weight="700">기존</text><text x="52" y="24" font-size="12" class="t-m">형상 1개마다 전 과정을 사람이 다시 · 비교 대안이 몇 개로 제한</text>
+<g font-size="12.5">
+<rect x="10" y="40" width="110" height="58" rx="8" class="r-old"/><text x="65" y="64" text-anchor="middle" font-weight="700">CAD</text><text x="65" y="82" text-anchor="middle" class="t-m" font-size="11">설계자</text>
+<rect x="148" y="40" width="110" height="58" rx="8" class="r-old"/><text x="203" y="64" text-anchor="middle" font-weight="700">STEP</text><text x="203" y="82" text-anchor="middle" class="t-m" font-size="11">자동 변환 · 형상 정리</text>
+<rect x="286" y="40" width="130" height="58" rx="8" class="r-hum"/><text x="351" y="64" text-anchor="middle" font-weight="700">Defeaturing</text><text x="351" y="82" text-anchor="middle" class="t-h" font-size="11">사람 판단</text>
+<rect x="444" y="40" width="110" height="58" rx="8" class="r-hum"/><text x="499" y="64" text-anchor="middle" font-weight="700">메시</text><text x="499" y="82" text-anchor="middle" class="t-h" font-size="11">사람 수작업</text>
+<rect x="582" y="40" width="120" height="58" rx="8" class="r-hum"/><text x="642" y="64" text-anchor="middle" font-weight="700">해석 설정</text><text x="642" y="82" text-anchor="middle" class="t-h" font-size="11">재질 · 광원 · 경계</text>
+<rect x="730" y="40" width="110" height="58" rx="8" class="r-opt"/><text x="785" y="64" text-anchor="middle" font-weight="700">솔버</text><text x="785" y="82" text-anchor="middle" class="t-o" font-size="11">계산 대기</text>
+<rect x="868" y="40" width="120" height="58" rx="8" class="r-hum"/><text x="928" y="64" text-anchor="middle" font-weight="700">결과 분석</text><text x="928" y="82" text-anchor="middle" class="t-h" font-size="11">다음 안 구상</text>
+<rect x="1010" y="40" width="80" height="58" rx="8" class="r-soft"/><text x="1050" y="74" text-anchor="middle" font-size="12">결과 1개</text>
+</g>
+<path d="M120,69 L146,69" class="ln" marker-end="url(#ah)"/><path d="M258,69 L284,69" class="ln" marker-end="url(#ah)"/><path d="M416,69 L442,69" class="ln" marker-end="url(#ah)"/><path d="M554,69 L580,69" class="ln" marker-end="url(#ah)"/><path d="M702,69 L728,69" class="ln" marker-end="url(#ah)"/><path d="M840,69 L866,69" class="ln" marker-end="url(#ah)"/><path d="M988,69 L1008,69" class="ln" marker-end="url(#ah)"/>
+<path d="M928,98 L928,128 L65,128 L65,100" class="ln-h" marker-end="url(#ahh)"/><text x="496" y="146" text-anchor="middle" font-size="12" class="t-h">형상이 바뀌면 처음부터 · BLU 예시 모델: 디테일 그대로 사면체 267,811 개 vs 단순화 35,084 개 (약 7.6배, v12)</text>
+
+<line x1="10" y1="172" x2="1090" y2="172" style="stroke:var(--line)"/>
+<text x="10" y="200" font-size="14" font-weight="700">통합</text><text x="52" y="200" font-size="12" class="t-m">AI 즉시 평가 · 솔버는 데이터 · 판정</text>
+<g font-size="12.5">
+<rect x="10" y="216" width="110" height="64" rx="8" class="r-old"/><text x="65" y="242" text-anchor="middle" font-weight="700">CAD · STEP</text><text x="65" y="260" text-anchor="middle" class="t-m" font-size="11">그대로 입력</text>
+<rect x="148" y="216" width="130" height="64" rx="8" class="r-ai"/><text x="213" y="238" text-anchor="middle" font-weight="700">A 형상 변환</text><text x="213" y="256" text-anchor="middle" class="t-a" font-size="11">점군 · SDF · 복셀</text><text x="213" y="271" text-anchor="middle" class="t-a" font-size="11">+ 형상 AI 잠재</text>
+<rect x="306" y="216" width="130" height="64" rx="8" class="r-ai"/><text x="371" y="238" text-anchor="middle" font-weight="700">C 물리 AI</text><text x="371" y="256" text-anchor="middle" class="t-a" font-size="11">즉시 예측</text><text x="371" y="271" text-anchor="middle" class="t-a" font-size="11">(0.05초 수준)</text>
+<rect x="464" y="216" width="120" height="64" rx="8" class="r-str"/><text x="524" y="238" text-anchor="middle" font-weight="700">신뢰도</text><text x="524" y="256" text-anchor="middle" class="t-s" font-size="11">믿을 수 있는</text><text x="524" y="271" text-anchor="middle" class="t-s" font-size="11">형상인가 (추가)</text>
+<rect x="612" y="216" width="120" height="64" rx="8" class="r-ai"/><text x="672" y="238" text-anchor="middle" font-weight="700">D 역설계</text><text x="672" y="256" text-anchor="middle" class="t-a" font-size="11">목표에서</text><text x="672" y="271" text-anchor="middle" class="t-a" font-size="11">형상 탐색</text>
+<rect x="760" y="216" width="120" height="64" rx="8" class="r-opt"/><text x="820" y="238" text-anchor="middle" font-weight="700">솔버 판정</text><text x="820" y="256" text-anchor="middle" class="t-o" font-size="11">후보 몇 개만</text><text x="820" y="271" text-anchor="middle" class="t-o" font-size="11">정밀 계산</text>
+<rect x="908" y="216" width="100" height="64" rx="8" class="r-ai"/><text x="958" y="238" text-anchor="middle" font-weight="700">E CAD</text><text x="958" y="256" text-anchor="middle" class="t-a" font-size="11">재출력</text><text x="958" y="271" text-anchor="middle" class="t-a" font-size="11">STEP · STL</text>
+<rect x="1026" y="216" width="64" height="64" rx="8" class="r-soft"/><text x="1058" y="246" text-anchor="middle" font-size="11.5">제작</text><text x="1058" y="262" text-anchor="middle" font-size="11.5">도면</text>
+</g>
+<path d="M120,248 L146,248" class="ln" marker-end="url(#ah)"/><path d="M278,248 L304,248" class="ln" marker-end="url(#ah)"/><path d="M436,248 L462,248" class="ln" marker-end="url(#ah)"/><path d="M584,248 L610,248" class="ln" marker-end="url(#ah)"/><path d="M732,248 L758,248" class="ln" marker-end="url(#ah)"/><path d="M880,248 L906,248" class="ln" marker-end="url(#ah)"/><path d="M1008,248 L1024,248" class="ln" marker-end="url(#ah)"/>
+<path d="M672,216 L672,204 L371,204 L371,214" class="ln-a" marker-end="url(#aha)"/><text x="521" y="199" text-anchor="middle" font-size="11" class="t-a">수백~수천 회 반복 (형상당 즉시)</text>
+<rect x="610" y="318" width="250" height="44" rx="8" class="r-opt"/><text x="735" y="337" text-anchor="middle" font-weight="700" font-size="12.5">B 데이터 자동 생성</text><text x="735" y="353" text-anchor="middle" class="t-o" font-size="11">LightTools · FEM · TMM 일괄 실행</text>
+<path d="M820,280 L820,316" class="ln-s" marker-end="url(#ahs)"/><path d="M610,340 L371,340 L371,282" class="ln-s" marker-end="url(#ahs)"/>
+<text x="600" y="358" text-anchor="end" font-size="11.5" class="t-s">재학습 루프 (추가) · 판정 결과를 학습 데이터로</text>
+<text x="10" y="400" font-size="12" class="t-m">사람 몫으로 남는 것: 목표 · 기준 정하기, 해석 설정의 물성 · 경계조건 확정(데이터 품질), 최종안 승인, 제조 조건 반영 확인</text>
+<text x="10" y="420" font-size="12" class="t-m">A~E = v12 모듈 이름. "신뢰도"와 "재학습 루프"는 FormProof 실험 · 문헌 조사 결과로 이번에 추가한 것.</text>
+</svg></div></section>
+
+<section><h2>2. 모든 제품에 같은 틀 — 공통 뼈대와 제품별 교체 부품</h2>
+<p class="lead">가운데 공통 뼈대는 한 번 만들어 계속 재사용하고, 제품이 바뀌면 바깥 교체 부품(솔버 어댑터 · 물리 AI · 제조 제약)만 새로 붙임. 프로젝트의 장기 목표(여러 물리 영역에서 재사용하는 물리 기반 모델)와 같은 방향.</p>
+<div class="box sv"><svg viewBox="0 0 1100 360" style="min-width:860px" role="img" aria-label="공통 뼈대와 제품별 교체 부품">
+<defs><marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--mut)"/></marker></defs>
+<rect x="250" y="20" width="600" height="320" rx="16" class="r-aibg" style="fill:var(--aibg);stroke:var(--ai);stroke-width:1.5"/>
+<text x="550" y="46" text-anchor="middle" font-size="14" font-weight="700" class="t-a">공통 뼈대 (제품 무관)</text>
+<g font-size="12.5">
+<rect x="275" y="62" width="270" height="50" rx="8" class="r-card"/><text x="410" y="84" text-anchor="middle" font-weight="700">0 목표 · 기준 입력</text><text x="410" y="101" text-anchor="middle" font-size="11" class="t-m">문장 · 스케치 · 문서 · CAD</text>
+<rect x="555" y="62" width="270" height="50" rx="8" class="r-card"/><text x="690" y="84" text-anchor="middle" font-weight="700">A 형상 변환</text><text x="690" y="101" text-anchor="middle" font-size="11" class="t-m">STEP → 점군 · SDF · 복셀 · 형상 AI 잠재</text>
+<rect x="275" y="124" width="270" height="50" rx="8" class="r-card"/><text x="410" y="146" text-anchor="middle" font-weight="700">신뢰도 판단</text><text x="410" y="163" text-anchor="middle" font-size="11" class="t-m">앙상블 · 물리 잔차 · 잠재 거리</text>
+<rect x="555" y="124" width="270" height="50" rx="8" class="r-card"/><text x="690" y="146" text-anchor="middle" font-weight="700">D 역설계 엔진</text><text x="690" y="163" text-anchor="middle" font-size="11" class="t-m">기울기 탐색 · BoTorch · ATC</text>
+<rect x="275" y="186" width="270" height="50" rx="8" class="r-card"/><text x="410" y="208" text-anchor="middle" font-weight="700">판정 → 재학습 루프</text><text x="410" y="225" text-anchor="middle" font-size="11" class="t-m">경로 후보 선별 · 능동학습 · 정밀 마무리</text>
+<rect x="555" y="186" width="270" height="50" rx="8" class="r-card"/><text x="690" y="208" text-anchor="middle" font-weight="700">E CAD 재출력</text><text x="690" y="225" text-anchor="middle" font-size="11" class="t-m">STEP · STL · 도면 (파라메트릭은 과제)</text>
+<rect x="275" y="248" width="550" height="76" rx="8" class="r-card"/><text x="550" y="270" text-anchor="middle" font-weight="700">물리 AI 틀 (구조 선택 · 학습 코드)</text><text x="550" y="289" text-anchor="middle" font-size="11" class="t-m">FNO · GINO · Transolver … 같은 코드로 학습 · 비교 (아키텍처 지도 v3)</text><text x="550" y="306" text-anchor="middle" font-size="11" class="t-m">어떤 방정식 · 어떤 정답을 쓸지는 왼쪽 교체 부품이 정함</text>
+<rect x="10" y="40" width="210" height="80" rx="10" class="r-str"/><text x="115" y="66" text-anchor="middle" font-weight="700">B 솔버 어댑터</text><text x="115" y="86" text-anchor="middle" font-size="11" class="t-s">LightTools · FEM · TMM</text><text x="115" y="102" text-anchor="middle" font-size="11" class="t-s">PINN 자체 · 유동 해석 …</text>
+<rect x="10" y="140" width="210" height="80" rx="10" class="r-str"/><text x="115" y="166" text-anchor="middle" font-weight="700">물리 손실 · 지배 방정식</text><text x="115" y="186" text-anchor="middle" font-size="11" class="t-s">탄성 · 고유치 · 열전도</text><text x="115" y="202" text-anchor="middle" font-size="11" class="t-s">Helmholtz · 광선 수송 …</text>
+<rect x="10" y="240" width="210" height="80" rx="10" class="r-str"/><text x="115" y="266" text-anchor="middle" font-weight="700">제조 제약</text><text x="115" y="286" text-anchor="middle" font-size="11" class="t-s">3D 출력 45° · 사출 구배</text><text x="115" y="302" text-anchor="middle" font-size="11" class="t-s">패널 공정 · 필름 두께 …</text>
+<rect x="880" y="40" width="210" height="280" rx="10" class="r-soft"/><text x="985" y="66" text-anchor="middle" font-weight="700">제품 · 영역</text>
+<text x="985" y="96" text-anchor="middle" font-size="12">기구 (구조 · 열)</text><text x="985" y="122" text-anchor="middle" font-size="12">LCD BLU (광학)</text><text x="985" y="148" text-anchor="middle" font-size="12">센서 내장 디스플레이</text><text x="985" y="174" text-anchor="middle" font-size="12">방열 (히트싱크)</text><text x="985" y="200" text-anchor="middle" font-size="12">광학 촉각 센서</text><text x="985" y="226" text-anchor="middle" font-size="12">렌티큘러 · HUD 광학</text><text x="985" y="252" text-anchor="middle" font-size="12">음향</text><text x="985" y="278" text-anchor="middle" font-size="12">패널 · 회로 …</text><text x="985" y="304" text-anchor="middle" font-size="10.5" class="t-m">제품마다 왼쪽 부품만 교체</text>
+</g>
+<path d="M220,80 L248,80" class="ln" marker-end="url(#ah3)"/><path d="M220,180 L248,180" class="ln" marker-end="url(#ah3)"/><path d="M220,280 L248,280" class="ln" marker-end="url(#ah3)"/><path d="M852,180 L878,180" class="ln" marker-start="url(#ah3)" marker-end="url(#ah3)"/>
+</svg></div>
+<div class="tw" style="margin-top:12px"><table><thead><tr><th>제품 · 영역</th><th>주된 물리</th><th>정답을 만드는 솔버</th><th>형상 · 설계 변수</th><th>지금 상태</th></tr></thead><tbody>
+<tr><td>기구 — FormProof 폰 거치대</td><td>구조 · 진동 · 열</td><td>팀 FEM 엔진</td><td>자유 형상 (형상 AI 16개 · 복셀)</td><td><span class="chip c-ok">끝까지 1회</span>입력 → AI → 판정 → 도면 · 3D 출력</td></tr>
+<tr><td>LCD BLU (VD 협업)</td><td>광선 수송 · 박막 간섭</td><td>LightTools · TMM</td><td>서포터 · 샷시 · LED 배치 · 필름 층</td><td><span class="chip c-plan">계획 P0~P4</span>v12 · 3단계 프레임워크</td></tr>
+<tr><td>센서 내장 디스플레이 (BM 홀)</td><td>파동 광학 (Helmholtz)</td><td>PINN 자체 + TMM · ASM, LightTools 비교</td><td>BM 오프셋 · 폭 4개 → 코디드 어퍼처</td><td><span class="chip c-part">진행 중</span>프로젝트 기록 기준 Stage 5 일부 통과</td></tr>
+<tr><td>방열 — 매니폴드 히트싱크</td><td>유동 + 열전달</td><td>확인 필요</td><td>매니폴드 구조</td><td><span class="chip c-plan">과제 정의</span></td></tr>
+<tr><td>광학 촉각 센서 (GelSight형)</td><td>광학 + 변형</td><td>확인 필요</td><td>확인 필요</td><td><span class="chip c-plan">확장 구상</span></td></tr>
+<tr><td>렌티큘러 라이트필드 · HUD 광학</td><td>광학</td><td>확인 필요</td><td>렌즈 형상 · 광학 배치</td><td><span class="chip c-plan">확장 계획</span></td></tr>
+<tr><td>음향</td><td>파동 (Helmholtz 계열)</td><td>확인 필요</td><td>확인 필요</td><td><span class="chip c-plan">확장 계획</span>같은 PDE 구조 공유가 근거</td></tr>
+<tr><td>패널 · 회로</td><td>확인 필요</td><td>확인 필요 (예: TCAD · SPICE 계열)</td><td>확인 필요</td><td><span class="chip c-plan">범위 언급</span>FormProof 대상 범위에 포함</td></tr>
+</tbody></table></div>
+<p class="mut" style="margin-top:6px">상태는 프로젝트 · 저장소 · 대화 기록에 적힌 범위까지. "확인 필요" 칸은 아직 정해진 내용을 찾지 못한 곳.</p></section>
+<section><h2>3. 두 사례 상세 — LCD BLU 와 FormProof 를 같은 계층으로</h2>
+<p class="lead">계층(행)은 공통이고, 칸 안에 기존 방식 · BLU(광학) · FormProof(구조 · 열)가 각각 무엇을 쓰는지. 상태: <span class="chip c-ok">동작 확인</span> <span class="chip c-part">부분</span> <span class="chip c-plan">계획</span> <span class="chip c-no">없음</span> <span class="chip c-old">기존</span></p>
+<div class="tw"><table><thead><tr><th>계층</th><th>기존 CAD · CAE</th><th>LCD BLU (광학) — v12 · 3단계 프레임워크</th><th>FormProof (구조 + 열) — 저장소 기록</th></tr></thead><tbody>
+<tr><td>0 목표 · 기준</td><td><span class="chip c-old">기존</span>요구사양 · 설계 변수 범위를 사람이 정함</td><td><span class="chip c-plan">계획</span>균일도 · 무라 · 휘도 · 시야각 · 색좌표. 목표 수치는 VD 협의 필요</td><td><span class="chip c-ok">동작 확인</span>문장 · 스케치 → 진동수 ≥ 95 Hz · 폰 온도 · 휨 · 충격 기준</td></tr>
+<tr><td>A 형상 변환</td><td><span class="chip c-old">기존</span>STEP → 사람이 Defeaturing · 메시</td><td><span class="chip c-plan">계획 P0</span>STEP → 점군 · 거리장 자동 변환, 자동 단순화 규칙 (서포터 실제 변환 예시 있음)</td><td><span class="chip c-ok">동작 확인</span>STEP · IGES · STL · DXF 입력 → 복셀 88×40×37 (2 mm) · 표면 점 · 형상 AI(DeepSDF) 숫자 16개로 맞추기</td></tr>
+<tr><td>B 데이터 생성</td><td><span class="chip c-old">기존</span>형상마다 해석 1회</td><td><span class="chip c-plan">계획 P0</span>LightTools COM API 야간 일괄 실행. 필름은 TMM 정확해</td><td><span class="chip c-ok">동작 확인</span>팀 FEM 엔진 일괄 실행 — 389 → 734 형상 (능동학습 · 출력 조건 묶음 포함), 형상당 약 1분</td></tr>
+<tr><td>C 물리 AI</td><td><span class="chip c-no">없음</span>—</td><td><span class="chip c-plan">계획 P1</span>① 공간 AI (형상 + I_cell + R_stack → L(x, y, θ, φ)) · ② 소자 AI (GP · 격자, Go/No-Go 관문) · ③ 필름 (TMM 으로 충분하면 AI 불필요). 후보 GINO · Transolver · FNO · PINO</td><td><span class="chip c-ok">동작 확인</span>FNO(복셀, 0.05초) · GINO(표면 점, 2.4초) 비교 — 검증 58개 진동수 MAPE 17.5% / 10.9%</td></tr>
+<tr><td>신뢰도 판단</td><td><span class="chip c-no">없음</span>—</td><td><span class="chip c-no">없음</span>v12 · 3단계 문서에 별도 모듈 없음 → 추가 제안</td><td><span class="chip c-no">없음</span>후보: FNO 앙상블 예측 차이 · 물리 잔차 · 잠재 거리</td></tr>
+<tr><td>D 역설계</td><td><span class="chip c-old">기존</span>사람이 다음 안 구상</td><td><span class="chip c-plan">계획 P2</span>치수 최적화 → 자유 형상, 서포터 · LED 배치. 세 AI 는 ATC 바깥 루프로 양방향 연결</td><td><span class="chip c-part">부분</span>형상 AI 숫자 16개 위 기울기 탐색 300회 (약 6.5분). AI 단독 끝 형상은 9회 모두 불합격</td></tr>
+<tr><td>솔버 판정 · 재학습</td><td><span class="chip c-old">기존</span>매 형상 솔버</td><td><span class="chip c-plan">계획 P2~P3</span>단계 끝마다 LightTools 재검증, 검증 결과 재학습(P3)</td><td><span class="chip c-ok">동작 확인</span>능동학습 5회(회당 31형상) · 경로 후보 선별 → 정밀 최적화 마무리 → 85.6 g · 151.1 Hz 합격</td></tr>
+<tr><td>E CAD 재출력</td><td><span class="chip c-old">기존</span>설계자가 다시 그림</td><td><span class="chip c-plan">계획 P2</span>SDF → 표면 → STEP, 공정 제약 — 난이도 높음 (v12 유첨 7 · 확인 필요)</td><td><span class="chip c-part">부분</span>출력용 몸체 변환 · A3 제작 도면 · 3D 프린트 출력. 탐색에 45° 돌출 출력 조건 반영. 편집 가능한 파라메트릭 CAD 는 아님</td></tr>
+</tbody></table></div>
+<p class="mut" style="margin-top:6px">BLU 로드맵 P0 데이터 파이프라인 → P1 작은 단위 서로게이트 → P2 형상 역설계 → P3 패널 확장 · 열 연계 → P4 실증 · 플랫폼화 (v12 유첨 11). FormProof 는 같은 계층을 작은 문제(부품 하나 · 구조 + 열)로 끝까지 한 번 돌려본 사례.</p></section>
+
+<section><h2>4. 형상이 더해지면 무엇이 달라지나</h2>
+<p class="lead">v12 유첨 9 의 "형상을 AI 에 넣는 방식"을 자유도 순으로. 오른쪽으로 갈수록 형상을 자유롭게 바꿀 수 있지만, 탐색이 AI 가 모르는 영역으로 가기 쉬움.</p>
+<div class="box sv"><svg viewBox="0 0 1100 250" style="min-width:860px" role="img" aria-label="형상 입력 방식별 자유도와 위험">
+<defs><linearGradient id="gr" x1="0" x2="1"><stop offset="0" style="stop-color:var(--ai)"/><stop offset="1" style="stop-color:var(--hum)"/></linearGradient></defs>
+<g font-size="12.5">
+<rect x="10" y="20" width="200" height="110" rx="10" class="r-card"/><text x="110" y="44" text-anchor="middle" font-weight="700">치수 몇 개</text><text x="110" y="64" text-anchor="middle" font-size="11.5" class="t-m">원뿔 높이 23.2 · 반지름 3.2 / 1.0</text><text x="110" y="82" text-anchor="middle" font-size="11.5" class="t-m">MLP · 가우시안 과정(BoTorch)</text><text x="110" y="110" text-anchor="middle" font-size="11.5" class="t-o">BLU 서포터 6안 비교</text>
+<rect x="230" y="20" width="200" height="110" rx="10" class="r-card"/><text x="330" y="44" text-anchor="middle" font-weight="700">규칙 격자 (복셀)</text><text x="330" y="64" text-anchor="middle" font-size="11.5" class="t-m">U-Net · FNO</text><text x="330" y="82" text-anchor="middle" font-size="11.5" class="t-m">복잡 형상은 계단 근사</text><text x="330" y="110" text-anchor="middle" font-size="11.5" class="t-s">FormProof FNO 입력</text>
+<rect x="450" y="20" width="200" height="110" rx="10" class="r-card"/><text x="550" y="44" text-anchor="middle" font-weight="700">CAE 메시</text><text x="550" y="64" text-anchor="middle" font-size="11.5" class="t-m">MeshGraphNet</text><text x="550" y="82" text-anchor="middle" font-size="11.5" class="t-m">메시가 계속 필요</text><text x="550" y="110" text-anchor="middle" font-size="11.5" class="t-m">열 · 구조 연계 시 보조</text>
+<rect x="670" y="20" width="200" height="110" rx="10" class="r-card"/><text x="770" y="44" text-anchor="middle" font-weight="700">점군 · 거리장</text><text x="770" y="64" text-anchor="middle" font-size="11.5" class="t-m">GINO · Transolver · DoMINO</text><text x="770" y="82" text-anchor="middle" font-size="11.5" class="t-m">CAD 에서 바로, 형상 변경에 강함</text><text x="770" y="110" text-anchor="middle" font-size="11.5" class="t-s">FormProof GINO 입력</text>
+<rect x="890" y="20" width="200" height="110" rx="10" class="r-card"/><text x="990" y="44" text-anchor="middle" font-weight="700">형상 생성 (자유 형상)</text><text x="990" y="64" text-anchor="middle" font-size="11.5" class="t-m">DeepSDF · 확산 모델</text><text x="990" y="82" text-anchor="middle" font-size="11.5" class="t-m">숫자 몇 개로 자유 형상</text><text x="990" y="110" text-anchor="middle" font-size="11.5" class="t-s">FormProof 형상 AI (16개)</text>
+</g>
+<rect x="10" y="152" width="1080" height="10" rx="5" fill="url(#gr)"/>
+<text x="10" y="184" font-size="12" class="t-a">설계 자유도 낮음 · AI 학습 범위 안에 머묾</text><text x="1090" y="184" text-anchor="end" font-size="12" class="t-h">자유도 높음 · 탐색이 AI 오차를 파고들 위험</text>
+<text x="550" y="212" text-anchor="middle" font-size="12.5">→ 오른쪽으로 갈수록 <tspan font-weight="700">신뢰도 판단 + 솔버 판정 루프</tspan>가 필수 (FormProof: AI 진동수 94 Hz → 정밀 24 Hz 같은 과대평가)</text>
+<text x="550" y="236" text-anchor="middle" font-size="11.5" class="t-m">"+ 물리 법칙"(PINN · PINO)은 입력 방식이 아니라 학습 방식이라 어느 칸과도 결합 가능</text>
+</svg></div>
+<div class="grid2" style="margin-top:12px">
+<figure><img src="@@arch_voxel" alt=""><figcaption>FormProof 형상을 복셀로 (FNO 입력) — 파랑 = 형상 AI 가 만든 재료, 회색 = 고정 부품</figcaption></figure>
+<figure><img src="@@arch_gino_points" alt=""><figcaption>같은 형상을 점군으로 (GINO 입력) — 표면 점 2,048개 · 잠재 격자</figcaption></figure>
+</div></section>
+
+<section><h2>5. FormProof 에서 확인된 것 → 다음 제품(BLU 등)에 옮길 것</h2>
+<p class="lead">왼쪽 = 저장소 기록으로 확인한 사실, 오른쪽 = 다음 적용 제품(예시: BLU)에 반영 제안. 공통 뼈대로 옮겨 다른 제품에도 같이 적용 (효과는 제품마다 다시 확인 필요).</p>
+<div class="lesson"><div class="a"><b class="h">확인 · 탐색이 AI 를 속임</b>AI 단독 탐색 끝 형상 9회 모두 불합격. 능동학습 5회 내내 AI 진동수가 정밀보다 높게 나옴(아래 그림).</div><div class="arrow">→</div><div class="b"><b class="h">BLU · P2 형상 역설계</b>자유 형상으로 넘어갈 때 신뢰도 모듈을 처음부터 포함. 치수 최적화 단계에서도 탐색 경로 후보를 LightTools 로 판정.</div></div>
+<div class="lesson"><div class="a"><b class="h">확인 · 데이터 2배 · 모델 교체로는 안 풀림</b>389 → 734 형상: 응력 · 온도 개선, 진동수 악화. FNO ↔ GINO: 평균 오차는 GINO 가 나았지만 탐색 결과는 둘 다 불합격.</div><div class="arrow">→</div><div class="b"><b class="h">BLU · P1 모델 비교</b>판단 기준을 "검증셋 오차"만이 아니라 "AI 로 찾은 안을 LightTools 로 판정했을 때 합격률"까지 포함.</div></div>
+<div class="lesson"><div class="a"><b class="h">확인 · 하이브리드가 통과</b>경로 31개 정밀 계산 → 11개 통과 → 정밀 최적화 120회 → 85.6 g · 151.1 Hz 합격.</div><div class="arrow">→</div><div class="b"><b class="h">BLU · 역할 분담</b>AI 는 넓게 훑어 후보를 좁히고, 마지막 미세 조정은 솔버 기반으로. v12 의 "개념 설계 = AI 넓게, 상세 설계 = 정밀" 구분과 같은 방향.</div></div>
+<div class="lesson"><div class="a"><b class="h">확인 · 제조 조건은 AI 단계에</b>45° 돌출 출력 조건을 탐색에 넣자 출력 가능한 영역으로 이동 → 그 영역 데이터가 부족해 오차 커짐(5회차 110%).</div><div class="arrow">→</div><div class="b"><b class="h">BLU · 공정 제약 · E CAD 재출력</b>구배 · 두께 · 체결 같은 공정 제약을 데이터 생성(B) 단계부터 반영해야 그 영역에서 AI 가 맞음.</div></div>
+<div class="lesson"><div class="a"><b class="h">확인 · 솔버는 사라지지 않음</b>형상당 정밀 계산 약 1분이 학습 데이터 · 판정 · 마무리 최적화에 모두 쓰임.</div><div class="arrow">→</div><div class="b"><b class="h">BLU · 자원</b>LightTools 일괄 실행 PC · 라이선스가 GPU 만큼 병목 (v12 유첨 11 과 일치).</div></div>
+<div class="grid2" style="margin-top:12px">
+<figure><img src="@@arch_al_rounds" alt=""><figcaption>능동학습 5회: AI 진동수 vs 정밀 진동수 (점 = 탐색 경로 형상, 색 = 반복). 대각선 위 = AI 과대평가</figcaption></figure>
+<figure><img src="@@shapes_v3" alt=""><figcaption>초기 설계와 AI 단독 탐색 끝 형상 4개 — 모두 정밀 판정 불합격</figcaption></figure>
+</div></section>
+
+<section><h2>6. 물리 AI 계층 안쪽 — BLU 는 여러 AI 를 잇고, FormProof 는 하나를 깊게</h2>
+<div class="tabs" id="tabs"><button class="on" data-t="blu">LCD BLU 3단계</button><button data-t="fp">FormProof 구조 + 열</button></div>
+<div class="box sv" id="t-blu"><svg viewBox="0 0 1100 230" style="min-width:860px" role="img" aria-label="BLU 3단계 물리 AI 연결">
+<defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--mut)"/></marker></defs>
+<g font-size="12.5">
+<rect x="10" y="80" width="150" height="64" rx="8" class="r-soft"/><text x="85" y="106" text-anchor="middle" font-weight="700">목표 성능</text><text x="85" y="124" text-anchor="middle" font-size="11" class="t-m">균일도 · 무라 · 휘도 · 색</text>
+<rect x="200" y="70" width="250" height="84" rx="10" class="r-ai"/><text x="325" y="98" text-anchor="middle" font-weight="700">① 공간 물리 AI</text><text x="325" y="118" text-anchor="middle" font-size="11.5" class="t-a">형상 + I_cell + R_stack → L(x, y, θ, φ)</text><text x="325" y="138" text-anchor="middle" font-size="11" class="t-m">서포터 · 샷시 형상, LED 배치 · 실현성 중간</text>
+<rect x="500" y="20" width="250" height="84" rx="10" class="r-str"/><text x="625" y="48" text-anchor="middle" font-weight="700">② 소자 물리 AI</text><text x="625" y="68" text-anchor="middle" font-size="11.5" class="t-s">LED + GP · 렌즈 · 회절격자 → I_cell</text><text x="625" y="88" text-anchor="middle" font-size="11" class="t-m">물리적 이점부터 검증 · Go/No-Go</text>
+<rect x="500" y="124" width="250" height="84" rx="10" class="r-opt"/><text x="625" y="152" text-anchor="middle" font-weight="700">③ 필름 스택</text><text x="625" y="172" text-anchor="middle" font-size="11.5" class="t-o">층 두께 · 재료 → R_stack · 투과</text><text x="625" y="192" text-anchor="middle" font-size="11" class="t-m">TMM 정확해 · 실현성 높음</text>
+<rect x="800" y="70" width="290" height="84" rx="10" class="r-card"/><text x="945" y="98" text-anchor="middle" font-weight="700">ATC 바깥 루프</text><text x="945" y="118" text-anchor="middle" font-size="11.5" class="t-m">중간 변수 I(θ, φ, λ, 편광) 를 공통 규약으로</text><text x="945" y="138" text-anchor="middle" font-size="11.5" class="t-m">양방향: R_stack 은 ① 의 경계조건</text>
+</g>
+<path d="M160,112 L198,112" class="ln" marker-end="url(#ah2)"/><path d="M450,100 L498,66" class="ln" marker-start="url(#ah2)" marker-end="url(#ah2)"/><path d="M450,126 L498,164" class="ln" marker-start="url(#ah2)" marker-end="url(#ah2)"/><path d="M750,62 L798,100" class="ln" marker-end="url(#ah2)"/><path d="M750,166 L798,128" class="ln" marker-end="url(#ah2)"/>
+</svg><p class="mut" style="padding:4px 6px 2px">원칙(다층 박막 대화): 물리 AI 개수는 단계 수와 무관 — 솔버로 풀리는 곳(필름 TMM, 층 결합)은 AI 없이, 계산이 병목인 곳에만 AI. 형상이 들어가는 곳은 ① 공간 AI → 신뢰도 · 판정 루프가 가장 필요한 곳.</p></div>
+<div class="box" id="t-fp" hidden>
+<div class="grid2"><figure><img src="@@shape_0" alt=""><figcaption>검증 형상 1개: 응력 · 온도 분포 — 정밀 시뮬레이션 vs FNO vs GINO</figcaption></figure>
+<div class="card"><h3>물리 AI 하나가 여러 물리를 동시에</h3><ul style="font-size:13px"><li>입력: 형상(복셀 또는 표면 점)</li><li>출력: 무게(정확식) · 진동수 · 폰 온도 · 휨(위 · 아래) · 충격 응력 + 온도 · 응력 분포</li><li>정답: 팀 FEM 엔진 (구조 · 진동 · 열)</li><li>잘 맞는 것: 온도 (R² 0.98~0.995)</li><li>탐색이 속는 것: 진동수 (자유 형상에서 과대평가)</li><li>BLU 와의 차이: 중간 변수로 여러 AI 를 잇지 않고, 한 AI 가 여러 물리량을 같이 냄</li></ul></div></div></div>
+</section>
+
+<section><h2>7. E CAD 재출력 — "편집 가능한 파라메트릭 CAD" 란</h2>
+<p class="lead">설계자가 SolidWorks · Creo · NX · CATIA 같은 도구에서 그리는 CAD 는 <b>치수 · 구속조건 · 작업 순서(특징 트리)</b>가 같이 저장됨. 그래서 "두께 3 → 4 mm" 처럼 숫자 하나만 바꾸면 형상 전체가 다시 계산됨. AI 가 내놓는 형상(복셀 · SDF · 메시 · STL)은 <b>모양만 있고 이 이력이 없음</b> — 고치려면 사실상 다시 그려야 함.</p>
+<div class="box sv"><svg viewBox="0 0 1100 300" style="min-width:860px" role="img" aria-label="파라메트릭 CAD 와 AI 출력 형상 비교">
+<defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--mut)"/></marker></defs>
+<text x="20" y="28" font-size="14" font-weight="700" class="t-a">파라메트릭 CAD (설계자가 그린 것)</text>
+<g font-size="12">
+<rect x="20" y="44" width="150" height="46" rx="8" class="r-ai"/><text x="95" y="64" text-anchor="middle" font-weight="700">① 스케치</text><text x="95" y="80" text-anchor="middle" font-size="10.5" class="t-a">단면 + 치수 R3.2 · 23.2</text>
+<rect x="20" y="100" width="150" height="46" rx="8" class="r-ai"/><text x="95" y="120" text-anchor="middle" font-weight="700">② 회전 · 돌출</text><text x="95" y="136" text-anchor="middle" font-size="10.5" class="t-a">특징 (feature)</text>
+<rect x="20" y="156" width="150" height="46" rx="8" class="r-ai"/><text x="95" y="176" text-anchor="middle" font-weight="700">③ 구배 · 필렛 · 쉘</text><text x="95" y="192" text-anchor="middle" font-size="10.5" class="t-a">제조 조건 (두께 · 각도)</text>
+<rect x="20" y="212" width="150" height="46" rx="8" class="r-ai"/><text x="95" y="232" text-anchor="middle" font-weight="700">④ 체결부 · 보스</text><text x="95" y="248" text-anchor="middle" font-size="10.5" class="t-a">조립 기준</text>
+<path d="M95,90 L95,98" class="ln" marker-end="url(#ah4)"/><path d="M95,146 L95,154" class="ln" marker-end="url(#ah4)"/><path d="M95,202 L95,210" class="ln" marker-end="url(#ah4)"/>
+<rect x="190" y="110" width="250" height="80" rx="10" class="r-card"/><text x="315" y="136" text-anchor="middle" font-weight="700">치수 하나 수정 → 전체 재계산</text><text x="315" y="156" text-anchor="middle" font-size="11" class="t-m">"반지름 3.2 → 2.8" 입력만으로</text><text x="315" y="174" text-anchor="middle" font-size="11" class="t-m">구배 · 필렛 · 체결부가 따라옴</text>
+<path d="M170,150 L188,150" class="ln" marker-end="url(#ah4)"/>
+</g>
+<line x1="470" y1="20" x2="470" y2="280" style="stroke:var(--line)"/>
+<text x="500" y="28" font-size="14" font-weight="700" class="t-h">AI 가 내놓는 형상 (이력 없음)</text>
+<g font-size="12">
+<rect x="500" y="44" width="170" height="90" rx="8" class="r-hum"/><text x="585" y="68" text-anchor="middle" font-weight="700">복셀 · SDF · 메시</text><text x="585" y="88" text-anchor="middle" font-size="10.5" class="t-h">칸 · 점 · 삼각형의 모음</text><text x="585" y="104" text-anchor="middle" font-size="10.5" class="t-h">"두께" "구멍" 같은 개념 없음</text><text x="585" y="120" text-anchor="middle" font-size="10.5" class="t-h">FormProof: 복셀 → 몸체 → STL</text>
+<rect x="500" y="150" width="170" height="90" rx="8" class="r-card"/><text x="585" y="174" text-anchor="middle" font-weight="700">고치려면</text><text x="585" y="194" text-anchor="middle" font-size="10.5" class="t-m">메시를 직접 깎거나</text><text x="585" y="210" text-anchor="middle" font-size="10.5" class="t-m">CAD 에서 참고해 다시 그림</text><text x="585" y="226" text-anchor="middle" font-size="10.5" class="t-m">→ 양산 설계로 넘기기 어려움</text>
+</g>
+<text x="700" y="60" font-size="13" font-weight="700">되돌리는 길 4가지</text>
+<g font-size="11.5">
+<text x="700" y="88"><tspan font-weight="700">a. 처음부터 템플릿 안에서 탐색</tspan></text><text x="700" y="104" class="t-m">CAD 치수 몇 개만 AI 가 바꿈 → 바로 편집 가능 · 자유도 작음</text>
+<text x="700" y="132"><tspan font-weight="700">b. 표면 맞추기 (역설계 소프트웨어)</tspan></text><text x="700" y="148" class="t-m">메시 → 매끈한 곡면(STEP) · 모양은 정확, 특징 트리 없음</text>
+<text x="700" y="176"><tspan font-weight="700">c. 특징 인식 · 재구성</tspan></text><text x="700" y="192" class="t-m">원기둥 · 평면 · 구멍을 찾아 특징으로 재구성 · 단순 형상 위주</text>
+<text x="700" y="220"><tspan font-weight="700">d. AI 가 CAD 작업 순서를 직접 생성</tspan></text><text x="700" y="236" class="t-m">스케치 → 돌출 명령열 생성 연구 (예: DeepCAD, 2021) · 성숙도 확인 필요</text>
+<text x="700" y="266" font-weight="700" class="t-a">현실적 조합: 넓은 탐색은 자유 형상(AI)</text><text x="700" y="284" font-weight="700" class="t-a">→ 고른 안을 a 또는 b 로 CAD 화 → 정밀 마무리</text>
+</g>
+</svg></div>
+<p class="mut" style="margin-top:6px">v12 유첨 7 도 "AI 가 찾은 자유 형상을 구배 · 두께 · 체결부가 있는 편집 가능한 CAD 로 되돌리는 일은 확립된 자동 방법이 없어 별도 개발 필요"로 적어 둠. FormProof 는 b 에 가까운 단계(출력용 몸체 변환 · 도면)까지 했고 특징 트리는 없음.</p></section>
+<section><h2>8. 정리 — 모듈별 지금 위치</h2>
+<div class="grid3">
+<div class="card"><div class="k">A 형상 변환</div><h3>FormProof 에서 동작</h3><p class="mut">STEP 등 입력 → 복셀 · 점 · 형상 AI. BLU 는 STEP → 점군 · 거리장 변환 예시까지 (P0).</p></div>
+<div class="card"><div class="k">B 데이터 생성</div><h3>FEM 은 동작 · LightTools 는 계획</h3><p class="mut">LightTools COM API 일괄 실행이 BLU 의 첫 관문 (P0 판단 기준: 형상 1건이 사람 손 없이 데이터가 되는가).</p></div>
+<div class="card"><div class="k">C 물리 AI</div><h3>구조 비교 끝 · 광학 미착수</h3><p class="mut">구조 교체 효과는 제한적이었음. BLU P1 은 필름 · 단위셀부터.</p></div>
+<div class="card"><div class="k">+ 신뢰도</div><h3>양쪽 모두 비어 있음</h3><p class="mut">다음 실험 1순위: FNO 앙상블 예측 차이를 탐색 벌점으로 (FormProof 에서 먼저).</p></div>
+<div class="card"><div class="k">D 역설계 + 판정 루프</div><h3>하이브리드로 합격 경로 확보</h3><p class="mut">AI 단독은 불합격, 판정 · 재학습 · 정밀 마무리를 붙이면 합격. BLU 에서도 같은 구조 권장.</p></div>
+<div class="card"><div class="k">E CAD 재출력</div><h3>출력용 몸체 · 도면까지</h3><p class="mut">편집 가능한 파라메트릭 CAD 로 되돌리는 일은 양쪽 모두 미해결 (확인 필요).</p></div>
+</div></section>
+
+<section><h2>확인 필요</h2><ul style="font-size:13.5px">
+<li>VD 실제 업무 흐름(누가 STEP 을 넘기고 단순화를 하는지)과 단계별 소요 시간 — v12 에서도 실측 필요로 표기</li>
+<li>FormProof 에서 효과가 있었던 루프 구조가 광학(광선추적 잡음이 있는 정답)에서도 같은지</li>
+<li>신뢰도 모듈의 방법(앙상블 · 물리 잔차 · 잠재 거리)이 BLU ① 공간 AI 에 맞는지</li>
+<li>공통 중간 변수 I(θ, φ, λ, 편광)를 쓰는 BLU 구조에서 신뢰도를 어느 AI 단위로 볼지</li><li>방열 · 촉각 · 음향 · 패널 · 회로 영역의 솔버 · 설계 변수 (표의 "확인 필요" 칸)</li><li>E CAD 재출력에서 a~d 중 어떤 길을 공통 뼈대로 둘지</li>
+</ul></section>
+
+<section><h2>출처</h2><ul class="src">
+<li>CAD에서 해석까지 v12 (2026-11-18, 첨부 HTML) — 메인 1 · 2, 유첨 9 · 10 · 11</li>
+<li>LCD BLU 3단계 프레임워크 (다층 박막 광학 surrogate 대화, v1~v6)</li>
+<li>FormProof 저장소 기록 — 13_AI학습_일체형 능동학습(data/al), experiments/gino_vs_fno, 커밋 a593aff · eeb61d8 · 57e2db2 · 3697041</li>
+<li>프로젝트 기록 — 센서 내장 디스플레이 PINN 현황 · 확장 계획(렌티큘러 · HUD · 음향), 매니폴드 히트싱크 · 광학 촉각 과제 메모</li><li>관련 페이지: 통합 프레임워크 v1 · 실험 종합 v1 · 문헌 조사 v1 · 아키텍처 지도 v3 (각 별도 링크)</li>
+</ul></section>
+</main>
+<script>
+const LB=document.getElementById('lb');document.addEventListener('click',e=>{const t=e.target;if(t.tagName==='IMG'&&t.closest('figure')){LB.querySelector('img').src=t.src;LB.hidden=false}else if(t.closest('#lb'))LB.hidden=true});document.addEventListener('keydown',e=>{if(e.key==='Escape')LB.hidden=true});
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('t-blu').hidden=b.dataset.t!=='blu';document.getElementById('t-fp').hidden=b.dataset.t!=='fp'});
+</script>

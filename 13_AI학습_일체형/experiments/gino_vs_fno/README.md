@@ -31,3 +31,4 @@
 - `pages/arch_review_v3.html`: 아키텍처 지도 v3 — 우리 형상을 각 구조가 보는 방식(복셀 · 푸리에 모드 · 표면 점 · 그래프 전달 범위 등)과 정밀 시뮬레이션 · AI 분포 · 능동학습 그림 추가 (`viz_arch.py`)
 - `pages/cad_cae_ai_framework_v1.html`: CAD·CAE 와 물리 AI 통합 프레임워크 v1 — 기존 흐름 비교, BLU(CAD에서 해석까지 v12 · 3단계)와 FormProof 를 같은 계층(A~E + 신뢰도 · 재학습)으로
 - `pages/cad_cae_ai_framework_v2.html`: 통합 프레임워크 v2 — 공통 뼈대 + 제품별 교체 부품, 제품 · 영역별 현황, 파라메트릭 CAD 재출력 설명
+- `pages/physics_ai_framework_v3.html`: 통합 v3 — 기존 CAD·CAE 단계 매칭 · 입력~출력 파라메트릭 구간 · 모든 제품 공통 뼈대 · 아키텍처 지도 한 페이지 (`build_v3.py`)
