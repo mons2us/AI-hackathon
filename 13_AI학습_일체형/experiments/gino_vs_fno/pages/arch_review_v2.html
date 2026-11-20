@@ -1,0 +1,266 @@
+<title>물리 AI 아키텍처 지도</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F6F7F9;--fg:#18202B;--mut:#5E6B7A;--line:#D9DEE5;--card:#FFFFFF;--acc:#1D7F69;--accbg:#E3F3EE;--ng:#C8453B;--warn:#B7791F;--warnbg:#FBF1DE;--chip:#EDF1F5;--lat:#E6E3FA;--latb:#6A60C9;--nv:#5B8C00;
+--sans:'Noto Sans KR',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--acc:#4CC3A3;--accbg:#173A31;--ng:#F07A6E;--warn:#E0B054;--warnbg:#3A2E16;--chip:#222C38;--lat:#2B2850;--latb:#A39BF0;--nv:#9BCB3C;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161D;--fg:#E6EAF0;--mut:#93A0B0;--line:#2A333F;--card:#18202A;--acc:#4CC3A3;--accbg:#173A31;--ng:#F07A6E;--warn:#E0B054;--warnbg:#3A2E16;--chip:#222C38;--lat:#2B2850;--latb:#A39BF0;--nv:#9BCB3C;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+main{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+h1{font-size:26px;margin:0;text-wrap:balance} h2{font-size:19px;margin:0 0 10px} h3{font-size:15.5px;margin:0}
+p{margin:0;max-width:78ch} .mut{color:var(--mut);font-size:.88em} ul{margin:0;padding-left:18px} li{margin-bottom:4px}
+.key{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:8px;padding:14px 16px}
+/* 프레임워크 */
+.fw{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.fwsvg{overflow-x:auto} .fwsvg svg{min-width:860px;width:100%;display:block}
+.stg rect{fill:var(--chip);stroke:var(--line);stroke-width:1.2;cursor:pointer;transition:fill .15s}
+.stg:hover rect{stroke:var(--acc)} .stg.on rect{fill:var(--accbg);stroke:var(--acc);stroke-width:2}
+.stg text{fill:var(--fg);font-size:13px;pointer-events:none} .stg .sn{fill:var(--mut);font-size:11px;font-family:var(--mono)}
+.stg .cnt{font-size:11px;fill:var(--mut)}
+.arr{stroke:var(--mut);stroke-width:1.5;fill:none} .arrl{stroke:var(--warn);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+.lbl{fill:var(--mut);font-size:11.5px} .lblw{fill:var(--warn);font-size:11.5px}
+.panel{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.panel h3{margin-bottom:4px} .panel .q{color:var(--mut);font-size:13px;margin-bottom:10px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:8px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);min-width:0}
+.opt b{font-size:13.5px} .opt p{font-size:12.5px;color:var(--mut);margin-top:2px}
+.opt a{font-size:12px}
+.st{display:inline-block;font-size:10.5px;border-radius:4px;padding:0 6px;margin-left:6px;vertical-align:1px;font-weight:500}
+.st.cur{background:var(--acc);color:var(--card)} .st.done{background:var(--chip);color:var(--fg);outline:1px solid var(--line)} .st.team{background:var(--accbg);color:var(--acc)}
+.st.cand{background:var(--warnbg);color:var(--warn)} .st.ref{background:transparent;color:var(--mut);outline:1px solid var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mut);margin-top:10px} .legend .st{margin-left:0;margin-right:4px}
+/* 매트릭스 */
+.tw{overflow-x:auto} table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap} th:first-child,td:first-child{text-align:left}
+thead th{font-size:11.5px;color:var(--mut);font-weight:500}
+td.d{color:var(--acc);font-weight:700} td.c{color:var(--warn);font-weight:700}
+/* 카드 */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.filters button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:20px;padding:4px 12px;cursor:pointer}
+.filters button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:14px}
+.ac{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0;scroll-margin-top:20px}
+.ac.hl{outline:2px solid var(--acc)}
+.ac .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.fam{font-size:11px;font-family:var(--mono);color:var(--mut)}
+.ac .one{font-size:13.5px}
+.dg{background:var(--bg);border-radius:8px;padding:4px} .dg svg{display:block;width:100%;height:auto}
+.n-in rect{fill:var(--chip);stroke:var(--mut);stroke-width:1} .n-op rect{fill:var(--card);stroke:var(--fg);stroke-width:1.1}
+.n-lat rect{fill:var(--lat);stroke:var(--latb);stroke-width:1.2} .n-out rect{fill:var(--accbg);stroke:var(--acc);stroke-width:1.2}
+.n-loss rect{fill:var(--warnbg);stroke:var(--warn);stroke-width:1.2;stroke-dasharray:4 3}
+.dg text{fill:var(--fg);font-size:10px;font-family:var(--sans)} .dg .cap{fill:var(--mut);font-size:9.5px}
+.e{stroke:var(--mut);stroke-width:1.2;fill:none} .e.dash{stroke-dasharray:4 3} .e.w{stroke:var(--warn)}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12.5px} .pc div{min-width:0} .pc b{display:block;font-size:11.5px;color:var(--mut);font-weight:500}
+.where{font-size:12.5px;border-top:1px dashed var(--line);padding-top:8px} .where b{color:var(--mut);font-weight:500;font-size:11.5px;margin-right:6px}
+.chip{display:inline-block;font-size:11px;background:var(--chip);border-radius:4px;padding:0 6px;margin:1px 3px 1px 0}
+.nvb{font-size:10.5px;color:var(--nv);font-weight:700;border:1px solid var(--nv);border-radius:4px;padding:0 5px}
+a{color:var(--acc)} .src li{font-size:12.5px}
+@media (max-width:520px){.pc{grid-template-columns:1fr}}
+</style>
+<main>
+<header><h1>물리 AI 아키텍처 지도 v2</h1>
+<p class="mut">우리 프레임워크의 어느 단계에 무엇을 쓸 수 있는지 + 아키텍처별 구조 그림 · 2026-11-20 · 사실 근거는 v1 과 같은 출처(논문 · NVIDIA 문서), 우리 수치는 저장소 실험 기록 · v1 은 별도 링크로 유지</p></header>
+
+<section class="key"><h2>읽는 법</h2><ul>
+<li><b>A. 프레임워크</b>: 우리 파이프라인을 8단계로 나눔. 단계를 누르면 그 자리에 들어갈 수 있는 방법이 나옴 (현재 사용 · 해봄 · 팀이 함 · 후보 · 참고).</li>
+<li><b>B. 단계 × 방법 표</b>: 한 방법이 여러 단계에 걸치는 경우(예: 물리 잔차 = 학습 손실이자 신뢰도 지표)를 한눈에.</li>
+<li><b>C. 아키텍처 카드</b>: 14개 구조의 데이터 흐름 그림 · 장단점 · 우리 프레임워크 위치. 계열 버튼으로 거르기.</li>
+<li>핵심 (단계 번호 ①~⑧): 지금까지 바꿔본 곳은 <b>③ 물리 예측 구조</b>와 데이터 양뿐. 문헌이 효과를 본 곳은 <b>⑤ 신뢰도 판단 · ⑧ 재학습 루프</b> — 우리는 ⑤ 가 비어 있음.</li>
+</ul></section>
+
+<section><h2>A. 우리 프레임워크와 들어갈 자리</h2>
+<div class="fw"><div class="fwsvg"><svg id="fwsvg" viewBox="0 0 1060 250" role="img" aria-label="8단계 프레임워크 흐름도"></svg></div>
+<div class="legend"><span><span class="st cur">현재</span>지금 쓰는 것</span><span><span class="st done">해봄</span>이번 비교 실험에서 시험</span><span><span class="st team">팀이 함</span>팀 저장소 기록</span><span><span class="st cand">후보</span>다음 실험 후보</span><span><span class="st ref">참고</span>문헌 · NVIDIA 사례</span></div>
+<div class="panel" id="panel"></div></div></section>
+
+<section><h2>B. 단계 × 방법</h2>
+<div class="tw"><table id="mx"></table></div>
+<p class="mut" style="margin-top:6px">● 해당 단계에서 역할 · ○ 부분적. 초록 = 우리가 이미 씀, 주황 = 후보.</p></section>
+
+<section><h2>C. 아키텍처별 구조</h2>
+<div class="filters" id="flt"></div>
+<div class="cards" id="cards"></div>
+<p class="mut" style="margin-top:10px">그림 범례: 회색 = 입력 · 흰색 = 연산 층 · 보라 = 잠재(중간) 표현 · 초록 = 출력 · 주황 점선 = 손실 또는 유도 신호. 구조 그림은 논문 · 문서 설명을 단순화한 것.</p></section>
+
+<section><h2>출처</h2><ul class="src">
+<li><a href="https://docs.nvidia.com/physicsnemo/latest/user-guide/model_architectures.html">NVIDIA PhysicsNeMo — Model Architectures</a> · <a href="https://github.com/NVIDIA/physicsnemo/blob/main/examples/README.md">Examples</a> · <a href="https://docs.nvidia.com/physicsnemo/25.08/user-guide/physics_addition.html">Physics addition</a> · <a href="https://docs.nvidia.com/physicsnemo/latest/physicsnemo/examples/active_learning/active_learning_aero/README.html">Active Learning (Aero)</a> · <a href="https://github.com/NVIDIA/physicsnemo-cfd/blob/main/workflows/domino_design_sensitivities/README.md">DoMINO design sensitivities</a> · <a href="https://docs.nvidia.com/physicsnemo/26.05/physicsnemo/examples/generative/topodiff/README.html">TopoDiff</a> · <a href="https://docs.nvidia.com/physicsnemo/26.05/physicsnemo/examples/cfd/stokes_mgn/README.html">Stokes MGN</a> · <a href="https://docs.nvidia.com/deeplearning/modulus/modulus-sym/user_guide/advanced/parametrized_simulations.html">Heat Sink PINN</a></li>
+<li><a href="https://arxiv.org/abs/2111.03794">PINO</a> · <a href="https://ar5iv.labs.arxiv.org/html/2309.00583">GINO</a> · <a href="https://arxiv.org/html/2408.01600v3">PI-GANO</a> · <a href="https://arxiv.org/abs/2402.02366">Transolver</a> · <a href="https://arxiv.org/html/2512.20399v1">GeoTransolver</a> · <a href="https://arxiv.org/abs/2402.12365">UPT</a> · <a href="https://arxiv.org/html/2506.04375v1">Rayleigh quotient eigen</a> · <a href="https://arxiv.org/html/2511.10761">3D U-Net differentiable pipeline</a></li>
+<li>루프 · 신뢰도 쪽: <a href="https://arxiv.org/abs/2002.01927v7">SOLO</a> · <a href="https://arxiv.org/pdf/2109.13337">DEBOSH</a> · <a href="https://arxiv.org/abs/2006.09191">Weighted retraining</a> · <a href="https://ar5iv.labs.arxiv.org/html/2107.06882">COMs</a> · <a href="https://arxiv.org/pdf/2607.09763">MoE neural operator</a> · <a href="https://arxiv.org/pdf/2603.06760">NeuralFoil co-design</a> · <a href="https://arxiv.org/html/2601.18638v1">Physics-informed uncertainty</a> · <a href="https://arxiv.org/html/2603.03211">Shape-DINO</a> · <a href="https://ar5iv.arxiv.org/html/2208.09591">TopoDiff paper</a></li>
+</ul></section>
+</main>
+
+<script>
+const SVGNS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const ST={cur:'현재',done:'해봄',team:'팀이 함',cand:'후보',ref:'참고'};
+
+/* ---------- 프레임워크 단계 ---------- */
+const STAGES=[
+ {id:'s1',t:'설계 조건 입력',s:'말 · PPT · 이미지 · STEP',q:'무엇을 만들지 · 기준(진동수 ≥ 95 Hz 등)을 정하는 단계 — 아키텍처 선택과는 무관',o:[
+  ['조건 · 기준 추출 (해커톤 입력부)','cur','기존 GUI 입력 단계',null]]},
+ {id:'s2',t:'형상 표현 · 생성',s:'형상 AI',q:'탐색 변수가 무엇인가 — 형상을 몇 개 숫자로 표현하나',o:[
+  ['DeepSDF 잠재 z 16개','cur','지금 형상 AI. 탐색은 z 위에서',null],
+  ['확산 모델 + 유도 (TopoDiff)','ref','생성 중에 성능 회귀기 · 끊김 분류기로 유도','diff'],
+  ['소수 매개변수 형상','ref','방열판 PINN(6변수) · 3D U-Net 파이프라인(반경 · 길이 · 각도). 단순하지만 자유도 작음','pinn']]},
+ {id:'s3',t:'물리 예측 구조',s:'물리 AI 아키텍처',q:'형상 → 성능 · 분포를 빠르게 계산하는 대리모델 구조',o:[
+  ['FNO','cur','복셀 격자. 진동수 MAPE 17.5%, 0.05초','fno'],
+  ['GINO','done','표면 점. MAPE 10.9%, 2.4초. 탐색 결과는 개선 없음','gino'],
+  ['Transolver / GeoTransolver','cand','PhysicsNeMo 구현. 표면 점 입력으로 GINO 와 같은 조건 비교 가능','trans'],
+  ['3D U-Net','cand','복셀 그대로. FNO 와 같은 입력이라 비교 쉬움','unet'],
+  ['DoMINO · MeshGraphNet · UPT · FigConvUNet · DeepONet','ref','공력 · 메시 중심. 우리 복셀 문제엔 우선순위 낮음','domino']]},
+ {id:'s4',t:'학습 방식',s:'손실 · 데이터',q:'같은 구조라도 무엇으로 학습하나 — 물리 정보(Physics-informed)는 여기',o:[
+  ['데이터 학습 (정밀 계산 정답)','cur','389개 → 734개 시험: 응력 · 온도 개선, 진동수 악화',null],
+  ['물리 손실 추가 (PINO 방식)','cand','온도 분포에 열전도 잔차 → 먼저 시험 가능한 곳','pino'],
+  ['데이터 학습 후 물리 미세조정','cand','PhysicsNeMo Stokes 예제 방식','pinn'],
+  ['데이터 없이 방정식만 (PI-GANO · 레일리 몫)','ref','진동수 = 고유치 문제 → 레일리 몫 신경망이 직접 대응','rq'],
+  ['보수적 학습 (COMs)','cand','탐색이 찾은 가짜 고득점 형상의 예측을 낮춤',null],
+  ['기울기까지 맞추는 학습 (Shape-DINO)','ref','탐색에 쓰는 기울기 정확도 향상',null]]},
+ {id:'s5',t:'신뢰도 판단',s:'지금 비어 있음',q:'AI 예측을 믿어도 되는 형상인가 — 문헌이 공통으로 넣는 단계',o:[
+  ['FNO 앙상블 예측 차이','cand','1순위 후보. 예측 0.05초라 5개여도 부담 작음','fno'],
+  ['가우시안 과정 머리 (PhysicsNeMo 능동학습)','ref','GeoTransolver + 변분 GP 로 불확실성','trans'],
+  ['물리 잔차 = 불확실성','cand','모드 형상 출력 시 ‖Kφ − λMφ‖. 메타표면 연구는 앙상블 10개와 비슷한 수준 보고','rq'],
+  ['잠재 거리 게이트','ref','MoE 연산자: 학습 분포 밖이면 정밀 계산으로',null],
+  ['신뢰도 제약','ref','NeuralFoil: 신뢰도 ≥ 0.6 을 최적화 제약으로',null]]},
+ {id:'s6',t:'탐색 · 최적화',s:'z 위에서 기준 만족',q:'대리모델 위에서 설계를 움직이는 방법',o:[
+  ['Adam · 기울기 (z 16개, 300회)','cur','현재. 기울기 품질이 대리모델 매끄러움에 좌우됨',null],
+  ['연결성(끊김) 벌점','cand','GINO 389 형상 끊김 확인됨','diff'],
+  ['베이지안 최적화 · PSO · MMA','ref','DEBOSH(BO) · 메타표면(PSO) · 3D U-Net 파이프라인(MMA)',null],
+  ['매끄러운 활성화 점검','cand','DoMINO 문서: SiLU · GELU 권장, ReLU · max pooling 피하기','domino']]},
+ {id:'s7',t:'정밀 판정',s:'팀 FEM 엔진',q:'AI 가 고른 형상을 정밀 계산으로 확인 (형상당 약 1분)',o:[
+  ['끝 형상 1개 판정','cur','비교 실험 4회 모두 불합격',null],
+  ['탐색 경로 후보 선별','team','능동학습 3회차 경로 31개 중 11개 통과 → 시연 출발점',null]]},
+ {id:'s8',t:'재학습 · 마무리',s:'루프를 닫는 곳',q:'정밀 계산 결과를 다시 학습에 넣거나, 정밀 계산으로 마무리 최적화',o:[
+  ['능동학습 (정밀 계산 → 재학습)','team','5회. 같은 조건 반복 시 오차 85% → 16%',null],
+  ['정밀 최적화로 마무리 (하이브리드)','team','시연 형상 85.6 g · 151.1 Hz 합격',null],
+  ['획득 전략 (불확실성 · 균형 무작위 · 잠재 새로움)','ref','PhysicsNeMo 능동학습 예제','trans'],
+  ['생성모델까지 가중 재학습','ref','잠재공간이 좋은 영역 쪽으로 정렬 (NeurIPS 2020)',null]]}];
+
+function drawFW(){
+ const s=document.getElementById('fwsvg');
+ const defs=el('defs',{},s); const m=el('marker',{id:'ah',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},defs); el('path',{d:'M0,0 L10,5 L0,10 z',class:'mk'},m).style.fill='var(--mut)';
+ const m2=el('marker',{id:'ahw',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},defs); el('path',{d:'M0,0 L10,5 L0,10 z'},m2).style.fill='var(--warn)';
+ const W=118,H=74,G=14,y=70;
+ STAGES.forEach((st,i)=>{
+  const x=8+i*(W+G); const g=el('g',{class:'stg',tabindex:0,role:'button','data-i':i},s);
+  el('rect',{x,y,width:W,height:H,rx:9},g);
+  const n=el('text',{x:x+10,y:y+17,class:'sn'},g); n.textContent=String(i+1).padStart(2,'0');
+  const a=el('text',{x:x+10,y:y+37,'font-weight':700},g); a.textContent=st.t;
+  const b=el('text',{x:x+10,y:y+55,class:'cnt'},g); b.textContent=st.s;
+  const c=st.o.filter(o=>o[1]==='cand').length; if(c){const t=el('text',{x:x+W-10,y:y+17,class:'cnt','text-anchor':'end'},g); t.textContent='후보 '+c; t.style.fill='var(--warn)'}
+  if(i<STAGES.length-1) el('path',{d:`M${x+W+1},${y+H/2} L${x+W+G-2},${y+H/2}`,class:'arr','marker-end':'url(#ah)'},s);
+  g.addEventListener('click',()=>pick(i)); g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(i)}});
+ });
+ // 루프: 재학습 → 물리 예측 구조
+ const xs=8+2*(W+G)+W/2, xe=8+7*(W+G)+W/2;
+ el('path',{d:`M${xe},${y+H+2} L${xe},${y+H+48} L${xs},${y+H+48} L${xs},${y+H+6}`,class:'arrl','marker-end':'url(#ahw)'},s);
+ const lt=el('text',{x:(xs+xe)/2,y:y+H+42,class:'lblw','text-anchor':'middle'},s); lt.textContent='능동학습 루프: 정밀 계산 결과를 학습 데이터로 (문헌의 공통 구조)';
+ // 상단 묶음
+ const br=(i0,i1,txt)=>{const x0=8+i0*(W+G), x1=8+i1*(W+G)+W; el('path',{d:`M${x0},${y-10} L${x0},${y-18} L${x1},${y-18} L${x1},${y-10}`,class:'arr'},s); const t=el('text',{x:(x0+x1)/2,y:y-25,class:'lbl','text-anchor':'middle'},s); t.textContent=txt};
+ br(2,3,'물리 AI = 구조 × 학습 방식'); br(4,4,'신뢰도'); br(5,6,'AI 탐색 → 판정');
+}
+function pick(i){
+ document.querySelectorAll('.stg').forEach((g,j)=>g.classList.toggle('on',j===i));
+ const st=STAGES[i], p=document.getElementById('panel');
+ p.innerHTML=`<h3>${String(i+1).padStart(2,'0')} · ${st.t}</h3><p class="q">${st.q}</p><div class="opts">`+st.o.map(o=>`<div class="opt"><b>${o[0]}</b><span class="st ${o[1]}">${ST[o[1]]}</span><p>${o[2]}</p>${o[3]?`<a href="#c-${o[3]}" data-c="${o[3]}">구조 그림 보기 →</a>`:''}</div>`).join('')+'</div>';
+ p.querySelectorAll('a[data-c]').forEach(a=>a.addEventListener('click',()=>{setF('all');const c=document.getElementById('c-'+a.dataset.c);c.classList.add('hl');setTimeout(()=>c.classList.remove('hl'),1800)}));
+}
+
+/* ---------- 단계 × 방법 표 ---------- */
+const MX=[['FNO','●','','','','','',''],['GINO · Transolver · 3D U-Net','●','','','','','',''],['물리 손실 (PINO · PINN)','○','●','','','','',''],['물리 잔차','','●','●','','','',''],['앙상블','','','●','○','','○',''],['연결성 벌점','','','','●','','',''],['정밀 계산 경로 선별','','','','','●','●',''],['능동학습','','○','','','●','●',''],['정밀 최적화 마무리','','','','','●','','●']];
+const MXS={0:'d',1:'d',2:'c',3:'c',4:'c',5:'c',6:'d',7:'d',8:'d'};
+function drawMX(){
+ const h=['방법','③ 구조','④ 학습','⑤ 신뢰도','⑥ 탐색','⑦ 판정','⑧ 재학습','⑧ 마무리'];
+ document.getElementById('mx').innerHTML='<thead><tr>'+h.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>'+MX.map((r,i)=>'<tr>'+r.map((c,j)=>`<td class="${j&&c?MXS[i]:''}">${c}</td>`).join('')+'</tr>').join('')+'</tbody>';
+}
+
+/* ---------- 아키텍처 카드 ---------- */
+// 노드: [x,y,w,h,'라벨\n둘째줄',종류]  간선: [from,to,옵션]
+const A=[
+{id:'fno',name:'FNO',fam:'연산자',nv:1,one:'격자 위 함수를 푸리에 공간에서 섞어 함수 → 함수 사상을 학습',
+ n:[[4,52,52,42,'격자 a(x)\n점유 0/1','in'],[66,52,40,42,'P\n올림','op'],[118,22,120,102,'','lat'],[250,52,40,42,'Q\n내림','op'],[302,52,54,42,'u(x)\n분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],ex:[[178,44,'푸리에 층 × L'],[178,66,'FFT → 저주파 모드만'],[178,82,'× 학습 가중치 R'],[178,98,'→ 역 FFT'],[178,114,'+ W·v (국소 경로)']],
+ pro:'전역 상호작용을 적은 계산으로 · 빠름(우리 0.05초)',con:'규칙 격자 전제 · 경계가 복잡하면 계단 근사',where:['③ 구조','⑤ 앙상블 바탕'],us:'현재 물리 AI. 진동수 MAPE 17.5%, 탐색 시 과대평가'},
+{id:'gino',name:'GINO',fam:'연산자',nv:0,one:'불규칙 점 구름을 잠재 격자로 옮겨 FNO 를 돌리고 다시 임의 점으로',
+ n:[[4,50,56,46,'점 구름\n+ SDF','in'],[70,50,54,46,'GNO\n반경 적분','op'],[136,38,84,70,'잠재 격자\nFNO','lat'],[232,50,46,46,'GNO\n디코더','op'],[290,50,66,46,'질의 점\n분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],ex:[[178,124,'원 논문: 데이터 손실만 (물리 손실은 향후 과제)']],
+ pro:'임의 형상 · 메시 독립 · 자동차 압력 오차 7~8%',con:'점 샘플링 · 이웃 탐색 비용 (우리 2.4초) · 샘플마다 기울기 잡음',where:['③ 구조'],us:'우리: MAPE 10.9% (FNO 보다 나음), 탐색은 끊긴 형상 · 734 는 수렴 실패'},
+{id:'deeponet',name:'DeepONet',fam:'연산자',nv:1,one:'입력 함수(가지망)와 위치(줄기망)의 특징 내적으로 출력',
+ n:[[4,14,74,40,'입력 함수\n센서 값','in'],[96,14,72,40,'가지망','op'],[4,92,74,40,'위치 x','in'],[96,92,72,40,'줄기망','op'],[196,53,62,40,'내적 Σ\nb_k · t_k','op'],[282,53,74,40,'u(x)','out']],
+ e:[[0,1],[2,3],[1,4],[3,4],[4,5]],
+ pro:'구조 단순 · 물리 손실 붙이기 쉬움 (PI-DeepONet)',con:'형상이 크게 바뀌면 같은 점 예측이 같아지는 한계 (PI-GANO 논문 지적)',where:['③ 구조','④ PI-DeepONet'],us:'PhysicsNeMo Darcy 예제는 가지망 = FNO'},
+{id:'domino',name:'DoMINO',fam:'연산자',nv:1,one:'점 구름에서 다중 스케일 형상 특징 + 질의점 주변 이웃으로 표면 · 부피 분포',
+ n:[[4,50,56,46,'STL\n점 구름','in'],[70,50,76,46,'다중 스케일\n격자 특징','lat'],[156,50,76,46,'질의점 주변\n이웃 (k-NN)','op'],[242,50,50,46,'결합\n반복','op'],[302,50,54,46,'압력 ·\n전단 분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],ex:[[178,124,'설계 민감도: 출력 → 표면 좌표로 자동미분']],
+ pro:'자동차 공력 사전학습 모델(NIM) · 설계 민감도 워크플로',con:'k-NN 연결이 바뀌면 기울기 불연속 · 작은 변형에서만 기울기 신뢰',where:['③ 구조','⑥ 기울기 주의사항'],us:'우리에겐 "매끄러운 활성화 · 작은 변형" 주의사항이 직접 참고'},
+{id:'trans',name:'Transolver',fam:'트랜스포머',nv:1,one:'물리 상태가 비슷한 점끼리 조각(slice)으로 묶어 조각 사이 주의 → 선형 복잡도',
+ n:[[4,52,46,42,'N 개 점\n(메시)','in'],[60,52,62,42,'조각 배정\n(가중)','op'],[132,52,58,42,'M 개\n조각 토큰','lat'],[200,52,58,42,'조각끼리\n주의','op'],[268,52,40,42,'점으로\n분배','op'],[316,52,40,42,'분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4],[4,5]],ex:[[178,22,'× L 층  ·  M ≪ N 이라 계산량 선형'],[178,124,'GeoTransolver: + 형상·경계조건 공유 문맥 교차 주의 + 게이트']],
+ pro:'벤치마크 6개 평균 22% 개선 · 임의 메시 · GeoTransolver 는 항력 R² 0.98',con:'점 수 많으면 메모리 · 원 논문들은 최적화 루프 미실행',where:['③ 구조','⑤ GP 머리 (PhysicsNeMo 능동학습)'],us:'후보: 같은 표면 점 입력으로 GINO 와 직접 비교 가능'},
+{id:'upt',name:'UPT',fam:'트랜스포머',nv:0,one:'격자 · 입자 상관없이 고정 개수 잠재 토큰으로 압축해 확장',
+ n:[[4,52,56,42,'격자 ·\n입자','in'],[70,52,50,42,'인코더','op'],[130,40,90,66,'잠재 토큰\n트랜스포머','lat'],[230,52,60,42,'질의\n디코더','op'],[300,52,56,42,'임의 점','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],
+ pro:'입력 크기와 무관하게 확장 · AB-UPT 는 날개 압력 일부 지표 최고',con:'우리 규모(복셀 수만 칸)에선 장점 작음',where:['③ 구조'],us:'참고'},
+{id:'mgn',name:'MeshGraphNet',fam:'그래프',nv:1,one:'메시 노드 · 간선에 메시지를 여러 번 전달',
+ n:[[4,52,62,42,'메시\n노드 · 간선','in'],[76,52,48,42,'인코더','op'],[134,40,88,66,'메시지 전달\n× 15','lat'],[232,52,48,42,'디코더','op'],[290,52,66,42,'노드 값','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],ex:[[178,124,'PhysicsNeMo: 학습 후 PINN 물리 미세조정 예제']],
+ pro:'메시 그대로 · 구조(변형 판 · 충돌) 예제 있음',con:'전달 횟수만큼만 정보가 퍼짐 → 전역 모드(진동수) 에 불리할 수 있음 (확인 필요)',where:['③ 구조','④ 물리 미세조정'],us:'참고'},
+{id:'unet',name:'3D U-Net',fam:'합성곱',nv:1,one:'복셀을 줄였다 키우며 같은 해상도끼리 건너뛰기 연결',
+ n:[[4,14,50,32,'복셀','in'],[66,14,60,30,'합성곱 ↓','op'],[96,60,60,30,'합성곱 ↓','op'],[140,104,76,30,'병목','lat'],[200,60,60,30,'합성곱 ↑','op'],[230,14,60,30,'합성곱 ↑','op'],[302,14,54,32,'분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[1,5,'dash'],[2,4,'dash']],
+ pro:'구현 단순 · FNO 와 같은 복셀 입력',con:'국소 수용 영역 · 해상도 고정',where:['③ 구조'],us:'후보: 복셀 입력이라 FNO 와 같은 조건 비교 쉬움'},
+{id:'figconv',name:'FigConvUNet',fam:'합성곱',nv:1,one:'점 구름을 여러 납작한 격자로 투영해 합성곱',
+ n:[[4,52,50,42,'점 구름','in'],[64,48,82,50,'여러 납작한\n격자로 투영','op'],[156,48,74,50,'합성곱\nU-Net','lat'],[240,52,56,42,'점으로\n보간','op'],[306,52,50,42,'분포','out']],
+ e:[[0,1],[1,2],[2,3],[3,4]],
+ pro:'점 구름을 격자 연산 속도로',con:'투영 해상도 선택',where:['③ 구조'],us:'참고 (자동차 공력 예제)'},
+{id:'pinn',name:'PINN',fam:'물리 정보',nv:1,one:'신경망이 곧 해. 방정식 잔차 · 경계조건을 손실로',
+ n:[[4,52,78,42,'(x, 형상 변수)','in'],[92,52,46,42,'MLP','op'],[148,52,44,42,'u(x)','out'],[214,12,92,44,'방정식 잔차\n(자동미분)','loss'],[214,92,92,40,'경계조건','loss']],
+ e:[[0,1],[1,2],[2,3,'w'],[2,4,'w']],ex:[[178,146,'']],
+ pro:'정답 데이터 없이도 학습 · 형상 변수 넣으면 설계 공간 전체 (방열판 6변수)',con:'형상 자유도 크면 어려움 · 학습 느림',where:['④ 학습','② 소수 매개변수'],us:'방열판: 최고 온도 77.41 vs OpenFOAM 72.68 °C'},
+{id:'pino',name:'PINO',fam:'물리 정보',nv:1,one:'FNO + 데이터 손실(저해상도) + 방정식 손실(고해상도)',
+ n:[[4,52,50,42,'격자 a','in'],[64,52,48,42,'FNO','op'],[122,52,42,42,'u','out'],[184,10,96,46,'데이터 손실\n(저해상도 정답)','loss'],[184,92,96,46,'방정식 손실\n(고해상도 잔차)','loss'],[296,52,60,42,'가중 합','loss']],
+ e:[[0,1],[1,2],[2,3,'w'],[2,4,'w'],[3,5,'w'],[4,5,'w']],
+ pro:'데이터 적은 곳을 방정식이 보완 · 데이터 없이도 학습 가능',con:'방정식 잔차를 격자에서 계산할 수 있어야 함 (분포 출력 필요)',where:['④ 학습','⑤ 잔차 = 불확실성'],us:'후보: 우리 FNO 온도 분포에 열전도 잔차부터'},
+{id:'pigano',name:'PI-GANO',fam:'물리 정보',nv:0,one:'형상 점들을 풀링한 형상 특징을 연산자에 넣고 방정식만으로 학습',
+ n:[[4,8,76,34,'형상 경계 점','in'],[92,8,92,34,'MLP + 평균 풀링','op'],[4,56,76,34,'PDE 매개변수','in'],[92,56,92,34,'MLP + 최대 풀링','op'],[4,104,76,34,'질의 x','in'],[200,50,70,50,'DCON\n연산 층','lat'],[284,55,72,40,'u(x)\n→ 잔차 손실','loss']],
+ e:[[0,1],[2,3],[1,5],[3,5],[4,5],[5,6,'w']],
+ pro:'형상 · 매개변수가 함께 바뀌어도 데이터 없이 학습 (논문 주장)',con:'2D 문제(Darcy · 판)까지 · 3D 구조 사례 못 찾음',where:['④ 학습'],us:'참고: 형상 인코딩 방식'},
+{id:'rq',name:'레일리 몫 고유치망',fam:'물리 정보',nv:0,one:'모드 형상을 신경망으로 두고 레일리 몫을 최소화 → 진동수',
+ n:[[4,52,40,42,'x','in'],[54,52,74,42,'신경망\n모드 φ(x)','op'],[138,46,112,54,'R(φ) =\nφᵀKφ / φᵀMφ','lat'],[262,52,94,42,'λ₁ = min R\nf₁ = √λ₁ / 2π','out']],
+ e:[[0,1],[1,2],[2,3]],ex:[[178,124,'R(φ) ≥ λ₁ 항상 → 모드가 나쁘면 진동수가 높게 나옴']],
+ pro:'진동수 = 고유치 문제에 직접 대응 · 2D 구조 1차 진동수 1.4% 오차 · 데이터 없이',con:'고차 모드일수록 나빠짐 · 3D 복셀 · 형상 자유도 큰 경우 미확인',where:['④ 학습','⑤ 잔차 ‖Kφ−λMφ‖'],us:'후보 아이디어: 진동수를 숫자 대신 모드 형상으로 예측 (확인 필요)'},
+{id:'diff',name:'확산 모델 (TopoDiff)',fam:'생성',nv:1,one:'잡음에서 형상을 점점 만들며 성능 회귀기 · 끊김 분류기 기울기로 유도',
+ n:[[4,52,44,42,'잡음','in'],[58,46,86,54,'잡음 제거\n× T 단계','lat'],[154,52,54,42,'형상','out'],[228,8,104,42,'컴플라이언스\n회귀기','loss'],[228,96,104,42,'떠 있는 재료\n분류기','loss']],
+ e:[[0,1],[1,2],[3,1,'w dash'],[4,1,'w dash']],
+ pro:'불가능 형상 억제를 생성 단계에서 · cGAN 대비 성능 오차 약 1/8',con:'2D · 학습 데이터 많이 필요',where:['② 형상 생성','⑥ 끊김 억제'],us:'끊긴 형상 문제에 분류기 아이디어 참고'}];
+
+function diag(c){
+ const s=el('svg',{viewBox:'0 0 360 150',role:'img','aria-label':c.name+' 구조 그림'});
+ const d=el('defs',{},s); const m=el('marker',{id:'m'+c.id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'},d); el('path',{d:'M0,0 L10,5 L0,10 z'},m).style.fill='var(--mut)';
+ const mw=el('marker',{id:'w'+c.id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'},d); el('path',{d:'M0,0 L10,5 L0,10 z'},mw).style.fill='var(--warn)';
+ const C=k=>[k[0]+k[2]/2,k[1]+k[3]/2];
+ c.e.forEach(([a,b,o=''])=>{const A_=c.n[a],B_=c.n[b];let [x1,y1]=C(A_),[x2,y2]=C(B_);
+  // 박스 경계에서 시작·끝
+  const clip=(k,x,y,tx,ty)=>{const cx=k[0]+k[2]/2,cy=k[1]+k[3]/2,dx=tx-cx,dy=ty-cy;const sx=dx?(k[2]/2)/Math.abs(dx):1e9,sy=dy?(k[3]/2)/Math.abs(dy):1e9;const t=Math.min(sx,sy);return [cx+dx*t,cy+dy*t]};
+  const p1=clip(A_,x1,y1,x2,y2),p2=clip(B_,x2,y2,x1,y1);
+  const w=o.includes('w'); el('path',{d:`M${p1[0]},${p1[1]} L${p2[0]},${p2[1]}`,class:'e'+(w?' w':'')+(o.includes('dash')?' dash':''),'marker-end':`url(#${w?'w':'m'}${c.id})`},s)});
+ c.n.forEach(k=>{const g=el('g',{class:'n-'+k[5]},s);el('rect',{x:k[0],y:k[1],width:k[2],height:k[3],rx:6},g);
+  const L=k[4]?k[4].split('\n'):[];L.forEach((t,i)=>{const tx=el('text',{x:k[0]+k[2]/2,y:k[1]+k[3]/2+(i-(L.length-1)/2)*13+4,'text-anchor':'middle'},g);tx.textContent=t})});
+ (c.ex||[]).forEach(([x,y,t])=>{if(!t)return;const tx=el('text',{x,y,'text-anchor':'middle',class:y>118||y<30?'cap':''},s);tx.textContent=t});
+ return s;
+}
+const FAMS=['전체','연산자','트랜스포머','그래프','합성곱','물리 정보','생성'];
+let curF='all';
+function setF(f){curF=f;document.querySelectorAll('#flt button').forEach(b=>b.classList.toggle('on',b.dataset.f===f));document.querySelectorAll('.ac').forEach(c=>c.hidden=!(f==='all'||c.dataset.f===f))}
+function drawCards(){
+ const fl=document.getElementById('flt');FAMS.forEach((f,i)=>{const b=document.createElement('button');b.textContent=f;b.dataset.f=i?f:'all';b.onclick=()=>setF(b.dataset.f);fl.appendChild(b)});
+ const box=document.getElementById('cards');
+ A.forEach(c=>{const d=document.createElement('article');d.className='ac';d.id='c-'+c.id;d.dataset.f=c.fam;
+  d.innerHTML=`<div class="hd"><h3>${c.name} ${c.nv?'<span class="nvb">PhysicsNeMo</span>':''}</h3><span class="fam">${c.fam}</span></div><p class="one">${c.one}</p><div class="dg"></div>
+  <div class="pc"><div><b>강점</b>${c.pro}</div><div><b>한계</b>${c.con}</div></div>
+  <div class="where"><b>프레임워크 위치</b>${c.where.map(w=>`<span class="chip">${w}</span>`).join('')}<br><b>우리</b>${c.us}</div>`;
+  d.querySelector('.dg').appendChild(diag(c));box.appendChild(d)});
+ setF('all');
+}
+drawFW();pick(4);drawMX();drawCards();
+</script>

@@ -27,3 +27,4 @@
 - `pages/lit_review_v1.html`: 대리모델 역설계 문헌 조사 (출처 11건)
 - `pages/summary_v1.html`: 팀 능동학습 5회 · 하이브리드 시연 · GINO/FNO 비교 · 문헌 종합. v2·v3 의 "GUI FNO 80.1 g 합격" 문구 정정 포함 (시연 합격 형상은 하이브리드 결과).
 - `pages/arch_review_v1.html`: 물리 AI 아키텍처 지도 (신경 연산자 · 트랜스포머 · 그래프 · 물리 정보 계열, NVIDIA PhysicsNeMo 모델 · 예제)
+- `pages/arch_review_v2.html`: 아키텍처 지도 v2 — 8단계 프레임워크별 적용 자리(클릭) · 단계×방법 표 · 아키텍처 14개 구조 그림
